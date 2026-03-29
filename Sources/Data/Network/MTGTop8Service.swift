@@ -107,8 +107,8 @@ struct MTGTop8Service: MTGTop8ServiceProtocol {
     }
 
     private func parseArchetypes(from html: String) -> [MTGTop8Archetype] {
-        // Split by table rows with hover_tr class
-        let rowPattern = #"<tr class="hover_tr">(.*?)</tr>"#
+        // Split by table rows with hover_tr class (quotes may or may not be present)
+        let rowPattern = #"<tr class=.?hover_tr.?>(.*?)</tr>"#
         guard let rowRegex = try? NSRegularExpression(pattern: rowPattern, options: .dotMatchesLineSeparators) else {
             return []
         }
@@ -126,22 +126,16 @@ struct MTGTop8Service: MTGTop8ServiceProtocol {
             guard let rowRange = Range(match.range(at: 1), in: html) else { continue }
             let rowContent = String(html[rowRange])
 
-            // Extract deck name from anchor tag
-            let namePattern = #"<a\s+href="event\?[^"]*">([^<]+)</a>"#
+            // Extract deck name from anchor tag (href may or may not be quoted)
+            let namePattern = #"<a\s+href=.?event\?[^>]*>([^<]+)</a>"#
             guard let nameRegex = try? NSRegularExpression(pattern: namePattern),
                   let nameMatch = nameRegex.firstMatch(in: rowContent, range: NSRange(rowContent.startIndex..., in: rowContent)),
                   let nameRange = Range(nameMatch.range(at: 1), in: rowContent) else { continue }
             let deckName = String(rowContent[nameRange]).trimmingCharacters(in: .whitespacesAndNewlines)
 
-            // Extract format from the second <td> (first td after the anchor)
-            let tdPattern = #"<td>([^<]+)</td>"#
-            guard let tdRegex = try? NSRegularExpression(pattern: tdPattern) else { continue }
-            let tdMatches = tdRegex.matches(in: rowContent, range: NSRange(rowContent.startIndex..., in: rowContent))
-
-            // The first plain <td> after the anchor-containing td holds the format
-            guard let firstTdMatch = tdMatches.first,
-                  let formatRange = Range(firstTdMatch.range(at: 1), in: rowContent) else { continue }
-            let format = String(rowContent[formatRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+            // Extract format — look for known format names in the row
+            let knownFormats = ["Standard", "Pioneer", "Modern", "Legacy", "Vintage", "Pauper"]
+            let format = knownFormats.first { rowContent.contains($0) } ?? ""
 
             rawDecks.append(RawDeck(name: deckName, format: format))
         }
