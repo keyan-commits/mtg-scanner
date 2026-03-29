@@ -35,6 +35,50 @@ struct CardDetector: Sendable {
         applyPerspectiveCorrection(to: image, observation: observation)
     }
 
+    /// Detects cards, including subdividing wide rectangles that contain multiple
+    /// side-by-side cards (which Vision sees as one wide rectangle).
+    func detectAndCropAllCards(from image: CGImage) -> [CGImage] {
+        // First try standard multi-card detection
+        let observations = detectRectangleObservations(from: image)
+
+        if observations.count > 1 {
+            // Multiple cards detected — crop each
+            return observations.compactMap { cropCard(from: image, observation: $0) }
+        }
+
+        if let single = observations.first {
+            let cropped = cropCard(from: image, observation: single)
+
+            // Check if this single detection is actually multiple cards side by side
+            // A single MTG card has aspect ratio ~0.716 (width/height)
+            // If aspect ratio > 1.2, it's likely multiple cards in a row
+            if let cropped {
+                let aspectRatio = Double(cropped.width) / Double(cropped.height)
+                if aspectRatio > 1.2 {
+                    let estimatedCards = max(2, Int(round(aspectRatio / 0.716)))
+                    print("[MTGScanner] Wide rectangle detected (ratio \(String(format: "%.2f", aspectRatio))), subdividing into \(estimatedCards) cards")
+                    return subdivideImage(cropped, into: estimatedCards)
+                }
+                return [cropped]
+            }
+        }
+
+        // No rectangles detected — try the full image as a single card
+        return []
+    }
+
+    /// Subdivides a wide image into equal-width card segments.
+    private func subdivideImage(_ image: CGImage, into count: Int) -> [CGImage] {
+        let cardWidth = image.width / count
+        let height = image.height
+
+        return (0..<count).compactMap { index in
+            let x = index * cardWidth
+            let rect = CGRect(x: x, y: 0, width: cardWidth, height: height)
+            return image.cropping(to: rect)
+        }
+    }
+
     /// Detects and crops all cards at once. Use for small card counts only.
     func detectAndCropAll(from image: CGImage) async -> [CGImage] {
         let observations = detectRectangleObservations(from: image)
