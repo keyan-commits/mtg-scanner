@@ -338,13 +338,23 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
 
         print("[MTGScanner] All printings for '\(signals.cardName)': \(printings.count)")
 
-        // Filter by artist
+        // Filter by artist (fuzzy — match any word with ≤1 char difference)
         if let artistName = signals.artistName {
-            let la = artistName.lowercased()
+            let ocrWords = Set(artistName.lowercased().split(separator: " ").map(String.init))
             let filtered = printings.filter { card in
                 guard let a = card.artist else { return false }
-                let ca = a.lowercased()
-                return ca.contains(la) || la.contains(ca)
+                let dbWords = Set(a.lowercased().split(separator: " ").map(String.init))
+                // Match if at least 1 significant word (length ≥ 4) is shared or close
+                for ocrWord in ocrWords where ocrWord.count >= 4 {
+                    for dbWord in dbWords where dbWord.count >= 4 {
+                        if ocrWord == dbWord { return true }
+                        // Allow 1 character difference (e.g., "kaje" vs "kaja")
+                        if ocrWord.count == dbWord.count && levenshteinClose(ocrWord, dbWord) {
+                            return true
+                        }
+                    }
+                }
+                return false
             }
             if !filtered.isEmpty {
                 printings = filtered
@@ -395,8 +405,9 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
             return match
         }
 
-        // Multiple candidates — compare full card images
+        // Multiple candidates — compare full card images (limit to top 8 to prevent OOM)
         if printings.count > 1 {
+            printings = Array(printings.prefix(8))
             print("[MTGScanner] \(printings.count) candidates remain, comparing card images...")
             if let match = await resolveByImageComparison(source: cardImage, candidates: printings) {
                 print("[MTGScanner] ✓ Matched by image: \(match.set.name) #\(match.collectorNumber)")
@@ -483,5 +494,16 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         case "memorabilia": return 8
         default: return 6
         }
+    }
+
+    /// Checks if two strings of equal length differ by at most 1 character.
+    private func levenshteinClose(_ a: String, _ b: String) -> Bool {
+        guard a.count == b.count else { return false }
+        var diffs = 0
+        for (c1, c2) in zip(a, b) {
+            if c1 != c2 { diffs += 1 }
+            if diffs > 1 { return false }
+        }
+        return diffs <= 1
     }
 }
