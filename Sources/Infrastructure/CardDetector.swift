@@ -61,14 +61,30 @@ struct CardDetector: Sendable {
 
             let aspectRatio = Double(cropped.width) / Double(cropped.height)
 
-            // Subdivide if aspect ratio suggests multiple cards (ratio > 1.2)
-            // A single card is ~0.716 ratio. Two side-by-side cards are ~1.43.
-            // With vision-first identification, bad subdivisions are silently dropped
-            // (they fail visual match and OCR, producing no result).
+            // Single card aspect ratio is ~0.716 (w/h)
+            // Subdivide based on aspect ratio to handle rows and grids
             if aspectRatio > 1.2 {
-                let estimatedCards = max(2, Int(round(aspectRatio / 0.716)))
-                print("[MTGScanner] Wide rectangle detected (ratio \(String(format: "%.2f", aspectRatio))), subdividing into \(estimatedCards) cards")
-                return subdivideImage(cropped, into: estimatedCards)
+                // Wide: horizontal row of cards
+                let cols = max(2, Int(round(aspectRatio / 0.716)))
+                print("[MTGScanner] Wide rectangle (ratio \(String(format: "%.2f", aspectRatio))), subdividing into \(cols) columns")
+                return subdivideImage(cropped, into: cols)
+            }
+
+            if aspectRatio > 0.5 && aspectRatio <= 0.85 {
+                // Normal single card
+                return [cropped]
+            }
+
+            // Aspect ratio ~0.85-1.2 could be 2x2 grid or similar
+            // 2x2 grid of cards: width ~= 2*63=126, height ~= 2*88=176, ratio ~0.716
+            // Check if it's a grid by seeing if subdividing 2x2 gives card-shaped segments
+            if aspectRatio >= 0.5 && aspectRatio <= 1.2 {
+                let rows = max(1, Int(round(1.0 / (aspectRatio / 0.716 * 0.5))))
+                let cols = max(1, Int(round(aspectRatio / 0.716 * Double(rows))))
+                if rows >= 2 || cols >= 2 {
+                    print("[MTGScanner] Grid detected (ratio \(String(format: "%.2f", aspectRatio))), subdividing into \(rows)x\(cols)")
+                    return subdivideGrid(cropped, rows: rows, cols: cols)
+                }
             }
 
             return [cropped]
@@ -78,16 +94,28 @@ struct CardDetector: Sendable {
         return []
     }
 
-    /// Subdivides a wide image into equal-width card segments.
-    private func subdivideImage(_ image: CGImage, into count: Int) -> [CGImage] {
-        let cardWidth = image.width / count
-        let height = image.height
+    /// Subdivides a wide image into equal-width card segments (horizontal row).
+    private func subdivideImage(_ image: CGImage, into cols: Int) -> [CGImage] {
+        return subdivideGrid(image, rows: 1, cols: cols)
+    }
 
-        return (0..<count).compactMap { index in
-            let x = index * cardWidth
-            let rect = CGRect(x: x, y: 0, width: cardWidth, height: height)
-            return image.cropping(to: rect)
+    /// Subdivides an image into a grid of equal-sized card segments.
+    private func subdivideGrid(_ image: CGImage, rows: Int, cols: Int) -> [CGImage] {
+        let cardWidth = image.width / cols
+        let cardHeight = image.height / rows
+
+        var results: [CGImage] = []
+        for row in 0..<rows {
+            for col in 0..<cols {
+                let x = col * cardWidth
+                let y = row * cardHeight
+                let rect = CGRect(x: x, y: y, width: cardWidth, height: cardHeight)
+                if let cropped = image.cropping(to: rect) {
+                    results.append(cropped)
+                }
+            }
         }
+        return results
     }
 
     /// Detects and crops all cards at once. Use for small card counts only.

@@ -66,8 +66,8 @@ struct CardNameExtractor: Sendable {
         // Trim whitespace and newlines
         cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // Remove leading/trailing OCR border artifacts (pipes, brackets, etc.)
-        let borderArtifacts = CharacterSet(charactersIn: "|[]{}~`")
+        // Remove leading/trailing OCR border artifacts (pipes, brackets, asterisks, etc.)
+        let borderArtifacts = CharacterSet(charactersIn: "|[]{}~`*#@^")
         cleaned = cleaned.trimmingCharacters(in: borderArtifacts)
 
         // Trim again after removing artifacts
