@@ -25,7 +25,7 @@ protocol DeckLookupServiceProtocol: Sendable {
 
 // MARK: - Implementation
 
-struct DeckLookupService: DeckLookupServiceProtocol {
+struct DeckLookupService: DeckLookupServiceProtocol, @unchecked Sendable {
     private let mtgTop8Service: MTGTop8ServiceProtocol
     private let edhrecService: EDHRECServiceProtocol
 

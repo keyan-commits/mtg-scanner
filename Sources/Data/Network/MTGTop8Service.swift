@@ -42,14 +42,14 @@ struct MTGTop8Service: MTGTop8ServiceProtocol {
     }
 
     func fetchCardData(name: String) async throws -> MTGTop8CardData {
-        try await fetchCardData(name: name, format: nil)
+        try await performFetch(name: name, format: nil)
     }
 
     func fetchCardData(name: String, format: String) async throws -> MTGTop8CardData {
-        try await fetchCardData(name: name, format: format)
+        try await performFetch(name: name, format: format)
     }
 
-    private func fetchCardData(name: String, format: String?) async throws -> MTGTop8CardData {
+    private func performFetch(name: String, format: String?) async throws -> MTGTop8CardData {
         let searchURL = Self.buildSearchURL(for: name, format: format)
 
         guard let url = URL(string: searchURL) else {

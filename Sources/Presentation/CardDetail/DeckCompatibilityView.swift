@@ -237,7 +237,11 @@ struct DeckCompatibilityView: View {
 
     private func loadData() async {
         isLoading = true
-        defer { isLoading = false }
-        result = await deckLookupService.lookupDecks(for: card)
+        do {
+            result = await deckLookupService.lookupDecks(for: card)
+        } catch {
+            result = nil
+        }
+        isLoading = false
     }
 }
