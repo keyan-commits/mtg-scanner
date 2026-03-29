@@ -190,6 +190,7 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
     }
 
     private func extractOCRSignals(from cardImage: CGImage, wasCropped: Bool) async -> OCRSignals? {
+        print("[MTGScanner] Running OCR on image \(cardImage.width)x\(cardImage.height)")
         do {
             let scanResults = try await recognizer.recognizeText(in: cardImage)
 
@@ -219,6 +220,7 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
                 detectedBorder: detectedBorder
             )
         } catch {
+            print("[MTGScanner] OCR failed: \(error)")
             return nil
         }
     }
@@ -249,47 +251,50 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
     /// Tries to find the card name in the rules text when the title OCR was mangled.
     /// Cards often reference themselves by name (e.g., "Mishra's Factory becomes an...").
     private func matchByAlternativeNames(signals: OCRSignals, cardImage: CGImage) async -> Card? {
-        // Collect potential card names from OCR text lines (skip the title, which already failed)
-        for result in signals.scanResults {
-            let text = result.recognizedText
+        // Collect potential card names from OCR text lines
+        // Only check lines that look like they contain a card name (capitalize pattern, reasonable length)
+        var attempts = 0
+        let maxAttempts = 20
 
-            // Look for lines that might contain a card name referencing itself
-            // Common patterns: "{Name} becomes", "{Name} deals", "Sacrifice {Name}"
-            // We try each text segment that could be a card name
+        for result in signals.scanResults {
+            guard attempts < maxAttempts else { break }
+
+            let text = result.recognizedText
             let words = text.split(separator: " ")
             guard words.count >= 2 else { continue }
 
-            // Try progressively longer substrings as potential card names
-            for length in stride(from: min(words.count, 5), through: 2, by: -1) {
-                for startIdx in 0...(words.count - length) {
-                    let candidate = words[startIdx..<(startIdx + length)].joined(separator: " ")
+            // Try 2-4 word sequences starting from the beginning of each line
+            for length in stride(from: min(words.count, 4), through: 2, by: -1) {
+                guard attempts < maxAttempts else { break }
 
-                    // Skip very short candidates or the original failed name
-                    guard candidate.count >= 5 else { continue }
-                    guard candidate.lowercased() != signals.cardName.lowercased() else { continue }
+                let candidate = words[0..<length].joined(separator: " ")
+                guard candidate.count >= 5 else { continue }
+                guard candidate.lowercased() != signals.cardName.lowercased() else { continue }
 
-                    // Try to find this name in the DB
-                    if let printings = try? await repository.findAllPrintings(name: candidate),
-                       !printings.isEmpty {
-                        print("[MTGScanner] Found card via rules text: '\(candidate)' (\(printings.count) printings)")
+                // Skip lines that are clearly rules text (contain common keywords)
+                let lower = candidate.lowercased()
+                if lower.contains("target") || lower.contains("damage") || lower.contains("discard") { continue }
 
-                        // Re-run metadata matching with the corrected name
-                        var correctedSignals = signals
-                        correctedSignals = OCRSignals(
-                            scanResults: signals.scanResults,
-                            cardName: candidate,
-                            collectorCandidates: signals.collectorCandidates,
-                            artistName: signals.artistName,
-                            copyrightYear: signals.copyrightYear,
-                            hasOldTypeLine: signals.hasOldTypeLine,
-                            detectedBorder: signals.detectedBorder
-                        )
-                        return await matchByMetadata(signals: correctedSignals, cardImage: cardImage)
-                    }
+                attempts += 1
+                if let printings = try? await repository.findAllPrintings(name: candidate),
+                   !printings.isEmpty {
+                    print("[MTGScanner] Found card via rules text: '\(candidate)' (\(printings.count) printings)")
+
+                    let correctedSignals = OCRSignals(
+                        scanResults: signals.scanResults,
+                        cardName: candidate,
+                        collectorCandidates: signals.collectorCandidates,
+                        artistName: signals.artistName,
+                        copyrightYear: signals.copyrightYear,
+                        hasOldTypeLine: signals.hasOldTypeLine,
+                        detectedBorder: signals.detectedBorder
+                    )
+                    return await matchByMetadata(signals: correctedSignals, cardImage: cardImage)
                 }
             }
         }
 
+        print("[MTGScanner] Alternative name search exhausted (\(attempts) attempts)")
         return nil
     }
 
