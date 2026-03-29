@@ -41,12 +41,20 @@ struct CardDetector: Sendable {
         // First try standard multi-card detection
         let observations = detectRectangleObservations(from: image)
 
-        if observations.count > 1 {
-            // Multiple cards detected — crop each
-            return observations.compactMap { cropCard(from: image, observation: $0) }
+        // Filter out tiny detections — a card must be at least 100px in each dimension
+        let minPixels = 100
+        let filtered = observations.filter { obs in
+            let w = Int(obs.boundingBox.width * CGFloat(image.width))
+            let h = Int(obs.boundingBox.height * CGFloat(image.height))
+            return w >= minPixels && h >= minPixels
         }
 
-        if let single = observations.first {
+        if filtered.count > 1 {
+            // Multiple cards detected — crop each
+            return filtered.compactMap { cropCard(from: image, observation: $0) }
+        }
+
+        if let single = filtered.first {
             guard let cropped = cropCard(from: image, observation: single) else {
                 return []
             }
