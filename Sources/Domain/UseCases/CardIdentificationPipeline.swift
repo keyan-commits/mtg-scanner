@@ -146,33 +146,34 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
     /// and runs the full identification pipeline on each card independently.
     /// Falls back to single-card identification if multi-detect finds nothing.
     func identifyAll(imageData: Data) async -> [Card] {
-        // Primary path: try single-card identification first (proven, reliable)
-        if let card = await identify(imageData: imageData) {
-            return [card]
-        }
-
-        // Single-card failed — try multi-card detection as fallback
-        print("[MTGScanner] Single-card failed, trying multi-card detection...")
         guard let rawImage = imageProcessor.downsample(data: imageData) else {
             return []
         }
 
+        // Try multi-card detection first
         let croppedCards = cardDetector.detectAndCropAllCards(from: rawImage)
         print("[MTGScanner] Multi-card detection: found \(croppedCards.count) cards")
 
-        guard !croppedCards.isEmpty else { return [] }
+        // If 2+ cards detected, process each independently
+        if croppedCards.count >= 2 {
+            var results: [Card] = []
+            for (index, cardImage) in croppedCards.enumerated() {
+                print("[MTGScanner] Identifying card \(index + 1) of \(croppedCards.count)...")
 
-        var results: [Card] = []
-        for (index, cardImage) in croppedCards.enumerated() {
-            print("[MTGScanner] Identifying card \(index + 1) of \(croppedCards.count)...")
-
-            if let identified = await resolvePrinting(cardImage: cardImage, wasCropped: true) {
-                let resolved = await resolveArtVariant(card: identified, cardImage: cardImage)
-                results.append(resolved)
+                if let identified = await resolvePrinting(cardImage: cardImage, wasCropped: true) {
+                    let resolved = await resolveArtVariant(card: identified, cardImage: cardImage)
+                    results.append(resolved)
+                }
             }
+            if !results.isEmpty { return results }
         }
 
-        return results
+        // 0-1 cards detected — use proven single-card pipeline
+        if let card = await identify(imageData: imageData) {
+            return [card]
+        }
+
+        return []
     }
 
     // MARK: - Step 1: OCR Signal Extraction
