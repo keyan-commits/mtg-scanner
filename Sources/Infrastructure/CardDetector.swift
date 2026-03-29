@@ -47,20 +47,22 @@ struct CardDetector: Sendable {
         }
 
         if let single = observations.first {
-            let cropped = cropCard(from: image, observation: single)
-
-            // Check if this single detection is actually multiple cards side by side
-            // A single MTG card has aspect ratio ~0.716 (width/height)
-            // If aspect ratio > 1.2, it's likely multiple cards in a row
-            if let cropped {
-                let aspectRatio = Double(cropped.width) / Double(cropped.height)
-                if aspectRatio > 1.2 {
-                    let estimatedCards = max(2, Int(round(aspectRatio / 0.716)))
-                    print("[MTGScanner] Wide rectangle detected (ratio \(String(format: "%.2f", aspectRatio))), subdividing into \(estimatedCards) cards")
-                    return subdivideImage(cropped, into: estimatedCards)
-                }
-                return [cropped]
+            guard let cropped = cropCard(from: image, observation: single) else {
+                return []
             }
+
+            let aspectRatio = Double(cropped.width) / Double(cropped.height)
+
+            // Only subdivide if clearly multiple cards (ratio > 2.0 = at least 3 cards wide)
+            // Ratios 1.0-2.0 are ambiguous (could be 1 card with partial neighbor, or 2 cards)
+            // For those, return the full rectangle — pipeline will try to identify it as-is
+            if aspectRatio > 2.0 {
+                let estimatedCards = max(2, Int(round(aspectRatio / 0.716)))
+                print("[MTGScanner] Wide rectangle detected (ratio \(String(format: "%.2f", aspectRatio))), subdividing into \(estimatedCards) cards")
+                return subdivideImage(cropped, into: estimatedCards)
+            }
+
+            return [cropped]
         }
 
         // No rectangles detected — try the full image as a single card
