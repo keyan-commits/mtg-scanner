@@ -63,7 +63,9 @@
       "WebFetch(domain:mtgjson.com)",
       "WebFetch(domain:justtcg.com)",
       "WebFetch(domain:publicapi.dev)",
-      "WebFetch(domain:docs.rs)"
+      "WebFetch(domain:docs.rs)",
+      "Bash(curl -s 'https://www.hareruyamtg.com/en/products/search/unisearch_api?cardName=Feldon%27s+Cane')",
+      "Bash(curl:*)"
     ]
   }
 }

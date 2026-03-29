@@ -2,16 +2,13 @@ import SwiftUI
 
 // MARK: - Price Comparison View
 
-/// Displays market prices from multiple sources (TCGPlayer, Card Kingdom, Hareruya)
-/// for a Magic card in Near Mint condition.
+/// Displays the card's market price from TCGPlayer (via Scryfall) with
+/// deep links to check NM prices on Card Kingdom and Hareruya.
 struct PriceComparisonView: View {
 
     let card: Card
 
-    @State private var ckPrice: CardKingdomPrice?
-    @State private var hareruyaPrice: HareruyaPrice?
-    @State private var isLoadingCK = true
-    @State private var isLoadingHareruya = true
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         MD3Card {
@@ -20,36 +17,60 @@ struct PriceComparisonView: View {
                     .font(MD3Typography.titleMedium)
                     .foregroundStyle(MD3Theme.onSurface)
 
-                // TCGPlayer — available offline from Scryfall data
-                priceRow(
-                    source: "TCGPlayer",
-                    price: card.prices.usd.map { "$\($0)" },
-                    isLoading: false
-                )
+                // TCGPlayer — from local DB (instant)
+                if let usd = card.prices.usd {
+                    priceRow(source: "TCGPlayer", price: "$\(usd)")
+                }
 
-                // Card Kingdom — loaded on demand
-                priceRow(
-                    source: "Card Kingdom",
-                    price: ckPrice?.formattedRetail,
-                    isLoading: isLoadingCK
-                )
+                if let usdFoil = card.prices.usdFoil {
+                    priceRow(source: "TCGPlayer (Foil)", price: "$\(usdFoil)")
+                }
 
-                // Hareruya — loaded on demand
-                priceRow(
-                    source: "Hareruya",
-                    price: hareruyaPrice?.formattedPrice,
-                    isLoading: isLoadingHareruya
-                )
+                if card.prices.usd == nil && card.prices.usdFoil == nil {
+                    HStack {
+                        Text("No pricing data available")
+                            .font(MD3Typography.bodyMedium)
+                            .foregroundStyle(MD3Theme.onSurfaceVariant)
+                        Spacer()
+                    }
+                }
+
+                Text("Source: TCGPlayer via Scryfall")
+                    .font(MD3Typography.labelSmall)
+                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+
+                Divider()
+
+                Text("Check NM Prices")
+                    .font(MD3Typography.titleSmall)
+                    .foregroundStyle(MD3Theme.onSurface)
+
+                HStack(spacing: 12) {
+                    storeButton(name: "Card Kingdom") {
+                        let encoded = card.name
+                            .lowercased()
+                            .replacingOccurrences(of: " ", with: "+")
+                        if let url = URL(string: "https://www.cardkingdom.com/purchasing/mtg_singles?filter%5Bname%5D=\(encoded)") {
+                            openURL(url)
+                        }
+                    }
+
+                    storeButton(name: "Hareruya") {
+                        let encoded = card.name
+                            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? card.name
+                        if let url = URL(string: "https://www.hareruyamtg.com/en/products/search?cardName=\(encoded)") {
+                            openURL(url)
+                        }
+                    }
+                }
             }
             .padding(16)
         }
-        .task { await loadPrices() }
     }
 
-    // MARK: - Price Row
+    // MARK: - Subviews
 
-    @ViewBuilder
-    private func priceRow(source: String, price: String?, isLoading: Bool) -> some View {
+    private func priceRow(source: String, price: String) -> some View {
         HStack {
             Text(source)
                 .font(MD3Typography.bodyMedium)
@@ -57,39 +78,24 @@ struct PriceComparisonView: View {
 
             Spacer()
 
-            if isLoading {
-                ProgressView()
-                    .controlSize(.small)
-            } else if let price {
-                Text(price)
-                    .font(MD3Typography.bodyMedium)
-                    .foregroundStyle(MD3Theme.primary)
-            } else {
-                Text("N/A")
-                    .font(MD3Typography.bodyMedium)
-                    .foregroundStyle(MD3Theme.onSurfaceVariant)
-            }
+            Text(price)
+                .font(MD3Typography.titleMedium)
+                .foregroundStyle(MD3Theme.primary)
         }
     }
 
-    // MARK: - Data Loading
-
-    private func loadPrices() async {
-        async let ck: CardKingdomPrice? = {
-            let service = CardKingdomPriceService()
-            return try? await service.fetchNMPrice(cardName: card.name, setName: card.set.name)
-        }()
-        async let hr: HareruyaPrice? = {
-            let service = HareruyaPriceService()
-            return try? await service.fetchNMPrice(cardName: card.name)
-        }()
-
-        let ckResult = await ck
-        let hrResult = await hr
-
-        ckPrice = ckResult
-        isLoadingCK = false
-        hareruyaPrice = hrResult
-        isLoadingHareruya = false
+    private func storeButton(name: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(name)
+                .font(MD3Typography.labelLarge)
+                .foregroundStyle(MD3Theme.primary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(MD3Theme.outline, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
     }
 }
