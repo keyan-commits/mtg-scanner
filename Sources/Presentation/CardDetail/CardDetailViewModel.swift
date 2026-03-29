@@ -49,6 +49,28 @@ final class CardDetailViewModel {
         return URL(string: urlString)
     }
 
+    /// The art variant label.
+    /// - Letter suffix in collector number: #38d → "Variant D"
+    /// - Cross-reference via illustration_id: 4th Ed #361 shares art with Antiquities #80c → "Variant C"
+    var variantLabel: String? {
+        let number = card.collectorNumber
+        // Check for letter suffix (e.g., "38d", "80a")
+        if let lastChar = number.last, lastChar.isLetter {
+            return "Variant \(String(lastChar).uppercased())"
+        }
+        // Will be populated by cross-referencing illustration_id
+        return crossReferencedVariant
+    }
+
+    /// Variant label derived from illustration_id cross-referencing.
+    /// Set externally after async lookup.
+    var crossReferencedVariant: String?
+
+    /// The artist attribution line.
+    var artistLabel: String? {
+        card.artist.map { "Art by \($0)" }
+    }
+
     /// A list of formats paired with their legality status.
     var legalFormats: [(String, LegalityStatus)] {
         let formats: [(key: String, display: String)] = [

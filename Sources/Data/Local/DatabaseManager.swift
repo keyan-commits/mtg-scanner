@@ -171,6 +171,18 @@ final class DatabaseManager: Sendable {
         return try context.fetch(descriptor)
     }
 
+    // MARK: - Find by Illustration ID
+
+    func findByIllustrationID(_ illustrationID: String) async throws -> [CardRecord] {
+        let context = ModelContext(modelContainer)
+        let descriptor = FetchDescriptor<CardRecord>(
+            predicate: #Predicate<CardRecord> { record in
+                record.illustrationID == illustrationID
+            }
+        )
+        return try context.fetch(descriptor)
+    }
+
     // MARK: - Count
 
     func cardCount() async throws -> Int {

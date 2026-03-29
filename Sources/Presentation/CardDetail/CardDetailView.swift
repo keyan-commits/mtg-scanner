@@ -38,6 +38,9 @@ struct CardDetailView: View {
             .padding(16)
         }
         .background(MD3Theme.background)
+        .task {
+            await loadVariantInfo()
+        }
     }
 
     // MARK: - Card Image
@@ -86,9 +89,27 @@ struct CardDetailView: View {
                 .font(MD3Typography.headlineMedium)
                 .foregroundStyle(MD3Theme.onBackground)
 
-            Text("\(viewModel.card.set.name) \u{2022} #\(viewModel.card.collectorNumber)")
-                .font(MD3Typography.bodyMedium)
-                .foregroundStyle(MD3Theme.onSurfaceVariant)
+            HStack(spacing: 6) {
+                Text("\(viewModel.card.set.name) \u{2022} #\(viewModel.card.collectorNumber)")
+                    .font(MD3Typography.bodyMedium)
+                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+
+                if let variant = viewModel.variantLabel {
+                    Text(variant)
+                        .font(MD3Typography.labelMedium)
+                        .foregroundStyle(MD3Theme.onTertiaryContainer)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(MD3Theme.tertiaryContainer)
+                        .clipShape(Capsule())
+                }
+            }
+
+            if let artist = viewModel.artistLabel {
+                Text(artist)
+                    .font(MD3Typography.bodySmall)
+                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -152,6 +173,33 @@ struct CardDetailView: View {
             onScanAnother()
         }
         .padding(.top, 8)
+    }
+
+    // MARK: - Variant Cross-Reference
+
+    private func loadVariantInfo() async {
+        // If already has a variant label from collector number suffix, skip
+        let number = viewModel.card.collectorNumber
+        if let lastChar = number.last, lastChar.isLetter { return }
+
+        // Cross-reference illustration_id to find matching variant in another set
+        guard let illustrationID = viewModel.card.illustrationID else { return }
+
+        do {
+            let dbManager = try DatabaseManager()
+            let sameArt = try await dbManager.findByIllustrationID(illustrationID)
+
+            // Look for a matching card with a letter suffix collector number
+            for record in sameArt {
+                if let lastChar = record.collectorNumber.last, lastChar.isLetter {
+                    let variant = String(lastChar).uppercased()
+                    viewModel.crossReferencedVariant = "Variant \(variant)"
+                    return
+                }
+            }
+        } catch {
+            // Cross-reference failed, no variant label
+        }
     }
 
     // MARK: - Helpers
