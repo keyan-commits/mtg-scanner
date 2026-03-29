@@ -27,8 +27,10 @@ struct CardDetailView: View {
                 legalitySection
                 DeckCompatibilityView(
                     card: viewModel.card,
-                    edhrecService: EDHRECService(),
-                    mtgTop8Service: MTGTop8Service()
+                    deckLookupService: DeckLookupService(
+                        mtgTop8Service: MTGTop8Service(),
+                        edhrecService: EDHRECService()
+                    )
                 )
                 oracleTextSection
                 scanAnotherButton

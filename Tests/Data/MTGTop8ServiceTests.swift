@@ -195,6 +195,50 @@ struct MTGTop8ServiceTests {
         #expect(result.cardName == "Lightning Bolt")
     }
 
+    // MARK: - Format-Specific Search
+
+    @Test("Format-specific search URL includes format code parameter")
+    func formatSpecificSearchURLIncludesFormatCode() async throws {
+        let data = Data(MTGTop8ServiceTests.searchResultHTML.utf8)
+        let httpClient = MockHTTPClient.success(
+            data: data,
+            url: URL(string: "https://mtgtop8.com/search")
+        )
+        let service = MTGTop8Service(httpClient: httpClient)
+
+        let result = try await service.fetchCardData(name: "Lightning Bolt", format: "MO")
+
+        #expect(result.searchURL == "https://mtgtop8.com/search?MD_check=1&SB_check=1&cards=Lightning+Bolt&format=MO")
+    }
+
+    @Test("Format is stored in the returned data")
+    func formatStoredInReturnedData() async throws {
+        let data = Data(MTGTop8ServiceTests.searchResultHTML.utf8)
+        let httpClient = MockHTTPClient.success(
+            data: data,
+            url: URL(string: "https://mtgtop8.com/search")
+        )
+        let service = MTGTop8Service(httpClient: httpClient)
+
+        let result = try await service.fetchCardData(name: "Lightning Bolt", format: "MO")
+
+        #expect(result.format == "MO")
+    }
+
+    @Test("Calling fetchCardData without format returns nil format")
+    func noFormatReturnsNilFormat() async throws {
+        let data = Data(MTGTop8ServiceTests.searchResultHTML.utf8)
+        let httpClient = MockHTTPClient.success(
+            data: data,
+            url: URL(string: "https://mtgtop8.com/search")
+        )
+        let service = MTGTop8Service(httpClient: httpClient)
+
+        let result = try await service.fetchCardData(name: "Lightning Bolt")
+
+        #expect(result.format == nil)
+    }
+
     // MARK: - Parsing Error
 
     @Test("Malformed HTML with no deck count throws parsingError")

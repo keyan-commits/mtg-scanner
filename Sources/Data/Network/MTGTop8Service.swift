@@ -7,6 +7,7 @@ struct MTGTop8CardData: Sendable {
     let totalDecks: Int
     let topArchetypes: [MTGTop8Archetype]
     let searchURL: String
+    let format: String?
 }
 
 struct MTGTop8Archetype: Sendable, Identifiable {
@@ -27,6 +28,7 @@ enum MTGTop8Error: Error {
 
 protocol MTGTop8ServiceProtocol: Sendable {
     func fetchCardData(name: String) async throws -> MTGTop8CardData
+    func fetchCardData(name: String, format: String) async throws -> MTGTop8CardData
 }
 
 // MARK: - Implementation
@@ -40,7 +42,15 @@ struct MTGTop8Service: MTGTop8ServiceProtocol {
     }
 
     func fetchCardData(name: String) async throws -> MTGTop8CardData {
-        let searchURL = Self.buildSearchURL(for: name)
+        try await fetchCardData(name: name, format: nil)
+    }
+
+    func fetchCardData(name: String, format: String) async throws -> MTGTop8CardData {
+        try await fetchCardData(name: name, format: format)
+    }
+
+    private func fetchCardData(name: String, format: String?) async throws -> MTGTop8CardData {
+        let searchURL = Self.buildSearchURL(for: name, format: format)
 
         guard let url = URL(string: searchURL) else {
             throw MTGTop8Error.parsingError
@@ -68,15 +78,20 @@ struct MTGTop8Service: MTGTop8ServiceProtocol {
             cardName: name,
             totalDecks: totalDecks,
             topArchetypes: archetypes,
-            searchURL: searchURL
+            searchURL: searchURL,
+            format: format
         )
     }
 
     // MARK: - URL Construction
 
-    private static func buildSearchURL(for cardName: String) -> String {
+    private static func buildSearchURL(for cardName: String, format: String? = nil) -> String {
         let encoded = cardName.replacingOccurrences(of: " ", with: "+")
-        return "\(baseURL)?MD_check=1&SB_check=1&cards=\(encoded)"
+        var url = "\(baseURL)?MD_check=1&SB_check=1&cards=\(encoded)"
+        if let format {
+            url += "&format=\(format)"
+        }
+        return url
     }
 
     // MARK: - HTML Parsing
