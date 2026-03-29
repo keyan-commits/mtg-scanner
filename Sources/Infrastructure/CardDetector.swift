@@ -19,26 +19,26 @@ struct CardDetector: Sendable {
 
     // MARK: - Multi-Card Detection
 
-    /// Detects all card-shaped rectangles in the image, perspective-corrects each,
-    /// and returns an array of cropped card images sorted left-to-right.
-    ///
-    /// Handles side-by-side card layouts (e.g., 4 cards in a row).
-    /// Deduplicates overlapping detections and filters false positives.
-    func detectAndCropAll(from image: CGImage) async -> [CGImage] {
+    /// Detects all card-shaped rectangle observations in the image.
+    /// Returns deduplicated observations sorted left-to-right.
+    /// Does NOT crop — call `cropCard(from:observation:)` individually to control memory.
+    func detectRectangleObservations(from image: CGImage) -> [VNRectangleObservation] {
         let observations = detectRectangles(in: image, maximumObservations: 10, minimumSize: 0.03)
         guard !observations.isEmpty else { return [] }
 
-        // Deduplicate overlapping detections (IoU > 0.5)
         let deduplicated = deduplicateObservations(observations)
+        return deduplicated.sorted { $0.boundingBox.midX < $1.boundingBox.midX }
+    }
 
-        // Sort left-to-right by center x coordinate
-        let sorted = deduplicated.sorted { $0.boundingBox.midX < $1.boundingBox.midX }
+    /// Crops a single card from the image using a detected rectangle observation.
+    func cropCard(from image: CGImage, observation: VNRectangleObservation) -> CGImage? {
+        applyPerspectiveCorrection(to: image, observation: observation)
+    }
 
-        // Perspective-correct each card, reusing a single CIContext
-        let context = CIContext()
-        return sorted.compactMap { observation in
-            applyPerspectiveCorrection(to: image, observation: observation, context: context)
-        }
+    /// Detects and crops all cards at once. Use for small card counts only.
+    func detectAndCropAll(from image: CGImage) async -> [CGImage] {
+        let observations = detectRectangleObservations(from: image)
+        return observations.compactMap { cropCard(from: image, observation: $0) }
     }
 
     // MARK: - Rectangle Detection

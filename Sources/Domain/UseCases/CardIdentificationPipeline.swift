@@ -150,11 +150,11 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
             return []
         }
 
-        // Try multi-card detection
-        let croppedCards = await cardDetector.detectAndCropAll(from: rawImage)
-        print("[MTGScanner] Multi-card detection: found \(croppedCards.count) cards")
+        // Detect card rectangles (returns observations, not cropped images — saves memory)
+        let observations = cardDetector.detectRectangleObservations(from: rawImage)
+        print("[MTGScanner] Multi-card detection: found \(observations.count) rectangles")
 
-        if croppedCards.isEmpty {
+        if observations.isEmpty {
             // Fallback to single-card detection
             if let card = await identify(imageData: imageData) {
                 return [card]
@@ -162,15 +162,21 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
             return []
         }
 
-        // Identify each cropped card through the pipeline
+        // Process one card at a time to control memory
         var results: [Card] = []
-        for (index, cardImage) in croppedCards.enumerated() {
-            print("[MTGScanner] Identifying card \(index + 1) of \(croppedCards.count)...")
+        for (index, observation) in observations.enumerated() {
+            print("[MTGScanner] Identifying card \(index + 1) of \(observations.count)...")
+
+            // Crop this card only when we need it
+            guard let cardImage = cardDetector.cropCard(from: rawImage, observation: observation) else {
+                continue
+            }
 
             if let identified = await resolvePrinting(cardImage: cardImage, wasCropped: true) {
                 let resolved = await resolveArtVariant(card: identified, cardImage: cardImage)
                 results.append(resolved)
             }
+            // cardImage goes out of scope here — memory released
         }
 
         return results
