@@ -146,23 +146,22 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
     /// and runs the full identification pipeline on each card independently.
     /// Falls back to single-card identification if multi-detect finds nothing.
     func identifyAll(imageData: Data) async -> [Card] {
+        // Primary path: try single-card identification first (proven, reliable)
+        if let card = await identify(imageData: imageData) {
+            return [card]
+        }
+
+        // Single-card failed — try multi-card detection as fallback
+        print("[MTGScanner] Single-card failed, trying multi-card detection...")
         guard let rawImage = imageProcessor.downsample(data: imageData) else {
             return []
         }
 
-        // Detect and crop all cards (handles subdividing wide multi-card rectangles)
         let croppedCards = cardDetector.detectAndCropAllCards(from: rawImage)
         print("[MTGScanner] Multi-card detection: found \(croppedCards.count) cards")
 
-        if croppedCards.isEmpty {
-            // Fallback to single-card detection
-            if let card = await identify(imageData: imageData) {
-                return [card]
-            }
-            return []
-        }
+        guard !croppedCards.isEmpty else { return [] }
 
-        // Process one card at a time to control memory
         var results: [Card] = []
         for (index, cardImage) in croppedCards.enumerated() {
             print("[MTGScanner] Identifying card \(index + 1) of \(croppedCards.count)...")
