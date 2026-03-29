@@ -98,6 +98,17 @@ private func makeTestCard(
     )
 }
 
+// MARK: - Mock Pipeline
+
+struct MockPipeline: CardIdentificationPipelineProtocol {
+    var resultCard: Card?
+
+    func identify(imageData: Data) async -> Card? {
+        guard !imageData.isEmpty, imageData.count > 2 else { return nil }
+        return resultCard
+    }
+}
+
 // MARK: - Tests
 
 @Suite("CardScannerViewModel Tests")
@@ -106,9 +117,7 @@ struct CardScannerViewModelTests {
     @Test("Initial state is idle")
     func initialStateIsIdle() {
         let viewModel = CardScannerViewModel(
-            recognizer: StubbedTextRecognizer(),
-            nameExtractor: CardNameExtractor(),
-            repository: StubbedCardRepository()
+            pipeline: MockPipeline()
         )
 
         #expect(viewModel.scanState == .idle)
@@ -120,9 +129,7 @@ struct CardScannerViewModelTests {
     @MainActor
     func processEmptyPhotosCompletesEmpty() async {
         let viewModel = CardScannerViewModel(
-            recognizer: StubbedTextRecognizer(),
-            nameExtractor: CardNameExtractor(),
-            repository: StubbedCardRepository()
+            pipeline: MockPipeline()
         )
 
         await viewModel.processSelectedPhotos([])
@@ -134,11 +141,8 @@ struct CardScannerViewModelTests {
     @Test("resetScan returns to idle and clears cards")
     @MainActor
     func resetScanReturnsToIdle() async {
-        let card = makeTestCard()
         let viewModel = CardScannerViewModel(
-            recognizer: StubbedTextRecognizer(),
-            nameExtractor: CardNameExtractor(),
-            repository: StubbedCardRepository(identifyResult: card)
+            pipeline: MockPipeline()
         )
 
         // Simulate a completed state by processing empty photos first
@@ -155,19 +159,8 @@ struct CardScannerViewModelTests {
     @MainActor
     func processImageDataRecognizesCard() async {
         let card = makeTestCard()
-        let scanResults = [
-            ScanResult(
-                recognizedText: "Lightning Bolt",
-                confidence: 0.95,
-                boundingBox: CGRect(x: 0.1, y: 0.8, width: 0.8, height: 0.05)
-            )
-        ]
-        let recognizer = StubbedTextRecognizer(results: scanResults)
-        let repository = StubbedCardRepository(identifyResult: card)
         let viewModel = CardScannerViewModel(
-            recognizer: recognizer,
-            nameExtractor: CardNameExtractor(),
-            repository: repository
+            pipeline: MockPipeline(resultCard: card)
         )
 
         let imageData = makeTestPNGData(width: 100, height: 100)!
@@ -181,52 +174,20 @@ struct CardScannerViewModelTests {
     @MainActor
     func processImageDataReturnsNilForInvalidData() async {
         let viewModel = CardScannerViewModel(
-            recognizer: StubbedTextRecognizer(),
-            nameExtractor: CardNameExtractor(),
-            repository: StubbedCardRepository()
+            pipeline: MockPipeline(resultCard: makeTestCard())
         )
 
+        // MockPipeline returns nil for data with count <= 2
         let result = await viewModel.processImageData(Data([0x00, 0x01]))
 
         #expect(result == nil)
     }
 
-    @Test("processImageData returns nil when OCR fails")
+    @Test("processImageData returns nil when pipeline fails")
     @MainActor
-    func processImageDataReturnsNilOnOCRError() async {
-        let recognizer = StubbedTextRecognizer(
-            errorToThrow: TextRecognitionError.noTextFound
-        )
+    func processImageDataReturnsNilOnPipelineFailure() async {
         let viewModel = CardScannerViewModel(
-            recognizer: recognizer,
-            nameExtractor: CardNameExtractor(),
-            repository: StubbedCardRepository()
-        )
-
-        let imageData = makeTestPNGData(width: 100, height: 100)!
-        let result = await viewModel.processImageData(imageData)
-
-        #expect(result == nil)
-    }
-
-    @Test("processImageData returns nil when card not found in repository")
-    @MainActor
-    func processImageDataReturnsNilOnCardNotFound() async {
-        let scanResults = [
-            ScanResult(
-                recognizedText: "Nonexistent Card",
-                confidence: 0.95,
-                boundingBox: CGRect(x: 0.1, y: 0.8, width: 0.8, height: 0.05)
-            )
-        ]
-        let recognizer = StubbedTextRecognizer(results: scanResults)
-        let repository = StubbedCardRepository(
-            identifyError: CardRepositoryError.cardNotFound
-        )
-        let viewModel = CardScannerViewModel(
-            recognizer: recognizer,
-            nameExtractor: CardNameExtractor(),
-            repository: repository
+            pipeline: MockPipeline(resultCard: nil)
         )
 
         let imageData = makeTestPNGData(width: 100, height: 100)!
