@@ -11,4 +11,5 @@ protocol CardRepositoryProtocol: Sendable {
     func fetchCard(set: String, collectorNumber: String) async throws -> Card
     func searchCards(query: String) async throws -> [Card]
     func findAllPrintings(name: String) async throws -> [Card]
+    func findVariants(name: String, setCode: String) async throws -> [Card]
 }

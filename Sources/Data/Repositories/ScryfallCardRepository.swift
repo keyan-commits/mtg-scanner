@@ -30,4 +30,9 @@ struct ScryfallCardRepository: CardRepositoryProtocol {
         let searchDTO = try await apiClient.searchCards(query: "!\"\(name)\" unique:prints")
         return searchDTO.data.map { $0.toDomain() }
     }
+
+    func findVariants(name: String, setCode: String) async throws -> [Card] {
+        let searchDTO = try await apiClient.searchCards(query: "!\"\(name)\" set:\(setCode) unique:prints")
+        return searchDTO.data.map { $0.toDomain() }
+    }
 }

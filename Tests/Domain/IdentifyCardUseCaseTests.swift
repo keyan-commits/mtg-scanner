@@ -37,6 +37,10 @@ struct IdentifyCardUseCaseTests {
         func findAllPrintings(name: String) async throws -> [Card] {
             return try searchCardsResult.get()
         }
+
+        func findVariants(name: String, setCode: String) async throws -> [Card] {
+            return try searchCardsResult.get()
+        }
     }
 
     // MARK: - Helpers

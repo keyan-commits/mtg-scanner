@@ -51,6 +51,10 @@ struct StubbedCardRepository: CardRepositoryProtocol {
     func findAllPrintings(name: String) async throws -> [Card] {
         return searchResults
     }
+
+    func findVariants(name: String, setCode: String) async throws -> [Card] {
+        return searchResults
+    }
 }
 
 // MARK: - Test Helpers

@@ -58,6 +58,7 @@ final class CardScannerViewModel {
     private let imageMatcher: ImageMatcher
     private let setSymbolMatcher: SetSymbolMatcher
     private let cardDetector: CardDetector
+    private let artVariantMatcher: ArtVariantMatcher
     private let repository: CardRepositoryProtocol
     private let imageProcessor: ImageProcessor
 
@@ -73,6 +74,7 @@ final class CardScannerViewModel {
         imageMatcher: ImageMatcher = ImageMatcher(),
         setSymbolMatcher: SetSymbolMatcher = SetSymbolMatcher(),
         cardDetector: CardDetector = CardDetector(),
+        artVariantMatcher: ArtVariantMatcher = ArtVariantMatcher(),
         repository: CardRepositoryProtocol,
         imageProcessor: ImageProcessor = ImageProcessor()
     ) {
@@ -85,6 +87,7 @@ final class CardScannerViewModel {
         self.imageMatcher = imageMatcher
         self.setSymbolMatcher = setSymbolMatcher
         self.cardDetector = cardDetector
+        self.artVariantMatcher = artVariantMatcher
         self.repository = repository
         self.imageProcessor = imageProcessor
     }
@@ -157,10 +160,24 @@ final class CardScannerViewModel {
             return nil
         }
 
-        // Step 0: Detect card rectangle and crop — improves ALL downstream analysis
+        // Identify the card, then resolve art variants
         let croppedCard = await cardDetector.detectAndCrop(from: rawImage)
         let cardImage = croppedCard ?? rawImage
+
         print("[MTGScanner] Card detection: \(croppedCard != nil ? "✓ cropped" : "✗ using raw image")")
+
+        guard let identified = await identifyCard(cardImage: cardImage, wasCropped: croppedCard != nil) else {
+            return nil
+        }
+
+        // Check for art variants within the same set
+        return await resolveArtVariant(card: identified, cardImage: cardImage)
+    }
+
+    /// Core identification pipeline — returns the best card match before art variant resolution.
+    @MainActor
+    private func identifyCard(cardImage: CGImage, wasCropped: Bool) async -> Card? {
+        print("[MTGScanner] Starting identification pipeline")
 
         do {
             let scanResults = try await recognizer.recognizeText(in: cardImage)
@@ -180,7 +197,7 @@ final class CardScannerViewModel {
             let hasOldTypeLine = scanResults.contains { $0.recognizedText.lowercased().hasPrefix("summon") }
 
             // Border detection on CROPPED card image (reliable after crop, unreliable on raw photo)
-            let detectedBorder = croppedCard != nil ? borderColorDetector.detectBorderColor(in: cardImage) : nil
+            let detectedBorder = wasCropped ? borderColorDetector.detectBorderColor(in: cardImage) : nil
 
             print("[MTGScanner] Name: '\(cardName)' | Collector: \(collectorCandidates) | Artist: \(artistName ?? "nil") | Year: \(copyrightYear.map(String.init) ?? "nil") | Border: \(detectedBorder?.rawValue ?? "nil") | OldFrame: \(hasOldTypeLine)")
 
@@ -364,6 +381,24 @@ final class CardScannerViewModel {
     }
 
     /// Resets the scanner to its idle state, clearing all scanned cards and progress.
+    /// Checks if the identified card has art variants in the same set,
+    /// and resolves to the correct variant by comparing art regions.
+    private func resolveArtVariant(card: Card, cardImage: CGImage) async -> Card {
+        do {
+            let variants = try await repository.findVariants(name: card.name, setCode: card.set.code)
+            guard variants.count > 1 else { return card }
+
+            print("[MTGScanner] Found \(variants.count) art variants in \(card.set.name), comparing art...")
+            if let match = await artVariantMatcher.matchVariant(cardImage: cardImage, variants: variants) {
+                print("[MTGScanner] ✓ Art variant matched: #\(match.collectorNumber)")
+                return match
+            }
+        } catch {
+            // Variant lookup failed, return original
+        }
+        return card
+    }
+
     func resetScan() {
         scanState = .idle
         scannedCards = []

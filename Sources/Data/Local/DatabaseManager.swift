@@ -159,6 +159,18 @@ final class DatabaseManager: Sendable {
         return results.first
     }
 
+    // MARK: - Find Variants (Same Name + Set)
+
+    func findVariants(name: String, setCode: String) async throws -> [CardRecord] {
+        let context = ModelContext(modelContainer)
+        let descriptor = FetchDescriptor<CardRecord>(
+            predicate: #Predicate<CardRecord> { record in
+                record.name == name && record.setCode == setCode
+            }
+        )
+        return try context.fetch(descriptor)
+    }
+
     // MARK: - Count
 
     func cardCount() async throws -> Int {

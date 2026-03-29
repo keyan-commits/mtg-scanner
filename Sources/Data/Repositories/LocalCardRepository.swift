@@ -35,4 +35,9 @@ final class LocalCardRepository: CardRepositoryProtocol {
         let records = try await databaseManager.findCards(name: name)
         return records.map { $0.toDomain() }
     }
+
+    nonisolated func findVariants(name: String, setCode: String) async throws -> [Card] {
+        let records = try await databaseManager.findVariants(name: name, setCode: setCode)
+        return records.map { $0.toDomain() }
+    }
 }

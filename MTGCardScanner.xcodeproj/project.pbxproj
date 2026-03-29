@@ -10,6 +10,7 @@
 		010C3C4EA74ADCCBE6F6A58B /* BorderColorDetectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4851FBF02DEB870B0556183 /* BorderColorDetectorTests.swift */; };
 		01BD539541CFDF210E212632 /* CardScannerViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DE7068BD2D9DF85C62540FE /* CardScannerViewModelTests.swift */; };
 		03D9C7939C02EBCAF68DD5D4 /* HareruyaPriceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F4AAD7AD6AC090BFA3D94A6 /* HareruyaPriceService.swift */; };
+		09E8C96D2C7117D33D84A777 /* ArtVariantMatcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5BFAD132BA9468146FF0209 /* ArtVariantMatcherTests.swift */; };
 		0B7773827C86A8BC1D319BCB /* BorderColorDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10EA5138FB681CCADA88DD15 /* BorderColorDetector.swift */; };
 		0BD3C7BFA1572A7D555E99B2 /* MD3Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CD22E600EE58983EE4076F4 /* MD3Theme.swift */; };
 		1377DBE1993939A725BBB242 /* CopyrightYearExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2035EDE80ED29C5C9E644D9 /* CopyrightYearExtractor.swift */; };
@@ -62,6 +63,7 @@
 		D45133C3373E37CD5435D45A /* BulkDataDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44077D8AD1EB01565E5AA3DE /* BulkDataDownloader.swift */; };
 		D9ED037CB0286BCCD7968144 /* ImageMatcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA66245B4C93CD4D522AB835 /* ImageMatcherTests.swift */; };
 		DB88D0B70D9C6BB8B23B4818 /* CardKingdomPriceServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E55458CDC128613B13DEB0DA /* CardKingdomPriceServiceTests.swift */; };
+		DD3701D67AF3354B5BDE1D54 /* ArtVariantMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11B33B59868017AAA0F1788D /* ArtVariantMatcher.swift */; };
 		E1CFA89BBA57FAD22DCD0FEF /* CopyrightYearExtractorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42A03300EA4E9CE9FBCE9CE0 /* CopyrightYearExtractorTests.swift */; };
 		E360F742A744E9947A297E70 /* LocalCardRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85BC48258F31DAEFAC3A28BF /* LocalCardRepository.swift */; };
 		E3C1399D4EC466AFD74E4D61 /* CardDetectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC66736C738E0BF35A8058F /* CardDetectorTests.swift */; };
@@ -96,6 +98,7 @@
 		0D65BB4BA517B644ABDB8332 /* CardKingdomPriceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardKingdomPriceService.swift; sourceTree = "<group>"; };
 		0DE7068BD2D9DF85C62540FE /* CardScannerViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardScannerViewModelTests.swift; sourceTree = "<group>"; };
 		10EA5138FB681CCADA88DD15 /* BorderColorDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderColorDetector.swift; sourceTree = "<group>"; };
+		11B33B59868017AAA0F1788D /* ArtVariantMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtVariantMatcher.swift; sourceTree = "<group>"; };
 		1CD22E600EE58983EE4076F4 /* MD3Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MD3Theme.swift; sourceTree = "<group>"; };
 		1D3DE5961526665CF7B62C16 /* CardDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardDetector.swift; sourceTree = "<group>"; };
 		1F00F6CA17C65A39BDF87E55 /* CollectorInfoExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectorInfoExtractor.swift; sourceTree = "<group>"; };
@@ -143,6 +146,7 @@
 		CA2157A607C173ABCE8A4350 /* ScannedCardsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannedCardsListView.swift; sourceTree = "<group>"; };
 		CD9ED87F3DB0E99B27C7BA5E /* LocalCardRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalCardRepositoryTests.swift; sourceTree = "<group>"; };
 		CF55872A4A5CD1653A32E7B5 /* CardLegality.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardLegality.swift; sourceTree = "<group>"; };
+		D5BFAD132BA9468146FF0209 /* ArtVariantMatcherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtVariantMatcherTests.swift; sourceTree = "<group>"; };
 		D70078F34D00B7DBF39817BF /* PhotoPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoPickerView.swift; sourceTree = "<group>"; };
 		D9F24550C923BCBB8F5AB1E6 /* EDHRECServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EDHRECServiceTests.swift; sourceTree = "<group>"; };
 		E2035EDE80ED29C5C9E644D9 /* CopyrightYearExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopyrightYearExtractor.swift; sourceTree = "<group>"; };
@@ -196,6 +200,7 @@
 		2986D0C03BE8BECE8FA6E153 /* Infrastructure */ = {
 			isa = PBXGroup;
 			children = (
+				11B33B59868017AAA0F1788D /* ArtVariantMatcher.swift */,
 				10EA5138FB681CCADA88DD15 /* BorderColorDetector.swift */,
 				1D3DE5961526665CF7B62C16 /* CardDetector.swift */,
 				7C298A51F47FEA3016F0AC80 /* ImageMatcher.swift */,
@@ -277,6 +282,7 @@
 		4B18A4367C762FC5A0661678 /* Infrastructure */ = {
 			isa = PBXGroup;
 			children = (
+				D5BFAD132BA9468146FF0209 /* ArtVariantMatcherTests.swift */,
 				F4851FBF02DEB870B0556183 /* BorderColorDetectorTests.swift */,
 				BFC66736C738E0BF35A8058F /* CardDetectorTests.swift */,
 				08DD9B7FD35CF087C2CE083B /* CardNameExtractorTests.swift */,
@@ -518,6 +524,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DD3701D67AF3354B5BDE1D54 /* ArtVariantMatcher.swift in Sources */,
 				AD5228177719014722D29189 /* ArtistExtractor.swift in Sources */,
 				0B7773827C86A8BC1D319BCB /* BorderColorDetector.swift in Sources */,
 				D45133C3373E37CD5435D45A /* BulkDataDownloader.swift in Sources */,
@@ -571,6 +578,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				09E8C96D2C7117D33D84A777 /* ArtVariantMatcherTests.swift in Sources */,
 				010C3C4EA74ADCCBE6F6A58B /* BorderColorDetectorTests.swift in Sources */,
 				CB32AC7331633625882DBF2A /* CardDatabaseTests.swift in Sources */,
 				E3C1399D4EC466AFD74E4D61 /* CardDetectorTests.swift in Sources */,
