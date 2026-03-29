@@ -37,6 +37,9 @@ struct DeckLookupService: DeckLookupServiceProtocol, @unchecked Sendable {
         ("Legacy", "LE", "legacy"),
         ("Vintage", "VI", "vintage"),
         ("Pauper", "PAU", "pauper"),
+        ("Premodern", "PREM", "premodern"),
+        ("Duel Commander", "EDH", "duel"),
+        ("cEDH", "cEDH", "commander"),
     ]
 
     init(mtgTop8Service: MTGTop8ServiceProtocol, edhrecService: EDHRECServiceProtocol) {

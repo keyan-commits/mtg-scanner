@@ -50,7 +50,14 @@
       "Bash(curl -s \"https://json.edhrec.com/pages/cards/lightning-bolt.json\")",
       "WebFetch(domain:mtgtop8.com)",
       "Bash(curl -s 'https://mtgtop8.com/search?MD_check=1&SB_check=1&cards=Mogg+Fanatic&format=MO')",
-      "Bash(swift:*)"
+      "Bash(swift:*)",
+      "Bash(curl -s 'https://mtgtop8.com/search?MD_check=1&SB_check=1&cards=Mogg+Fanatic&format=PRE' -o /dev/null -w \"%{http_code}\")",
+      "Bash(curl -s 'https://mtgtop8.com/search?MD_check=1&SB_check=1&cards=Mogg+Fanatic&format=PRE')",
+      "Bash(curl -s 'https://mtgtop8.com/format?f=PRE')",
+      "Bash(curl -s 'https://mtgtop8.com/')",
+      "Bash(curl -s 'https://mtgtop8.com/search?MD_check=1&SB_check=1&cards=Mogg+Fanatic&format=PREM')",
+      "Bash(curl -s 'https://api.scryfall.com/cards/named?exact=Mogg+Fanatic')",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(''''\\\\n''''.join\\(f''''{k}: {v}'''' for k,v in d[''''legalities''''].items\\(\\)\\)\\)\")"
     ]
   }
 }
