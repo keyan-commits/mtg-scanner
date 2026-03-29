@@ -41,23 +41,15 @@ struct CardDetector: Sendable {
         // First try standard multi-card detection
         let observations = detectRectangleObservations(from: image)
 
-        // Filter out small detections (text boxes inside cards look like rectangles too)
-        // Require each card to be at least 15% of the image's smaller dimension
-        let smallerDimension = min(image.width, image.height)
-        let minPixels = max(200, Int(Double(smallerDimension) * 0.15))
-        let filtered = observations.filter { obs in
-            let w = Int(obs.boundingBox.width * CGFloat(image.width))
-            let h = Int(obs.boundingBox.height * CGFloat(image.height))
-            return w >= minPixels && h >= minPixels
+        // Strategy: use the LARGEST detected rectangle and subdivide it.
+        // This avoids text-box false positives (text boxes are small rectangles
+        // with similar aspect ratio to cards).
+        let largest = observations.max { a, b in
+            (a.boundingBox.width * a.boundingBox.height) < (b.boundingBox.width * b.boundingBox.height)
         }
-        print("[MTGScanner] Rectangle filter: \(observations.count) detected, \(filtered.count) passed (\(minPixels)px min)")
+        print("[MTGScanner] Rectangle filter: \(observations.count) detected, using largest")
 
-        if filtered.count > 1 {
-            // Multiple cards detected — crop each
-            return filtered.compactMap { cropCard(from: image, observation: $0) }
-        }
-
-        if let single = filtered.first {
+        if let single = largest {
             guard let cropped = cropCard(from: image, observation: single) else {
                 return []
             }
