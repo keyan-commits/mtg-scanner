@@ -65,8 +65,7 @@ struct PriceComparisonView: View {
                     storeButton(name: "Hareruya") {
                         let encodedName = card.name
                             .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? card.name
-                        let setCode = card.set.code
-                        if let url = URL(string: "https://www.hareruyamtg.com/en/products/search?cardName=\(encodedName)&setCode=\(setCode)") {
+                        if let url = URL(string: "https://www.hareruyamtg.com/en/products/search?cardName=\(encodedName)") {
                             openURL(url)
                         }
                     }
