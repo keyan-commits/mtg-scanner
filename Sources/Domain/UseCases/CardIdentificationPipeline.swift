@@ -162,11 +162,11 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
             return []
         }
 
-        // Try multi-card detection first
-        let croppedCards = cardDetector.detectAndCropAllCards(from: rawImage)
+        // Try OCR-based multi-card detection (finds card names in the full image)
+        let multiCardDetector = MultiCardDetector(recognizer: recognizer, cardDetector: cardDetector)
+        let croppedCards = await multiCardDetector.detectAndCropCards(from: rawImage)
         print("[MTGScanner] Multi-card detection: found \(croppedCards.count) cards")
 
-        // If 2+ cards detected, process each independently
         if croppedCards.count >= 2 {
             var results: [Card] = []
             for (index, cardImage) in croppedCards.enumerated() {
@@ -180,7 +180,7 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
             if !results.isEmpty { return results }
         }
 
-        // 0-1 cards detected — use proven single-card pipeline
+        // Fallback to proven single-card pipeline
         if let card = await identify(imageData: imageData) {
             return [card]
         }
