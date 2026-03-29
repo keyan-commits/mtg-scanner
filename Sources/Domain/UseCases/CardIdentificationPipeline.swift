@@ -286,8 +286,9 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
             return nil
         }
 
-        guard let match = visualEngine.bestMatch(for: artImage) else {
-            print("[MTGScanner] Visual search: no match found")
+        // Use strict threshold (8) for confident visual matches
+        guard let match = visualEngine.bestMatch(for: artImage, maxDistance: 8) else {
+            print("[MTGScanner] Visual search: no match within threshold")
             return nil
         }
 
@@ -297,16 +298,36 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         )
         print("[MTGScanner] \u{2713} Visual match: '\(match.cardName)' (distance: \(distance))")
 
+        // Run OCR to get signals for cross-validation and printing refinement
+        let signals = await extractOCRSignals(from: cardImage, wasCropped: wasCropped)
+
+        // Cross-validate: if OCR found a card name, check it's compatible with visual match
+        if let signals {
+            let ocrName = signals.cardName.lowercased()
+            let visualName = match.cardName.lowercased()
+            // Check if any significant word from OCR name appears in visual name or vice versa
+            let ocrWords = ocrName.split(separator: " ").filter { $0.count >= 4 }
+            let visualWords = visualName.split(separator: " ").filter { $0.count >= 4 }
+            let hasCommonWord = ocrWords.contains { ow in
+                visualWords.contains { vw in
+                    ow == vw || (ow.count == vw.count && levenshteinClose(String(ow), String(vw)))
+                }
+            }
+            if !hasCommonWord && !ocrWords.isEmpty {
+                print("[MTGScanner] Visual match rejected: OCR '\(signals.cardName)' ≠ visual '\(match.cardName)'")
+                return nil
+            }
+        }
+
         // Look up all printings for the matched card name
         guard let printings = try? await repository.findAllPrintings(name: match.cardName),
               !printings.isEmpty else {
-            // Card name from visual index not found in DB — fall through to OCR
             print("[MTGScanner] Visual match name '\(match.cardName)' not found in DB")
             return nil
         }
 
-        // Try to refine to exact printing using OCR signals
-        if let signals = await extractOCRSignals(from: cardImage, wasCropped: wasCropped) {
+        // Refine to exact printing using OCR signals
+        if let signals {
             // Use collector number if available (most precise)
             for candidate in signals.collectorCandidates {
                 if let setCode = candidate.setCode, !candidate.collectorNumber.isEmpty {
