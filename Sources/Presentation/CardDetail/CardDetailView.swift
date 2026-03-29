@@ -23,7 +23,7 @@ struct CardDetailView: View {
             VStack(spacing: 16) {
                 cardImage
                 cardHeader
-                priceCard
+                PriceComparisonView(card: viewModel.card)
                 legalitySection
                 DeckCompatibilityView(
                     card: viewModel.card,
@@ -91,37 +91,6 @@ struct CardDetailView: View {
                 .foregroundStyle(MD3Theme.onSurfaceVariant)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    // MARK: - Price Card
-
-    @ViewBuilder
-    private var priceCard: some View {
-        if let price = viewModel.formattedPrice {
-            MD3Card {
-                VStack(spacing: 8) {
-                    HStack {
-                        Text("Market Price")
-                            .font(MD3Typography.titleMedium)
-                            .foregroundStyle(MD3Theme.onSurface)
-
-                        Spacer()
-
-                        Text(price)
-                            .font(MD3Typography.headlineSmall)
-                            .foregroundStyle(MD3Theme.primary)
-                    }
-
-                    HStack {
-                        Text(viewModel.priceSource)
-                            .font(MD3Typography.labelSmall)
-                            .foregroundStyle(MD3Theme.onSurfaceVariant)
-                        Spacer()
-                    }
-                }
-                .padding(16)
-            }
-        }
     }
 
     // MARK: - Legality Section

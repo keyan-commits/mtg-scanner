@@ -57,7 +57,13 @@
       "Bash(curl -s 'https://mtgtop8.com/')",
       "Bash(curl -s 'https://mtgtop8.com/search?MD_check=1&SB_check=1&cards=Mogg+Fanatic&format=PREM')",
       "Bash(curl -s 'https://api.scryfall.com/cards/named?exact=Mogg+Fanatic')",
-      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(''''\\\\n''''.join\\(f''''{k}: {v}'''' for k,v in d[''''legalities''''].items\\(\\)\\)\\)\")"
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(''''\\\\n''''.join\\(f''''{k}: {v}'''' for k,v in d[''''legalities''''].items\\(\\)\\)\\)\")",
+      "WebFetch(domain:www.cardkingdom.com)",
+      "WebFetch(domain:www.hareruyamtg.com)",
+      "WebFetch(domain:mtgjson.com)",
+      "WebFetch(domain:justtcg.com)",
+      "WebFetch(domain:publicapi.dev)",
+      "WebFetch(domain:docs.rs)"
     ]
   }
 }
