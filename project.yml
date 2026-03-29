@@ -16,7 +16,7 @@ targets:
     sources:
       - Sources
     resources:
-      - Resources
+      - path: Sources/visual_index.json
     settings:
       base:
         INFOPLIST_FILE: Resources/Info.plist

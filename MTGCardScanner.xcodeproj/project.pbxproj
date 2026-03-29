@@ -32,6 +32,7 @@
 		5409B203EBFDF9CF58648FE4 /* ImageProcessorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D22EE4AB8218C72C0EAD60D /* ImageProcessorTests.swift */; };
 		55CC02B8C8E4FABD379F41A1 /* PhotoPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D70078F34D00B7DBF39817BF /* PhotoPickerView.swift */; };
 		567D2D1973D2C07635FE856B /* MTGTop8Service.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAA898E25833500BE94CBC7F /* MTGTop8Service.swift */; };
+		578168944382E8DA241AEB1E /* visual_index.json in Resources */ = {isa = PBXBuildFile; fileRef = F2A252AA053EDE23F4CB97C6 /* visual_index.json */; };
 		648DD482C451B4DE5E5DBA80 /* CardPrice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C4BF2A8C53CC29CF57DDF17 /* CardPrice.swift */; };
 		6491687B2BA7B8AF926256C8 /* CardIdentificationPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7374D319156D05ADA1D647B0 /* CardIdentificationPipeline.swift */; };
 		6CB01F01EDF77F14CBB57B9B /* MD3Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = C698A7B0DA3D0C27EA8CA9CA /* MD3Typography.swift */; };
@@ -165,6 +166,7 @@
 		EAA898E25833500BE94CBC7F /* MTGTop8Service.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MTGTop8Service.swift; sourceTree = "<group>"; };
 		F07B7D17E52CF5403F937FA4 /* EDHRECService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EDHRECService.swift; sourceTree = "<group>"; };
 		F219D7F66C8641FF5B37D71A /* VisualSearchEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualSearchEngineTests.swift; sourceTree = "<group>"; };
+		F2A252AA053EDE23F4CB97C6 /* visual_index.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = visual_index.json; sourceTree = "<group>"; };
 		F472D40D1DDF15EA480F7D9C /* VisualSearchEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualSearchEngine.swift; sourceTree = "<group>"; };
 		F4851FBF02DEB870B0556183 /* BorderColorDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderColorDetectorTests.swift; sourceTree = "<group>"; };
 		F543F59101D9F076941A13B3 /* ScryfallAPIClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScryfallAPIClientTests.swift; sourceTree = "<group>"; };
@@ -313,6 +315,7 @@
 		518B34C99174CD4B436DE737 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				F2A252AA053EDE23F4CB97C6 /* visual_index.json */,
 				610B74B9B5EDF7B175C9E8B9 /* App */,
 				DAB0E234B1886B66FDD844C0 /* Data */,
 				33F68F0378509F636E84D8A9 /* Domain */,
@@ -484,6 +487,7 @@
 			buildConfigurationList = E5B3EC9FC9D155E7F4F36079 /* Build configuration list for PBXNativeTarget "MTGCardScanner" */;
 			buildPhases = (
 				778095EF56DD324763F1F2A1 /* Sources */,
+				30FD9D71AB8B14049D90376D /* Resources */,
 			);
 			buildRules = (
 			);
@@ -533,6 +537,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		30FD9D71AB8B14049D90376D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				578168944382E8DA241AEB1E /* visual_index.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		778095EF56DD324763F1F2A1 /* Sources */ = {
