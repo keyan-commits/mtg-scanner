@@ -41,17 +41,15 @@ struct CardNameExtractor: Sendable {
 
         let sorted = ScanResultSorter.sortByVerticalPosition(highConfidence)
 
-        guard let topResult = sorted.first else {
-            return nil
+        // Try each result from top to bottom until one passes length check
+        for result in sorted {
+            let cleaned = cleanText(result.recognizedText)
+            if cleaned.count >= minimumNameLength {
+                return cleaned
+            }
         }
 
-        let cleaned = cleanText(topResult.recognizedText)
-
-        guard cleaned.count >= minimumNameLength else {
-            return nil
-        }
-
-        return cleaned
+        return nil
     }
 
     // MARK: - Text Cleaning
