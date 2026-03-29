@@ -241,10 +241,63 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
             return match
         }
 
-        // Step 2f: Fallback — try alternative names from rules text
+        // Step 2f: Try common first-character OCR corrections
+        // Old-frame fonts cause b→H, l→L, f→F etc. substitutions
+        if let match = await matchByFirstCharCorrection(signals: signals, cardImage: cardImage) {
+            return match
+        }
+
+        // Step 2g: Fallback — try alternative names from rules text
         // Old-frame cards have stylized title fonts that OCR mangles,
         // but rules text uses a clean font and often contains the card's own name
         return await matchByAlternativeNames(signals: signals, cardImage: cardImage)
+    }
+
+    /// Tries common first-character OCR substitutions on the card name.
+    /// Old-frame stylized fonts cause 'b'→'H', 'l'→'L' etc. errors.
+    private func matchByFirstCharCorrection(signals: OCRSignals, cardImage: CGImage) async -> Card? {
+        let name = signals.cardName
+        guard !name.isEmpty else { return nil }
+
+        let firstChar = name.first!
+        // Common OCR substitutions for stylized first characters
+        let replacements: [Character: [Character]] = [
+            "b": ["H", "B", "h"],
+            "l": ["L", "I", "l"],
+            "f": ["F", "f"],
+            "t": ["T", "t"],
+            "r": ["R", "r"],
+            "n": ["N", "n"],
+            "m": ["M", "m"],
+            "c": ["C", "c"],
+            "d": ["D", "d"],
+            "p": ["P", "p"],
+        ]
+
+        guard let candidates = replacements[firstChar] else { return nil }
+
+        for replacement in candidates {
+            var corrected = name
+            corrected.replaceSubrange(corrected.startIndex...corrected.startIndex, with: String(replacement))
+
+            if let printings = try? await repository.findAllPrintings(name: corrected),
+               !printings.isEmpty {
+                print("[MTGScanner] First-char correction: '\(name)' → '\(corrected)' (\(printings.count) printings)")
+
+                let correctedSignals = OCRSignals(
+                    scanResults: signals.scanResults,
+                    cardName: corrected,
+                    collectorCandidates: signals.collectorCandidates,
+                    artistName: signals.artistName,
+                    copyrightYear: signals.copyrightYear,
+                    hasOldTypeLine: signals.hasOldTypeLine,
+                    detectedBorder: signals.detectedBorder
+                )
+                return await matchByMetadata(signals: correctedSignals, cardImage: cardImage)
+            }
+        }
+
+        return nil
     }
 
     /// Tries to find the card name in the rules text when the title OCR was mangled.

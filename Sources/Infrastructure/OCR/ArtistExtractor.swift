@@ -29,9 +29,9 @@ struct ArtistExtractor: Sendable {
 
     /// Parses artist name from text like "Illus. Ben Thompson" or "Ilus Matt Cavotta".
     private func parseArtist(from text: String) -> String? {
-        // Match "Illus" (with OCR variants like "Ilus", "IIlus") followed by artist name
-        // OCR may read the period as comma, colon, semicolon, or omit it
-        let pattern = #"[Il1]{2,4}us[.,;:!]?\s+(.+)"#
+        // Match "Illus" with OCR variants: "Ilus", "IIlus", "Illux", "Illus"
+        // OCR may read 's' as 'x', period as comma/colon/semicolon, or omit it
+        let pattern = #"[Il1]{2,4}u[sxz][.,;:!]?\s+(.+)"#
         guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else {
             return nil
         }
