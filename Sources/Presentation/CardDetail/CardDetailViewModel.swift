@@ -50,21 +50,34 @@ final class CardDetailViewModel {
     }
 
     /// The art variant label.
-    /// - Letter suffix in collector number: #38d → "Variant D"
-    /// - Cross-reference via illustration_id: 4th Ed #361 shares art with Antiquities #80c → "Variant C"
+    /// - Named variants: Mishra's Factory #80a → "Spring"
+    /// - Letter suffix fallback: #38d → "Variant D"
+    /// - Cross-reference via illustration_id for reprints
     var variantLabel: String? {
         let number = card.collectorNumber
-        // Check for letter suffix (e.g., "38d", "80a")
         if let lastChar = number.last, lastChar.isLetter {
-            return "Variant \(String(lastChar).uppercased())"
+            let suffix = String(lastChar).lowercased()
+            // Check for well-known named variants
+            if let namedVariants = Self.knownVariantNames[card.name],
+               let name = namedVariants[suffix] {
+                return name
+            }
+            return "Variant \(suffix.uppercased())"
         }
-        // Will be populated by cross-referencing illustration_id
         return crossReferencedVariant
     }
 
     /// Variant label derived from illustration_id cross-referencing.
-    /// Set externally after async lookup.
     var crossReferencedVariant: String?
+
+    /// Well-known variant names from community conventions.
+    private static let knownVariantNames: [String: [String: String]] = [
+        "Mishra's Factory": ["a": "Spring", "b": "Summer", "c": "Autumn", "d": "Winter"],
+        "Urza's Mine": ["a": "Pulley", "b": "Mouth", "c": "Derrick", "d": "Tower"],
+        "Urza's Power Plant": ["a": "Bug", "b": "Columns", "c": "Sphere", "d": "Rock in Eye"],
+        "Urza's Tower": ["a": "Forest", "b": "Mountains", "c": "Plains", "d": "Shore"],
+        "Strip Mine": ["a": "Tower", "b": "No Horizon", "c": "Uneven Horizon", "d": "Even Horizon"],
+    ]
 
     /// The artist attribution line.
     var artistLabel: String? {

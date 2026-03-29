@@ -192,8 +192,21 @@ struct CardDetailView: View {
             // Look for a matching card with a letter suffix collector number
             for record in sameArt {
                 if let lastChar = record.collectorNumber.last, lastChar.isLetter {
-                    let variant = String(lastChar).uppercased()
-                    viewModel.crossReferencedVariant = "Variant \(variant)"
+                    let suffix = String(lastChar).lowercased()
+                    let cardName = viewModel.card.name
+                    // Use the same known variant names lookup
+                    let knownNames: [String: [String: String]] = [
+                        "Mishra's Factory": ["a": "Spring", "b": "Summer", "c": "Autumn", "d": "Winter"],
+                        "Urza's Mine": ["a": "Pulley", "b": "Mouth", "c": "Derrick", "d": "Tower"],
+                        "Urza's Power Plant": ["a": "Bug", "b": "Columns", "c": "Sphere", "d": "Rock in Eye"],
+                        "Urza's Tower": ["a": "Forest", "b": "Mountains", "c": "Plains", "d": "Shore"],
+                        "Strip Mine": ["a": "Tower", "b": "No Horizon", "c": "Uneven Horizon", "d": "Even Horizon"],
+                    ]
+                    if let named = knownNames[cardName]?[suffix] {
+                        viewModel.crossReferencedVariant = named
+                    } else {
+                        viewModel.crossReferencedVariant = "Variant \(suffix.uppercased())"
+                    }
                     return
                 }
             }
