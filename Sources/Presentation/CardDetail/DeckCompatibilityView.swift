@@ -21,8 +21,6 @@ struct DeckCompatibilityView: View {
             } else if let result {
                 headerSection
                 formatSections(result.formatResults)
-                commanderSection(result.commanderData)
-                edhrecRankBadge
                 externalLinksSection
             }
         }

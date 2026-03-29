@@ -52,13 +52,10 @@ struct DeckLookupService: DeckLookupServiceProtocol, @unchecked Sendable {
         // Fetch MTGTop8 data for all legal formats in parallel
         let formatResults = await fetchFormatResults(for: card.name, legalFormats: legalFormats)
 
-        // Fetch EDHREC data if legal in Commander
-        let commanderData = await fetchCommanderData(for: card)
-
         return DeckLookupResult(
             cardName: card.name,
             formatResults: formatResults,
-            commanderData: commanderData
+            commanderData: nil
         )
     }
 
