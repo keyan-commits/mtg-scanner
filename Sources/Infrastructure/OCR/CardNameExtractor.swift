@@ -78,6 +78,14 @@ struct CardNameExtractor: Sendable {
         // Replace underscores with spaces (common OCR artifact)
         cleaned = cleaned.replacingOccurrences(of: "_", with: " ")
 
+        // Restore apostrophes: "Mishra s" → "Mishra's", "Sensei s" → "Sensei's"
+        // OCR commonly drops apostrophes, leaving "word s" pattern
+        let apostrophePattern = #"(\w)\s+s\b"#
+        if let regex = try? NSRegularExpression(pattern: apostrophePattern, options: .caseInsensitive) {
+            let range = NSRange(cleaned.startIndex..., in: cleaned)
+            cleaned = regex.stringByReplacingMatches(in: cleaned, range: range, withTemplate: "$1's")
+        }
+
         // Collapse multiple spaces into single space
         while cleaned.contains("  ") {
             cleaned = cleaned.replacingOccurrences(of: "  ", with: " ")
