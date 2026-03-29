@@ -71,7 +71,8 @@ struct CardDatabaseTests {
         "released_at": "2020-08-07",
         "border_color": "black",
         "frame": "2015",
-        "illustration_id": "bc9b08eb-1234-5678-abcd-ef0123456789"
+        "illustration_id": "bc9b08eb-1234-5678-abcd-ef0123456789",
+        "edhrec_rank": 158
     ]
 
     // MARK: - toDomain Tests
@@ -325,6 +326,7 @@ struct CardDatabaseTests {
             frame: "2015",
             releasedAt: "2020-08-07",
             illustrationID: nil,
+            edhrecRank: 158,
             prices: ScryfallPricesDTO(
                 usd: "1.50",
                 usdFoil: "3.25",
@@ -376,6 +378,7 @@ struct CardDatabaseTests {
             frame: "2015",
             releasedAt: "2020-08-07",
             illustrationID: nil,
+            edhrecRank: nil,
             prices: ScryfallPricesDTO(
                 usd: "1.50",
                 usdFoil: "3.25",

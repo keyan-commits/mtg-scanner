@@ -80,6 +80,7 @@ private func makeTestCard(
         borderColor: nil,
         frame: nil,
         illustrationID: nil,
+        edhrecRank: nil,
         prices: CardPrices(usd: "1.50", usdFoil: nil, eur: "1.20", eurFoil: nil, tix: nil),
         legalities: FormatLegality([
             "standard": .notLegal,

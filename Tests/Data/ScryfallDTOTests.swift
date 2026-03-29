@@ -47,7 +47,8 @@ struct ScryfallDTOTests {
         "border_color": "black",
         "frame": "2015",
         "released_at": "2020-08-07",
-        "illustration_id": "bc9b08eb-1234-5678-abcd-ef0123456789"
+        "illustration_id": "bc9b08eb-1234-5678-abcd-ef0123456789",
+        "edhrec_rank": 158
     }
     """.data(using: .utf8)!
 

@@ -26,6 +26,7 @@ struct Card: Identifiable, Equatable, Hashable, Sendable {
     let borderColor: String?
     let frame: String?
     let illustrationID: String?
+    let edhrecRank: Int?
     let prices: CardPrices
     let legalities: FormatLegality
     let imageURIs: [String: String]

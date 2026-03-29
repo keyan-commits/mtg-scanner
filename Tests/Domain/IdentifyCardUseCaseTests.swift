@@ -57,6 +57,7 @@ struct IdentifyCardUseCaseTests {
             borderColor: nil,
             frame: nil,
             illustrationID: nil,
+            edhrecRank: nil,
             prices: CardPrices(usd: "1.00", usdFoil: nil, eur: nil, eurFoil: nil, tix: nil),
             legalities: FormatLegality(["modern": .legal]),
             imageURIs: [:],

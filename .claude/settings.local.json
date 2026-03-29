@@ -40,7 +40,15 @@
       "WebFetch(domain:api.scryfall.com)",
       "Bash(curl -s \"https://api.scryfall.com/cards/search?q=%21%22Tormod%27s+Crypt%22&unique=prints\")",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git remote:*)",
+      "Bash(git push:*)",
+      "WebFetch(domain:json.edhrec.com)",
+      "WebFetch(domain:www.mtggoldfish.com)",
+      "Bash(curl -s -H \"User-Agent: MTGCardScanner/1.0\" \"https://api.scryfall.com/cards/named?exact=lightning+bolt\")",
+      "Bash(curl -s \"https://json.edhrec.com/pages/cards/lightning-bolt.json\")",
+      "WebFetch(domain:mtgtop8.com)"
     ]
   }
 }

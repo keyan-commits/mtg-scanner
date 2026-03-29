@@ -19,6 +19,7 @@ struct ScryfallCardDTO: Codable, Sendable {
     let frame: String?
     let releasedAt: String?
     let illustrationID: String?
+    let edhrecRank: Int?
     let prices: ScryfallPricesDTO
     let legalities: [String: String]
     let imageURIs: [String: String]?
@@ -38,6 +39,7 @@ struct ScryfallCardDTO: Codable, Sendable {
         case borderColor = "border_color"
         case releasedAt = "released_at"
         case illustrationID = "illustration_id"
+        case edhrecRank = "edhrec_rank"
     }
 }
 
@@ -99,6 +101,7 @@ extension ScryfallCardDTO {
             borderColor: borderColor,
             frame: frame,
             illustrationID: illustrationID,
+            edhrecRank: edhrecRank,
             prices: cardPrices,
             legalities: formatLegality,
             imageURIs: imageURIs ?? [:],

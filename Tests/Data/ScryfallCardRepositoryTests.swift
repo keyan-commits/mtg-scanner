@@ -48,6 +48,7 @@ extension ScryfallCardRepositoryTests {
             frame: "2015",
             releasedAt: "2020-08-07",
             illustrationID: nil,
+            edhrecRank: nil,
             prices: ScryfallPricesDTO(
                 usd: "1.50",
                 usdFoil: "3.25",

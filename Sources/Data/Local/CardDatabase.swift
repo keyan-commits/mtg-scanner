@@ -20,6 +20,7 @@ final class CardRecord {
     var borderColor: String?
     var frame: String?
     var illustrationID: String?
+    var edhrecRank: Int?
     var priceUSD: String?
     var priceUSDFoil: String?
     var priceEUR: String?
@@ -45,6 +46,7 @@ final class CardRecord {
         borderColor: String? = nil,
         frame: String? = nil,
         illustrationID: String? = nil,
+        edhrecRank: Int? = nil,
         priceUSD: String?,
         priceUSDFoil: String?,
         priceEUR: String?,
@@ -69,6 +71,7 @@ final class CardRecord {
         self.borderColor = borderColor
         self.frame = frame
         self.illustrationID = illustrationID
+        self.edhrecRank = edhrecRank
         self.priceUSD = priceUSD
         self.priceUSDFoil = priceUSDFoil
         self.priceEUR = priceEUR
@@ -132,6 +135,7 @@ extension CardRecord {
             borderColor: borderColor,
             frame: frame,
             illustrationID: illustrationID,
+            edhrecRank: edhrecRank,
             prices: cardPrices,
             legalities: formatLegality,
             imageURIs: imageURIs,
@@ -177,6 +181,7 @@ extension CardRecord {
             borderColor: dto.borderColor,
             frame: dto.frame,
             illustrationID: dto.illustrationID,
+            edhrecRank: dto.edhrecRank,
             priceUSD: dto.prices.usd,
             priceUSDFoil: dto.prices.usdFoil,
             priceEUR: dto.prices.eur,
@@ -214,6 +219,7 @@ extension CardRecord {
         let borderColor = json["border_color"] as? String
         let frame = json["frame"] as? String
         let illustrationID = json["illustration_id"] as? String
+        let edhrecRank = json["edhrec_rank"] as? Int
 
         // Prices
         let prices = json["prices"] as? [String: Any] ?? [:]
@@ -259,6 +265,7 @@ extension CardRecord {
             borderColor: borderColor,
             frame: frame,
             illustrationID: illustrationID,
+            edhrecRank: edhrecRank,
             priceUSD: priceUSD,
             priceUSDFoil: priceUSDFoil,
             priceEUR: priceEUR,
