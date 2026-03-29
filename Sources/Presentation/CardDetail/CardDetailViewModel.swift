@@ -57,10 +57,19 @@ final class CardDetailViewModel {
         let number = card.collectorNumber
         if let lastChar = number.last, lastChar.isLetter {
             let suffix = String(lastChar).lowercased()
-            // Check for well-known named variants
+            // Check for well-known descriptive names (Antiquities lands)
             if let namedVariants = Self.knownVariantNames[card.name],
                let name = namedVariants[suffix] {
                 return name
+            }
+            // For other multi-art cards (Fallen Empires, etc.), use artist name
+            // since that's how the community identifies them
+            if let artist = card.artist {
+                // Extract last name for brevity
+                let parts = artist.split(separator: " ")
+                if let lastName = parts.last {
+                    return String(lastName)
+                }
             }
             return "Variant \(suffix.uppercased())"
         }
@@ -70,13 +79,15 @@ final class CardDetailViewModel {
     /// Variant label derived from illustration_id cross-referencing.
     var crossReferencedVariant: String?
 
-    /// Well-known variant names from community conventions.
+    /// Well-known variant names from community/retailer conventions.
+    /// Only the 5 Antiquities lands have descriptive scene names.
     private static let knownVariantNames: [String: [String: String]] = [
+        // Antiquities — descriptive scene names (used by TCGPlayer, Card Kingdom, SCG)
         "Mishra's Factory": ["a": "Spring", "b": "Summer", "c": "Autumn", "d": "Winter"],
-        "Urza's Mine": ["a": "Pulley", "b": "Mouth", "c": "Derrick", "d": "Tower"],
-        "Urza's Power Plant": ["a": "Bug", "b": "Columns", "c": "Sphere", "d": "Rock in Eye"],
-        "Urza's Tower": ["a": "Forest", "b": "Mountains", "c": "Plains", "d": "Shore"],
-        "Strip Mine": ["a": "Tower", "b": "No Horizon", "c": "Uneven Horizon", "d": "Even Horizon"],
+        "Urza's Mine": ["a": "Pulley", "b": "Mouth", "c": "Clawed Sphere", "d": "Tower"],
+        "Urza's Power Plant": ["a": "Sphere", "b": "Columns", "c": "Bug", "d": "Rock in Pot"],
+        "Urza's Tower": ["a": "Forest", "b": "Shore", "c": "Plains", "d": "Mountains"],
+        "Strip Mine": ["a": "No Horizon", "b": "Even Horizon", "c": "Tower", "d": "Uneven Horizon"],
     ]
 
     /// The artist attribution line.
