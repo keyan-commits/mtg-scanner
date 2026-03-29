@@ -61,7 +61,9 @@ struct MTGTop8Service: MTGTop8ServiceProtocol {
         let html: String
         do {
             let (data, _) = try await httpClient.data(for: request)
-            guard let decoded = String(data: data, encoding: .utf8) else {
+            // MTGTop8 uses Latin-1 encoding, not UTF-8
+            guard let decoded = String(data: data, encoding: .utf8)
+                    ?? String(data: data, encoding: .isoLatin1) else {
                 throw MTGTop8Error.parsingError
             }
             html = decoded
