@@ -295,13 +295,22 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
 
         // Last resort: try searching by distinctive words from the title
         // "bymn to Tourach" → try "Tourach" as a DB search
+        let commonWords: Set<String> = [
+            "the", "of", "to", "and", "in", "for", "from", "with", "that", "this",
+            "target", "player", "cards", "creature", "damage", "spell", "mana",
+            "power", "until", "turn", "hand", "your", "their", "each", "all",
+            "land", "artifact", "enchantment", "sorcery", "instant",
+        ]
         let titleWords = signals.cardName.split(separator: " ")
-        for word in titleWords.reversed() where word.count >= 5 {
+        for word in titleWords.reversed() where word.count >= 6 {
             let searchWord = String(word)
+            if commonWords.contains(searchWord.lowercased()) { continue }
+
             if let results = try? await repository.searchCards(query: searchWord),
                !results.isEmpty {
-                // If search returns a small number of cards, likely found it
-                if results.count <= 5, let bestMatch = results.first {
+                // Count unique card names (not printings)
+                let uniqueNames = Set(results.map(\.name))
+                if uniqueNames.count <= 3, let bestMatch = results.first {
                     print("[MTGScanner] Found card via partial name search: '\(searchWord)' → '\(bestMatch.name)'")
                     let correctedSignals = OCRSignals(
                         scanResults: signals.scanResults,
