@@ -38,14 +38,25 @@ final class CardDetailViewModel {
         return URL(string: urlString)
     }
 
-    /// A list of key competitive formats paired with their legality status.
+    /// A list of formats paired with their legality status.
     var legalFormats: [(String, LegalityStatus)] {
-        let formats = ["standard", "pioneer", "modern", "legacy", "commander"]
+        let formats: [(key: String, display: String)] = [
+            ("standard", "Standard"),
+            ("pioneer", "Pioneer"),
+            ("modern", "Modern"),
+            ("legacy", "Legacy"),
+            ("vintage", "Vintage"),
+            ("pauper", "Pauper"),
+            ("premodern", "Premodern"),
+            ("commander", "Commander"),
+            ("duel", "Duel Commander"),
+            ("oldschool", "Old School 93/94"),
+        ]
         return formats.compactMap { format in
-            guard let status = card.legalities.status(for: format) else {
+            guard let status = card.legalities.status(for: format.key) else {
                 return nil
             }
-            return (format.capitalized, status)
+            return (format.display, status)
         }
     }
 }
