@@ -268,8 +268,9 @@ final class CardScannerViewModel {
                 }
             }
 
-            // Border color filter — only used when card was successfully cropped (reliable)
-            if let border = detectedBorder {
+            // Border color filter — only for clear black/white detection
+            // "borderless" detection is unreliable (old gray frames read as borderless)
+            if let border = detectedBorder, border == .black || border == .white {
                 let filtered = printings.filter { $0.borderColor == border.rawValue }
                 if !filtered.isEmpty {
                     printings = filtered

@@ -42,7 +42,16 @@ struct ArtistExtractor: Sendable {
         guard let match = regex.firstMatch(in: text, range: range),
               match.numberOfRanges > 1 else { return nil }
 
-        let artist = nsText.substring(with: match.range(at: 1))
+        var artist = nsText.substring(with: match.range(at: 1))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Strip copyright/trademark symbols that OCR may include
+        let symbolsToStrip = CharacterSet(charactersIn: "©®™")
+        artist = artist.unicodeScalars
+            .filter { !symbolsToStrip.contains($0) }
+            .map { Character($0) }
+            .map(String.init)
+            .joined()
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard artist.count >= 3 else { return nil }
