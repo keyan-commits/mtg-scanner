@@ -61,10 +61,11 @@ struct CardDetector: Sendable {
 
             let aspectRatio = Double(cropped.width) / Double(cropped.height)
 
-            // Only subdivide if clearly multiple cards (ratio > 2.0 = at least 3 cards wide)
-            // Ratios 1.0-2.0 are ambiguous (could be 1 card with partial neighbor, or 2 cards)
-            // For those, return the full rectangle — pipeline will try to identify it as-is
-            if aspectRatio > 2.0 {
+            // Subdivide if aspect ratio suggests multiple cards (ratio > 1.2)
+            // A single card is ~0.716 ratio. Two side-by-side cards are ~1.43.
+            // With vision-first identification, bad subdivisions are silently dropped
+            // (they fail visual match and OCR, producing no result).
+            if aspectRatio > 1.2 {
                 let estimatedCards = max(2, Int(round(aspectRatio / 0.716)))
                 print("[MTGScanner] Wide rectangle detected (ratio \(String(format: "%.2f", aspectRatio))), subdividing into \(estimatedCards) cards")
                 return subdivideImage(cropped, into: estimatedCards)
