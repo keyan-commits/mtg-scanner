@@ -110,10 +110,39 @@ struct MTGCardScannerApp: App {
         let recognizer = VisionTextRecognizer()
         let nameExtractor = CardNameExtractor()
 
-        self.viewModel = CardScannerViewModel(
+        // Load visual search index (optional — pipeline falls back to OCR if nil)
+        let visualEngine = loadVisualSearchEngine()
+
+        let pipeline = CardIdentificationPipeline(
             recognizer: recognizer,
-            nameExtractor: nameExtractor,
-            repository: repository
+            repository: repository,
+            visualSearchEngine: visualEngine
         )
+
+        self.viewModel = CardScannerViewModel(pipeline: pipeline)
+    }
+
+    /// Attempts to load the visual search engine from the bundle or Application Support.
+    /// Returns nil if no visual index is available yet.
+    private func loadVisualSearchEngine() -> VisualSearchEngine? {
+        // Try bundle first (shipped with app)
+        if let engine = VisualSearchEngine.loadFromBundle() {
+            print("[MTGScanner] Visual index loaded from bundle")
+            return engine
+        }
+
+        // Try Application Support (downloaded/generated at runtime)
+        if let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+            let visualIndexURL = appSupport
+                .appendingPathComponent("MTGCardScanner", isDirectory: true)
+                .appendingPathComponent("visual_index.json")
+            if let engine = VisualSearchEngine.load(from: visualIndexURL) {
+                print("[MTGScanner] Visual index loaded from Application Support")
+                return engine
+            }
+        }
+
+        print("[MTGScanner] No visual index available — using OCR-only pipeline")
+        return nil
     }
 }

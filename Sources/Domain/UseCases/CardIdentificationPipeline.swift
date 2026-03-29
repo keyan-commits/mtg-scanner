@@ -17,7 +17,14 @@ import CoreGraphics
 // │    - Detect card rectangle via VNDetectRectanglesRequest        │
 // │    - Perspective-correct and crop to card bounds                │
 // │                                                                 │
-// │  Step 1: OCR Signal Extraction                                  │
+// │  Step 1: Visual Search (primary — vision-first approach)        │
+// │    - Extract art region from cropped card image                 │
+// │    - Query VisualSearchEngine for perceptual hash match         │
+// │    - If match found: card name + illustration_id known          │
+// │    - Use OCR signals to narrow to exact printing                │
+// │    - Skipped if visual index not available                      │
+// │                                                                 │
+// │  Step 2: OCR Fallback (when visual search unavailable/fails)    │
 // │    - Card name (topmost text via CardNameExtractor)             │
 // │    - Collector number + set code (bottom text)                  │
 // │    - Artist name (from "Illus." line)                           │
@@ -25,14 +32,14 @@ import CoreGraphics
 // │    - Old frame detection ("Summon" type line = pre-1999)        │
 // │    - Border color (pixel sampling on cropped card)              │
 // │                                                                 │
-// │  Step 2: Printing Resolution (most precise first)               │
-// │    2a. Set code + collector number → exact printing             │
-// │    2b. Collector number only → match among all printings        │
-// │    2c. Metadata filtering: artist → year → frame → border      │
-// │    2d. Printing priority sort (expansion > core > promo)        │
-// │    2e. VNFeaturePrint image comparison (tiebreaker)             │
+// │  Step 3: Printing Resolution (most precise first)               │
+// │    3a. Set code + collector number → exact printing             │
+// │    3b. Collector number only → match among all printings        │
+// │    3c. Metadata filtering: artist → year → frame → border      │
+// │    3d. Printing priority sort (expansion > core > promo)        │
+// │    3e. VNFeaturePrint image comparison (tiebreaker)             │
 // │                                                                 │
-// │  Step 3: Art Variant Resolution                                 │
+// │  Step 4: Art Variant Resolution                                 │
 // │    - Query all cards with same name+set                         │
 // │    - If multiple art variants exist, compare art regions        │
 // │    - Returns exact variant (#80a Spring vs #80d Winter)         │
@@ -85,11 +92,15 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
     /// Art variant resolution
     private let artVariantMatcher: ArtVariantMatcher
 
+    /// Visual search (primary identification — nil if index not available)
+    private let visualSearchEngine: VisualSearchEngine?
+
     // MARK: - Initialization
 
     init(
         recognizer: TextRecognizerProtocol,
         repository: CardRepositoryProtocol,
+        visualSearchEngine: VisualSearchEngine? = nil,
         imageProcessor: ImageProcessor = ImageProcessor(),
         cardDetector: CardDetector = CardDetector(),
         nameExtractor: CardNameExtractor = CardNameExtractor(),
@@ -102,6 +113,7 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
     ) {
         self.recognizer = recognizer
         self.repository = repository
+        self.visualSearchEngine = visualSearchEngine
         self.imageProcessor = imageProcessor
         self.cardDetector = cardDetector
         self.nameExtractor = nameExtractor
@@ -131,12 +143,12 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
 
         print("[MTGScanner] Card detection: \(wasCropped ? "✓ cropped" : "✗ using raw image")")
 
-        // Step 1-2: OCR + Printing resolution
+        // Steps 1-3: Visual search → OCR fallback → Printing resolution
         guard let identified = await resolvePrinting(cardImage: cardImage, wasCropped: wasCropped) else {
             return nil
         }
 
-        // Step 3: Art variant resolution
+        // Step 4: Art variant resolution
         return await resolveArtVariant(card: identified, cardImage: cardImage)
     }
 
@@ -176,7 +188,7 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         return []
     }
 
-    // MARK: - Step 1: OCR Signal Extraction
+    // MARK: - Step 2: OCR Signal Extraction
 
     /// Extracts all available signals from the card image via OCR.
     private struct OCRSignals {
@@ -225,33 +237,162 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         }
     }
 
-    // MARK: - Step 2: Printing Resolution
+    // MARK: - Step 3: Printing Resolution
 
     private func resolvePrinting(cardImage: CGImage, wasCropped: Bool) async -> Card? {
+
+        // Step 1: Visual search (primary identification)
+        if let match = await resolveByVisualSearch(cardImage: cardImage, wasCropped: wasCropped) {
+            return match
+        }
+
+        // Step 2+: OCR fallback (when visual search unavailable or fails)
         guard let signals = await extractOCRSignals(from: cardImage, wasCropped: wasCropped) else {
             return nil
         }
 
-        // Step 2a: Collector number + set code (most precise)
+        // Step 3a: Collector number + set code (most precise)
         if let match = await matchByCollectorNumber(signals: signals) {
             return match
         }
 
-        // Step 2b-e: Metadata filtering + image comparison
+        // Step 3b-e: Metadata filtering + image comparison
         if let match = await matchByMetadata(signals: signals, cardImage: cardImage) {
             return match
         }
 
-        // Step 2f: Try common first-character OCR corrections
+        // Step 3f: Try common first-character OCR corrections
         // Old-frame fonts cause b→H, l→L, f→F etc. substitutions
         if let match = await matchByFirstCharCorrection(signals: signals, cardImage: cardImage) {
             return match
         }
 
-        // Step 2g: Fallback — try alternative names from rules text
+        // Step 3g: Fallback — try alternative names from rules text
         // Old-frame cards have stylized title fonts that OCR mangles,
         // but rules text uses a clean font and often contains the card's own name
         return await matchByAlternativeNames(signals: signals, cardImage: cardImage)
+    }
+
+    // MARK: - Step 1: Visual Search
+
+    /// Uses perceptual hashing to identify the card by its art region.
+    /// If a match is found, uses OCR signals to narrow to the exact printing.
+    /// Returns nil if visual search is unavailable or finds no match.
+    private func resolveByVisualSearch(cardImage: CGImage, wasCropped: Bool) async -> Card? {
+        guard let visualEngine = visualSearchEngine else { return nil }
+
+        guard let artImage = artVariantMatcher.extractArtRegion(from: cardImage) else {
+            print("[MTGScanner] Visual search: could not extract art region")
+            return nil
+        }
+
+        guard let match = visualEngine.bestMatch(for: artImage) else {
+            print("[MTGScanner] Visual search: no match found")
+            return nil
+        }
+
+        let distance = PerceptualHash.hammingDistance(
+            PerceptualHash.compute(from: artImage) ?? 0,
+            match.hash
+        )
+        print("[MTGScanner] \u{2713} Visual match: '\(match.cardName)' (distance: \(distance))")
+
+        // Look up all printings for the matched card name
+        guard let printings = try? await repository.findAllPrintings(name: match.cardName),
+              !printings.isEmpty else {
+            // Card name from visual index not found in DB — fall through to OCR
+            print("[MTGScanner] Visual match name '\(match.cardName)' not found in DB")
+            return nil
+        }
+
+        // Try to refine to exact printing using OCR signals
+        if let signals = await extractOCRSignals(from: cardImage, wasCropped: wasCropped) {
+            // Use collector number if available (most precise)
+            for candidate in signals.collectorCandidates {
+                if let setCode = candidate.setCode, !candidate.collectorNumber.isEmpty {
+                    let lowerCode = setCode.lowercased()
+                    let num = candidate.collectorNumber
+                    if let exact = printings.first(where: { $0.set.code == lowerCode && $0.collectorNumber == num }) {
+                        print("[MTGScanner] \u{2713} Visual + set+number: \(exact.set.name) #\(exact.collectorNumber)")
+                        return exact
+                    }
+                }
+            }
+
+            for candidate in signals.collectorCandidates {
+                if !candidate.collectorNumber.isEmpty {
+                    let num = candidate.collectorNumber
+                    if let exact = printings.first(where: { $0.collectorNumber == num }) {
+                        print("[MTGScanner] \u{2713} Visual + number: \(exact.set.name) #\(exact.collectorNumber)")
+                        return exact
+                    }
+                }
+            }
+
+            // Apply metadata filters to narrow printing
+            var narrowed = printings
+
+            if let artistName = signals.artistName {
+                let ocrWords = Set(artistName.lowercased().split(separator: " ").map(String.init))
+                let filtered = narrowed.filter { card in
+                    guard let a = card.artist else { return false }
+                    let dbWords = Set(a.lowercased().split(separator: " ").map(String.init))
+                    for ocrWord in ocrWords where ocrWord.count >= 4 {
+                        for dbWord in dbWords where dbWord.count >= 4 {
+                            if ocrWord == dbWord { return true }
+                            if ocrWord.count == dbWord.count && levenshteinClose(ocrWord, dbWord) {
+                                return true
+                            }
+                        }
+                    }
+                    return false
+                }
+                if !filtered.isEmpty { narrowed = filtered }
+            }
+
+            if let year = signals.copyrightYear {
+                let yearStr = String(year)
+                let filtered = narrowed.filter { card in
+                    guard let rel = card.releasedAt, rel.count >= 4 else { return false }
+                    return String(rel.prefix(4)) == yearStr
+                }
+                if !filtered.isEmpty { narrowed = filtered }
+            }
+
+            if signals.hasOldTypeLine {
+                let oldFrames: Set<String> = ["1993", "1997"]
+                let filtered = narrowed.filter { card in
+                    guard let f = card.frame else { return false }
+                    return oldFrames.contains(f)
+                }
+                if !filtered.isEmpty { narrowed = filtered }
+            }
+
+            if let border = signals.detectedBorder, border == .black || border == .white {
+                let filtered = narrowed.filter { $0.borderColor == border.rawValue }
+                if !filtered.isEmpty { narrowed = filtered }
+            }
+
+            // Prefer the printing whose illustration_id matches the visual match
+            if let artMatch = narrowed.first(where: { $0.illustrationID == match.illustrationID }) {
+                print("[MTGScanner] \u{2713} Visual + metadata: \(artMatch.set.name) #\(artMatch.collectorNumber)")
+                return artMatch
+            }
+
+            if narrowed.count == 1, let single = narrowed.first {
+                print("[MTGScanner] \u{2713} Visual + metadata (unique): \(single.set.name) #\(single.collectorNumber)")
+                return single
+            }
+        }
+
+        // No OCR refinement — return printing with matching illustration_id, or first printing
+        if let artMatch = printings.first(where: { $0.illustrationID == match.illustrationID }) {
+            print("[MTGScanner] \u{2713} Visual match (illustration_id): \(artMatch.set.name) #\(artMatch.collectorNumber)")
+            return artMatch
+        }
+
+        print("[MTGScanner] \u{2713} Visual match (first printing): \(printings[0].set.name) #\(printings[0].collectorNumber)")
+        return printings.first
     }
 
     /// Tries common first-character OCR substitutions on the card name.
@@ -384,7 +525,7 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         return nil
     }
 
-    /// Step 2a: Match by collector number (+ optional set code).
+    /// Step 3a: Match by collector number (+ optional set code).
     private func matchByCollectorNumber(signals: OCRSignals) async -> Card? {
         guard !signals.collectorCandidates.isEmpty else { return nil }
 
@@ -417,7 +558,7 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         return nil
     }
 
-    /// Steps 2b-e: Metadata filtering, priority sort, image comparison.
+    /// Steps 3b-e: Metadata filtering, priority sort, image comparison.
     private func matchByMetadata(signals: OCRSignals, cardImage: CGImage) async -> Card? {
         guard var printings = try? await repository.findAllPrintings(name: signals.cardName),
               !printings.isEmpty else { return nil }
@@ -513,7 +654,7 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         return try? await repository.identifyCard(name: signals.cardName)
     }
 
-    // MARK: - Step 3: Art Variant Resolution
+    // MARK: - Step 4: Art Variant Resolution
 
     /// Checks if the identified card has art variants in the same set,
     /// and resolves to the correct one by comparing art regions.
