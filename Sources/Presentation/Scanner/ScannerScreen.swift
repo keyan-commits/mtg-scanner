@@ -17,7 +17,7 @@ struct ScannerScreen: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                MD3TopAppBar(title: "MTG Scanner")
+                MD3TopAppBar(title: "MTG Card Identifier")
 
                 contentView
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -60,11 +60,11 @@ struct ScannerScreen: View {
                 .font(.system(size: 64))
                 .foregroundStyle(MD3Theme.primary)
 
-            Text("Scan your MTG cards")
+            Text("Identify your MTG cards")
                 .font(MD3Typography.headlineSmall)
                 .foregroundStyle(MD3Theme.onBackground)
 
-            Text("Select photos of your Magic: The Gathering cards to identify them and look up prices.")
+            Text("Select photos of your Magic: The Gathering cards to identify the expansion, check prices, and find deck archetypes.")
                 .font(MD3Typography.bodyMedium)
                 .foregroundStyle(MD3Theme.onSurfaceVariant)
                 .multilineTextAlignment(.center)
@@ -92,7 +92,7 @@ struct ScannerScreen: View {
             .tint(MD3Theme.primary)
             .padding(.horizontal, 48)
 
-            Text("Identifying cards via OCR...")
+            Text("Identifying cards...")
                 .font(MD3Typography.bodyMedium)
                 .foregroundStyle(MD3Theme.onSurfaceVariant)
 
@@ -142,7 +142,7 @@ struct ScannerScreen: View {
                 .font(.system(size: 48))
                 .foregroundStyle(MD3Theme.error)
 
-            Text("Scan Error")
+            Text("Error")
                 .font(MD3Typography.titleMedium)
                 .foregroundStyle(MD3Theme.onBackground)
 

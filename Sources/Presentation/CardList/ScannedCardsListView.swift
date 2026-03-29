@@ -72,7 +72,7 @@ struct ScannedCardsListView: View {
                 totalPriceRow
             }
 
-            MD3FilledButton("Scan More Cards") {
+            MD3FilledButton("Identify More Cards") {
                 onScanMore()
             }
         }

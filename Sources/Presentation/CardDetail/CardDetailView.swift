@@ -148,7 +148,7 @@ struct CardDetailView: View {
     // MARK: - Scan Another Button
 
     private var scanAnotherButton: some View {
-        MD3OutlinedButton("Scan Another") {
+        MD3OutlinedButton("Identify Another") {
             onScanAnother()
         }
         .padding(.top, 8)
