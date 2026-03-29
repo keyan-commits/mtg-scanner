@@ -47,18 +47,26 @@ struct PriceComparisonView: View {
 
                 HStack(spacing: 12) {
                     storeButton(name: "Card Kingdom") {
-                        let encoded = card.name
+                        let setSlug = card.set.name
                             .lowercased()
-                            .replacingOccurrences(of: " ", with: "+")
-                        if let url = URL(string: "https://www.cardkingdom.com/purchasing/mtg_singles?filter%5Bname%5D=\(encoded)") {
+                            .replacingOccurrences(of: " ", with: "-")
+                            .replacingOccurrences(of: "'", with: "")
+                            .replacingOccurrences(of: ",", with: "")
+                        let cardSlug = card.name
+                            .lowercased()
+                            .replacingOccurrences(of: " ", with: "-")
+                            .replacingOccurrences(of: "'", with: "")
+                            .replacingOccurrences(of: ",", with: "")
+                        if let url = URL(string: "https://www.cardkingdom.com/mtg/\(setSlug)/\(cardSlug)") {
                             openURL(url)
                         }
                     }
 
                     storeButton(name: "Hareruya") {
-                        let encoded = card.name
+                        let encodedName = card.name
                             .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? card.name
-                        if let url = URL(string: "https://www.hareruyamtg.com/en/products/search?cardName=\(encoded)") {
+                        let setCode = card.set.code
+                        if let url = URL(string: "https://www.hareruyamtg.com/en/products/search?cardName=\(encodedName)&setCode=\(setCode)") {
                             openURL(url)
                         }
                     }
