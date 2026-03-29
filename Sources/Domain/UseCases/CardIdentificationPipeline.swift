@@ -293,6 +293,30 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
             }
         }
 
+        // Last resort: try searching by distinctive words from the title
+        // "bymn to Tourach" → try "Tourach" as a DB search
+        let titleWords = signals.cardName.split(separator: " ")
+        for word in titleWords.reversed() where word.count >= 5 {
+            let searchWord = String(word)
+            if let results = try? await repository.searchCards(query: searchWord),
+               !results.isEmpty {
+                // If search returns a small number of cards, likely found it
+                if results.count <= 5, let bestMatch = results.first {
+                    print("[MTGScanner] Found card via partial name search: '\(searchWord)' → '\(bestMatch.name)'")
+                    let correctedSignals = OCRSignals(
+                        scanResults: signals.scanResults,
+                        cardName: bestMatch.name,
+                        collectorCandidates: signals.collectorCandidates,
+                        artistName: signals.artistName,
+                        copyrightYear: signals.copyrightYear,
+                        hasOldTypeLine: signals.hasOldTypeLine,
+                        detectedBorder: signals.detectedBorder
+                    )
+                    return await matchByMetadata(signals: correctedSignals, cardImage: cardImage)
+                }
+            }
+        }
+
         print("[MTGScanner] Alternative name search exhausted (\(attempts) attempts)")
         return nil
     }
