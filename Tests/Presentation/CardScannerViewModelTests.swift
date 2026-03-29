@@ -102,10 +102,18 @@ private func makeTestCard(
 
 struct MockPipeline: CardIdentificationPipelineProtocol {
     var resultCard: Card?
+    var resultCards: [Card]?
 
     func identify(imageData: Data) async -> Card? {
         guard !imageData.isEmpty, imageData.count > 2 else { return nil }
         return resultCard
+    }
+
+    func identifyAll(imageData: Data) async -> [Card] {
+        guard !imageData.isEmpty, imageData.count > 2 else { return [] }
+        if let cards = resultCards { return cards }
+        if let card = resultCard { return [card] }
+        return []
     }
 }
 

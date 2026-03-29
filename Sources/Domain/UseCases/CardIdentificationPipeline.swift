@@ -45,9 +45,14 @@ import CoreGraphics
 /// the exact Card printing, including expansion, collector number,
 /// and art variant.
 protocol CardIdentificationPipelineProtocol: Sendable {
-    /// Identifies a card from raw image data.
+    /// Identifies a single card from raw image data.
     /// Returns nil if the card cannot be identified.
     func identify(imageData: Data) async -> Card?
+
+    /// Identifies all cards visible in raw image data.
+    /// Detects multiple card rectangles, identifies each independently.
+    /// Falls back to single-card identification if multi-detect finds nothing.
+    func identifyAll(imageData: Data) async -> [Card]
 }
 
 // MARK: - Implementation
@@ -133,6 +138,42 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
 
         // Step 3: Art variant resolution
         return await resolveArtVariant(card: identified, cardImage: cardImage)
+    }
+
+    /// Identifies all cards visible in the image data.
+    ///
+    /// Detects multiple card rectangles, perspective-corrects each,
+    /// and runs the full identification pipeline on each card independently.
+    /// Falls back to single-card identification if multi-detect finds nothing.
+    func identifyAll(imageData: Data) async -> [Card] {
+        guard let rawImage = imageProcessor.downsample(data: imageData) else {
+            return []
+        }
+
+        // Try multi-card detection
+        let croppedCards = await cardDetector.detectAndCropAll(from: rawImage)
+        print("[MTGScanner] Multi-card detection: found \(croppedCards.count) cards")
+
+        if croppedCards.isEmpty {
+            // Fallback to single-card detection
+            if let card = await identify(imageData: imageData) {
+                return [card]
+            }
+            return []
+        }
+
+        // Identify each cropped card through the pipeline
+        var results: [Card] = []
+        for (index, cardImage) in croppedCards.enumerated() {
+            print("[MTGScanner] Identifying card \(index + 1) of \(croppedCards.count)...")
+
+            if let identified = await resolvePrinting(cardImage: cardImage, wasCropped: true) {
+                let resolved = await resolveArtVariant(card: identified, cardImage: cardImage)
+                results.append(resolved)
+            }
+        }
+
+        return results
     }
 
     // MARK: - Step 1: OCR Signal Extraction
