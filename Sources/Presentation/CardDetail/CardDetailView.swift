@@ -99,16 +99,25 @@ struct CardDetailView: View {
     private var priceCard: some View {
         if let price = viewModel.formattedPrice {
             MD3Card {
-                HStack {
-                    Text("Market Price")
-                        .font(MD3Typography.titleMedium)
-                        .foregroundStyle(MD3Theme.onSurface)
+                VStack(spacing: 8) {
+                    HStack {
+                        Text("Market Price")
+                            .font(MD3Typography.titleMedium)
+                            .foregroundStyle(MD3Theme.onSurface)
 
-                    Spacer()
+                        Spacer()
 
-                    Text(price)
-                        .font(MD3Typography.headlineSmall)
-                        .foregroundStyle(MD3Theme.primary)
+                        Text(price)
+                            .font(MD3Typography.headlineSmall)
+                            .foregroundStyle(MD3Theme.primary)
+                    }
+
+                    HStack {
+                        Text(viewModel.priceSource)
+                            .font(MD3Typography.labelSmall)
+                            .foregroundStyle(MD3Theme.onSurfaceVariant)
+                        Spacer()
+                    }
                 }
                 .padding(16)
             }

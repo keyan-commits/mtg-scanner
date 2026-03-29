@@ -30,6 +30,17 @@ final class CardDetailViewModel {
         return nil
     }
 
+    /// The source of the displayed price.
+    var priceSource: String {
+        if card.prices.usd != nil {
+            return "Source: TCGPlayer via Scryfall"
+        }
+        if card.prices.eur != nil {
+            return "Source: Cardmarket via Scryfall"
+        }
+        return ""
+    }
+
     /// The URL for the card's normal-size image, if available.
     var cardImageURL: URL? {
         guard let urlString = card.imageURIs["normal"] else {
