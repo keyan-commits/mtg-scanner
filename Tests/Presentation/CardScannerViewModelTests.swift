@@ -109,6 +109,10 @@ struct MockPipeline: CardIdentificationPipelineProtocol {
         return resultCard
     }
 
+    func identifyCropped(cardImage: CGImage) async -> Card? {
+        return resultCard
+    }
+
     func identifyAll(imageData: Data) async -> [Card] {
         guard !imageData.isEmpty, imageData.count > 2 else { return [] }
         if let cards = resultCards { return cards }

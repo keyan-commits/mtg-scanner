@@ -56,6 +56,9 @@ protocol CardIdentificationPipelineProtocol: Sendable {
     /// Returns nil if the card cannot be identified.
     func identify(imageData: Data) async -> Card?
 
+    /// Identifies a card from a pre-cropped CGImage (skips downsample + card detection).
+    func identifyCropped(cardImage: CGImage) async -> Card?
+
     /// Identifies all cards visible in raw image data.
     /// Detects multiple card rectangles, identifies each independently.
     /// Falls back to single-card identification if multi-detect finds nothing.
@@ -131,6 +134,35 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
     }
 
     // MARK: - Public API
+
+    /// Identifies a card from a pre-cropped CGImage (e.g., a grid cell from Deck Photo mode).
+    /// Skips downsampling and card detection — the image IS the card.
+    func identifyCropped(cardImage: CGImage) async -> Card? {
+        print("[MTGScanner] Identifying cropped image \(cardImage.width)x\(cardImage.height)")
+
+        // Try card detection to straighten/crop within the cell
+        let croppedCard = await cardDetector.detectAndCrop(from: cardImage)
+        let finalImage = croppedCard ?? cardImage
+        let wasCropped = croppedCard != nil
+
+        guard let identified = await resolvePrinting(cardImage: finalImage, wasCropped: wasCropped) else {
+            return nil
+        }
+
+        let finalCard = await resolveArtVariant(card: identified, cardImage: finalImage)
+
+        if let cache = featurePrintCache,
+           let artImage = artVariantMatcher.extractArtRegion(from: finalImage) {
+            await cache.cache(
+                illustrationID: finalCard.illustrationID ?? "",
+                cardName: finalCard.name,
+                artImage: artImage
+            )
+            await cache.save()
+        }
+
+        return finalCard
+    }
 
     /// Identifies a card from raw image data.
     ///

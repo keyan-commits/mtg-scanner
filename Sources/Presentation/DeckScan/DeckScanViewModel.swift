@@ -83,9 +83,8 @@ final class DeckScanViewModel {
                 )
 
                 guard let cropped = image.cropping(to: rect) else { continue }
-                guard let jpegData = cgImageToJPEGData(cropped) else { continue }
 
-                if let card = await pipeline.identify(imageData: jpegData) {
+                if let card = await pipeline.identifyCropped(cardImage: cropped) {
                     identifiedCards.append(card)
                 }
             }

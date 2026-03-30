@@ -67,7 +67,8 @@
       "Bash(curl -s 'https://www.hareruyamtg.com/en/products/search/unisearch_api?cardName=Feldon%27s+Cane')",
       "Bash(curl:*)",
       "WebFetch(domain:www.lethe.xyz)",
-      "Bash(search\" with larger icons and text.:*)"
+      "Bash(search\" with larger icons and text.:*)",
+      "Bash(xcrun devicectl:*)"
     ]
   }
 }
