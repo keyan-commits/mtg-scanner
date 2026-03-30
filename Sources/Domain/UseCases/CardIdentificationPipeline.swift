@@ -578,12 +578,29 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         }
 
         // Fuzzy name matching: OCR often mangles 1-3 characters
-        // "Nacuralize" → "Naturalize", "Goblin Ringka" → "Goblin Ringleader"
+        // Search by individual words to find candidates, then fuzzy match the full name
         if signals.cardName.count >= 5 {
+            var searchResults: [Card] = []
+
+            // Try full name search first
             if let results = try? await repository.searchCards(query: signals.cardName),
                !results.isEmpty {
-                // Find the card name with the smallest edit distance
-                let uniqueNames = Array(Set(results.map(\.name)))
+                searchResults = results
+            }
+
+            // If no results, try searching by each word (at least one word is usually correct)
+            if searchResults.isEmpty {
+                let words = signals.cardName.split(separator: " ").map(String.init)
+                for word in words where word.count >= 4 {
+                    if let results = try? await repository.searchCards(query: word),
+                       !results.isEmpty {
+                        searchResults.append(contentsOf: results)
+                    }
+                }
+            }
+
+            if !searchResults.isEmpty {
+                let uniqueNames = Array(Set(searchResults.map(\.name)))
                 let ocrLower = signals.cardName.lowercased()
                 var bestName: String?
                 var bestDist = Int.max
@@ -591,7 +608,7 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
                 for name in uniqueNames {
                     let nameLower = name.lowercased()
                     let dist = levenshteinDistance(ocrLower, nameLower)
-                    if dist < bestDist && dist <= 3 {
+                    if dist < bestDist && dist <= 4 {
                         bestDist = dist
                         bestName = name
                     }
