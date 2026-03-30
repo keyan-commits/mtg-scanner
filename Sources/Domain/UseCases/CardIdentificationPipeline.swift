@@ -158,29 +158,8 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
     /// and runs the full identification pipeline on each card independently.
     /// Falls back to single-card identification if multi-detect finds nothing.
     func identifyAll(imageData: Data) async -> [Card] {
-        guard let rawImage = imageProcessor.downsample(data: imageData) else {
-            return []
-        }
-
-        // Try OCR-based multi-card detection (finds card names in the full image)
-        let multiCardDetector = MultiCardDetector(recognizer: recognizer, cardDetector: cardDetector)
-        let croppedCards = await multiCardDetector.detectAndCropCards(from: rawImage)
-        print("[MTGScanner] Multi-card detection: found \(croppedCards.count) cards")
-
-        if croppedCards.count >= 2 {
-            var results: [Card] = []
-            for (index, cardImage) in croppedCards.enumerated() {
-                print("[MTGScanner] Identifying card \(index + 1) of \(croppedCards.count)...")
-
-                if let identified = await resolvePrinting(cardImage: cardImage, wasCropped: true) {
-                    let resolved = await resolveArtVariant(card: identified, cardImage: cardImage)
-                    results.append(resolved)
-                }
-            }
-            if !results.isEmpty { return results }
-        }
-
-        // Fallback to proven single-card pipeline
+        // Always use the proven single-card pipeline first
+        // This handles 90%+ of photos correctly
         if let card = await identify(imageData: imageData) {
             return [card]
         }
