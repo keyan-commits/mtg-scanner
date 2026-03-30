@@ -23,6 +23,7 @@ struct CardCorrectionView: View {
     @State private var printings: [Card] = []
     @State private var isSearching = false
     @State private var searchTask: Task<Void, Never>?
+    @State private var didAutoLoad = false
 
     var body: some View {
         NavigationStack {
@@ -42,6 +43,15 @@ struct CardCorrectionView: View {
                     }
                     .foregroundStyle(MD3Theme.primary)
                 }
+            }
+        }
+        .task {
+            // Auto-populate with current card's name and show its printings
+            if !didAutoLoad, let card = currentCard {
+                didAutoLoad = true
+                searchText = card.name
+                selectedCardName = card.name
+                loadPrintings(for: card.name)
             }
         }
     }
