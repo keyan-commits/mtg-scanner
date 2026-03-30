@@ -123,10 +123,16 @@ struct DecklistResultView: View {
                 .frame(width: 32, alignment: .leading)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(entry.card.name)
-                    .font(MD3Typography.bodyMedium)
-                    .foregroundStyle(MD3Theme.onSurface)
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(entry.card.name)
+                        .font(MD3Typography.bodyMedium)
+                        .foregroundStyle(MD3Theme.onSurface)
+                        .lineLimit(1)
+
+                    Text(raritySymbol(entry.card.rarity))
+                        .font(.caption2)
+                        .foregroundStyle(rarityColor(entry.card.rarity))
+                }
 
                 Text(entry.card.set.name)
                     .font(MD3Typography.labelSmall)
@@ -290,6 +296,26 @@ struct DecklistResultView: View {
         if lower.contains("artifact") { return "Artifacts" }
         if lower.contains("land") { return "Lands" }
         return "Other"
+    }
+
+    // MARK: - Rarity
+
+    private func raritySymbol(_ rarity: CardRarity) -> String {
+        switch rarity {
+        case .mythic: return "M"
+        case .rare: return "R"
+        case .uncommon: return "U"
+        case .common: return "C"
+        }
+    }
+
+    private func rarityColor(_ rarity: CardRarity) -> Color {
+        switch rarity {
+        case .mythic: return .orange
+        case .rare: return .yellow
+        case .uncommon: return .gray
+        case .common: return Color(white: 0.5)
+        }
     }
 
     // MARK: - Export
