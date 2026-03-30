@@ -299,25 +299,32 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
                     print("[MTGScanner] FeaturePrint cache rejected: OCR '\(signals.cardName)' ≠ cache '\(cacheHit.cardName)'")
                     // Don't return nil — fall through to OCR pipeline
                 } else {
-                    // Cache + OCR agree — accept the match
-                    if let printings = try? await repository.findAllPrintings(name: cacheHit.cardName),
-                       !printings.isEmpty {
-                        if let artMatch = printings.first(where: { $0.illustrationID == cacheHit.illustrationID }) {
-                            print("[MTGScanner] \u{2713} FeaturePrint cache match: \(artMatch.set.name) #\(artMatch.collectorNumber)")
-                            return artMatch
-                        }
-                        return printings.first
+                    // Cache + OCR agree on card name — use OCR metadata to find exact printing
+                    let correctedSignals = OCRSignals(
+                        scanResults: signals.scanResults,
+                        cardName: cacheHit.cardName,
+                        collectorCandidates: signals.collectorCandidates,
+                        artistName: signals.artistName,
+                        copyrightYear: signals.copyrightYear,
+                        hasOldTypeLine: signals.hasOldTypeLine,
+                        detectedBorder: signals.detectedBorder
+                    )
+                    if let match = await matchByMetadata(signals: correctedSignals, cardImage: cardImage) {
+                        print("[MTGScanner] \u{2713} FeaturePrint cache + metadata: \(match.set.name) #\(match.collectorNumber)")
+                        return match
                     }
                 }
             } else {
-                // OCR failed — trust the cache (it's our only signal)
+                // OCR failed — use cache name + illustration_id as best effort
                 if let printings = try? await repository.findAllPrintings(name: cacheHit.cardName),
                    !printings.isEmpty {
-                    if let artMatch = printings.first(where: { $0.illustrationID == cacheHit.illustrationID }) {
+                    // Prefer expansion printings over promos
+                    let sorted = printings.sorted { a, b in printingPriority(a) < printingPriority(b) }
+                    if let artMatch = sorted.first(where: { $0.illustrationID == cacheHit.illustrationID }) {
                         print("[MTGScanner] \u{2713} FeaturePrint cache match (no OCR): \(artMatch.set.name) #\(artMatch.collectorNumber)")
                         return artMatch
                     }
-                    return printings.first
+                    return sorted.first
                 }
             }
         }
