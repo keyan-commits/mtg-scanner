@@ -634,12 +634,12 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
                     let dist = levenshteinDistance(ocrLower, nameLower)
                     guard dist <= 4 else { continue }
 
-                    // Score: edit distance, but penalize word count mismatch
-                    // "Goblin Ringka" (2 words) should prefer "Goblin Ringleader" (2 words)
-                    // over "Goblin King" (2 words but shorter — actually same word count)
-                    // Better: penalize large length difference
-                    let lengthDiff = abs(ocrLower.count - nameLower.count)
-                    let score = dist * 3 + lengthDiff // Weight edit distance more, but length matters
+                    // Score: prefer names with similar length to OCR input
+                    // "Goblin Ringka" (13 chars) → "Goblin Ringleader" (17, +4) better than "Goblin King" (11, -2)
+                    // Penalize names SHORTER than OCR more (OCR rarely adds chars, usually drops/mangles)
+                    let lengthDiff = nameLower.count - ocrLower.count
+                    let lengthPenalty = lengthDiff < 0 ? abs(lengthDiff) * 5 : lengthDiff
+                    let score = dist * 2 + lengthPenalty
 
                     if score < bestScore {
                         bestScore = score
