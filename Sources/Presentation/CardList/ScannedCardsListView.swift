@@ -33,6 +33,17 @@ struct ScannedCardsListView: View {
             footer
         }
         .background(MD3Theme.background)
+        .sheet(isPresented: $showCorrection) {
+            if let repository, let index = correctionIndex {
+                CardCorrectionView(
+                    repository: repository,
+                    onCorrection: { correctedCard in
+                        showCorrection = false
+                        onCorrection?(index, correctedCard)
+                    }
+                )
+            }
+        }
     }
 
     // MARK: - Card List
@@ -68,17 +79,6 @@ struct ScannedCardsListView: View {
                     }
                 }
             ) {}
-        }
-        .sheet(isPresented: $showCorrection) {
-            if let repository, let index = correctionIndex {
-                CardCorrectionView(
-                    repository: repository,
-                    onCorrection: { correctedCard in
-                        showCorrection = false
-                        onCorrection?(index, correctedCard)
-                    }
-                )
-            }
         }
     }
 
