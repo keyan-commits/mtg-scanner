@@ -8,13 +8,26 @@ struct CardDetailView: View {
 
     private let viewModel: CardDetailViewModel
     private let onScanAnother: () -> Void
+    private let repository: CardRepositoryProtocol?
+    private let onCorrection: ((Card) -> Void)?
+
+    @State private var showCorrection = false
 
     /// Creates a card detail view.
     /// - Parameters:
     ///   - card: The card to display.
+    ///   - repository: Optional repository for card correction search.
+    ///   - onCorrection: Optional callback when the user corrects the card.
     ///   - onScanAnother: Closure invoked when the user taps "Scan Another".
-    init(card: Card, onScanAnother: @escaping () -> Void) {
+    init(
+        card: Card,
+        repository: CardRepositoryProtocol? = nil,
+        onCorrection: ((Card) -> Void)? = nil,
+        onScanAnother: @escaping () -> Void
+    ) {
         self.viewModel = CardDetailViewModel(card: card)
+        self.repository = repository
+        self.onCorrection = onCorrection
         self.onScanAnother = onScanAnother
     }
 
@@ -110,8 +123,28 @@ struct CardDetailView: View {
                     .font(MD3Typography.bodySmall)
                     .foregroundStyle(MD3Theme.onSurfaceVariant)
             }
+
+            if onCorrection != nil, repository != nil {
+                Button("Wrong card?") {
+                    showCorrection = true
+                }
+                .font(MD3Typography.labelSmall)
+                .foregroundStyle(MD3Theme.primary)
+                .padding(.top, 4)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .sheet(isPresented: $showCorrection) {
+            if let repository, let onCorrection {
+                CardCorrectionView(
+                    repository: repository,
+                    onCorrection: { correctedCard in
+                        showCorrection = false
+                        onCorrection(correctedCard)
+                    }
+                )
+            }
+        }
     }
 
     // MARK: - Legality Section

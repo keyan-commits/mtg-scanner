@@ -7,6 +7,7 @@ struct MTGCardScannerApp: App {
     @State private var setupState: SetupState = .checking
     @State private var viewModel: CardScannerViewModel?
     @State private var pipeline: CardIdentificationPipelineProtocol?
+    @State private var repository: CardRepositoryProtocol?
 
     private let databaseManager: DatabaseManager?
     private let downloader: ScryfallBulkDataDownloader
@@ -21,7 +22,7 @@ struct MTGCardScannerApp: App {
             Group {
                 if let viewModel, let pipeline, setupState == .ready {
                     NavigationStack {
-                        ScannerScreen(viewModel: viewModel, pipeline: pipeline)
+                        ScannerScreen(viewModel: viewModel, pipeline: pipeline, repository: repository)
                     }
                 } else {
                     SetupScreen(setupState: $setupState)
@@ -117,6 +118,11 @@ struct MTGCardScannerApp: App {
         // Create FeaturePrint cache in Application Support (grows as user scans cards)
         let featurePrintCache = createFeaturePrintCache()
 
+        // Create correction service (requires FeaturePrint cache)
+        let correctionService: CardCorrectionService? = featurePrintCache.map {
+            CardCorrectionService(featurePrintCache: $0)
+        }
+
         let pipeline = CardIdentificationPipeline(
             recognizer: recognizer,
             repository: repository,
@@ -125,7 +131,8 @@ struct MTGCardScannerApp: App {
         )
 
         self.pipeline = pipeline
-        self.viewModel = CardScannerViewModel(pipeline: pipeline)
+        self.repository = repository
+        self.viewModel = CardScannerViewModel(pipeline: pipeline, correctionService: correctionService)
     }
 
     /// Creates a FeaturePrint cache stored in Application Support.

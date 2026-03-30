@@ -31,6 +31,7 @@
 		4B7F7C2907E9E0CB7E69A871 /* LocalCardRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD9ED87F3DB0E99B27C7BA5E /* LocalCardRepositoryTests.swift */; };
 		4B7FA8538D3E58861936C88C /* CardRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AE27AA61979FCF281B92756 /* CardRepository.swift */; };
 		4C3AC747718E7A079C353B16 /* MD3Shape.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACD37EBC2B6F82E3D7CC50A8 /* MD3Shape.swift */; };
+		4CC5AC582A8EA7C7A3AB85F8 /* CardCorrectionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A927E36DF7220271D72AB01 /* CardCorrectionService.swift */; };
 		4ED26AB40DABF27B378CAE13 /* CardTextRecognizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D3EEDC6F3CFE19DC2E8E79D /* CardTextRecognizerTests.swift */; };
 		535D8B592AD5E22B11AC49F1 /* MultiCardDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C850B1F2A8C60B0BFC57C48 /* MultiCardDetector.swift */; };
 		5409B203EBFDF9CF58648FE4 /* ImageProcessorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D22EE4AB8218C72C0EAD60D /* ImageProcessorTests.swift */; };
@@ -48,6 +49,7 @@
 		7FC93F9543476BB5A1D98AEC /* MTGCardScannerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85EAC9C90ADA8F76EB5E9638 /* MTGCardScannerApp.swift */; };
 		81E614704D69D50E6E585977 /* TrainingDataExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8FB20D7CCAA7E097227D5B7 /* TrainingDataExporter.swift */; };
 		858E15F5EC95571DEC2E4BD6 /* SetSymbolMatcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2AA3D5C7CFD9A6569BDE312 /* SetSymbolMatcherTests.swift */; };
+		8CEC2D6629C7378E70A91246 /* CardCorrectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 114E00DF40713ECD2061A317 /* CardCorrectionView.swift */; };
 		902F53E42F1A92A312C08D25 /* EDHRECServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9F24550C923BCBB8F5AB1E6 /* EDHRECServiceTests.swift */; };
 		93131F4750E0CACE8B4FD296 /* DeckIdentificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43D8A06F9956D623C6EAC8D6 /* DeckIdentificationService.swift */; };
 		93E536CD1AD21ACB000B0C33 /* Card.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0682EDF12315F96ABE788EC9 /* Card.swift */; };
@@ -115,6 +117,7 @@
 		0D65BB4BA517B644ABDB8332 /* CardKingdomPriceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardKingdomPriceService.swift; sourceTree = "<group>"; };
 		0DE7068BD2D9DF85C62540FE /* CardScannerViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardScannerViewModelTests.swift; sourceTree = "<group>"; };
 		10EA5138FB681CCADA88DD15 /* BorderColorDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderColorDetector.swift; sourceTree = "<group>"; };
+		114E00DF40713ECD2061A317 /* CardCorrectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardCorrectionView.swift; sourceTree = "<group>"; };
 		11B33B59868017AAA0F1788D /* ArtVariantMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtVariantMatcher.swift; sourceTree = "<group>"; };
 		1CD22E600EE58983EE4076F4 /* MD3Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MD3Theme.swift; sourceTree = "<group>"; };
 		1D3DE5961526665CF7B62C16 /* CardDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardDetector.swift; sourceTree = "<group>"; };
@@ -140,6 +143,7 @@
 		6F76910A48CF0B514083CCED /* MD3Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MD3Components.swift; sourceTree = "<group>"; };
 		7208A16B52F6A13776F2914A /* MTGTop8ServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MTGTop8ServiceTests.swift; sourceTree = "<group>"; };
 		7374D319156D05ADA1D647B0 /* CardIdentificationPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardIdentificationPipeline.swift; sourceTree = "<group>"; };
+		7A927E36DF7220271D72AB01 /* CardCorrectionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardCorrectionService.swift; sourceTree = "<group>"; };
 		7C298A51F47FEA3016F0AC80 /* ImageMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageMatcher.swift; sourceTree = "<group>"; };
 		7D22EE4AB8218C72C0EAD60D /* ImageProcessorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageProcessorTests.swift; sourceTree = "<group>"; };
 		7D753D10A45DA9CC3E018F32 /* IdentifyCardUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentifyCardUseCase.swift; sourceTree = "<group>"; };
@@ -338,6 +342,15 @@
 			path = Infrastructure;
 			sourceTree = "<group>";
 		};
+		4EEC97B139DB53AF54F2CD92 /* Correction */ = {
+			isa = PBXGroup;
+			children = (
+				7A927E36DF7220271D72AB01 /* CardCorrectionService.swift */,
+				114E00DF40713ECD2061A317 /* CardCorrectionView.swift */,
+			);
+			path = Correction;
+			sourceTree = "<group>";
+		};
 		518B34C99174CD4B436DE737 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
@@ -425,6 +438,7 @@
 			children = (
 				4AA76943218D9409EA7E2BB6 /* CardDetail */,
 				68BC219C7806C8A4C7579513 /* CardList */,
+				4EEC97B139DB53AF54F2CD92 /* Correction */,
 				BA65BF2D04A4BF483A6C86DF /* DeckScan */,
 				9AEA40FB5F907AE430B41C5E /* DesignSystem */,
 				877849C34070C9BF6CB6FF59 /* Scanner */,
@@ -600,6 +614,8 @@
 				0B7773827C86A8BC1D319BCB /* BorderColorDetector.swift in Sources */,
 				D45133C3373E37CD5435D45A /* BulkDataDownloader.swift in Sources */,
 				93E536CD1AD21ACB000B0C33 /* Card.swift in Sources */,
+				4CC5AC582A8EA7C7A3AB85F8 /* CardCorrectionService.swift in Sources */,
+				8CEC2D6629C7378E70A91246 /* CardCorrectionView.swift in Sources */,
 				FE94121B791B392057E0D566 /* CardDatabase.swift in Sources */,
 				B54C29E9E08FEC0ACB70E309 /* CardDetailView.swift in Sources */,
 				141CD6411F1DC61ADCD44AA0 /* CardDetailViewModel.swift in Sources */,

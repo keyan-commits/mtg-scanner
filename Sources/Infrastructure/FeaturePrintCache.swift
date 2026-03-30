@@ -66,6 +66,26 @@ actor FeaturePrintCache {
         print("[MTGScanner] Cached VNFeaturePrint for '\(cardName)' (\(entries.count) total)")
     }
 
+    /// Adds or updates a cache entry for the given illustration ID.
+    /// Unlike `cache()`, this replaces an existing entry if one exists
+    /// with the same illustration ID. Used by the correction flow to
+    /// override incorrect cached identifications.
+    func cacheOrUpdate(illustrationID: String, cardName: String, artImage: CGImage) {
+        guard let featurePrint = generateFeaturePrint(for: artImage) else { return }
+        guard let data = serializeFeaturePrint(featurePrint) else { return }
+
+        // Remove any existing entry for this illustration ID
+        entries.removeAll { $0.illustrationID == illustrationID }
+
+        entries.append(FeaturePrintCacheEntry(
+            illustrationID: illustrationID,
+            cardName: cardName,
+            featurePrintData: data
+        ))
+
+        print("[MTGScanner] Cache updated for '\(cardName)' (\(entries.count) total)")
+    }
+
     /// Persists the cache to disk.
     func save() {
         guard let data = try? JSONEncoder().encode(entries) else { return }

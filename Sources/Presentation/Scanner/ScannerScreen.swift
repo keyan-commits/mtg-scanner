@@ -9,6 +9,7 @@ struct ScannerScreen: View {
 
     @Bindable var viewModel: CardScannerViewModel
     let pipeline: CardIdentificationPipelineProtocol
+    let repository: CardRepositoryProtocol?
 
     @State private var selectedItems: [PhotosPickerItem] = []
     @State private var showDeckScan = false
@@ -134,7 +135,19 @@ struct ScannerScreen: View {
                     Spacer()
                 }
             } else {
-                ScannedCardsListView(cards: cards) {
+                ScannedCardsListView(
+                    cards: cards,
+                    repository: repository,
+                    onCorrection: { index, correctedCard in
+                        Task {
+                            await viewModel.correctCard(
+                                at: index,
+                                to: correctedCard,
+                                originalImage: nil
+                            )
+                        }
+                    }
+                ) {
                     viewModel.resetScan()
                 }
             }

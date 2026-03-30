@@ -1,0 +1,320 @@
+import SwiftUI
+
+// MARK: - Card Correction View
+
+/// Allows the user to search for and select the correct card when
+/// the identification pipeline returns the wrong result.
+///
+/// Flow:
+/// 1. User types a card name in the search field.
+/// 2. Results appear from the local database (95K cards, instant).
+/// 3. User taps a card name to see all printings (sets + collector numbers).
+/// 4. User taps the exact printing to apply the correction.
+struct CardCorrectionView: View {
+
+    let repository: CardRepositoryProtocol
+    let onCorrection: (Card) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var searchText = ""
+    @State private var searchResults: [Card] = []
+    @State private var selectedCardName: String?
+    @State private var printings: [Card] = []
+    @State private var isSearching = false
+    @State private var searchTask: Task<Void, Never>?
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                searchField
+                Divider()
+                    .background(MD3Theme.outlineVariant)
+                resultsList
+            }
+            .background(MD3Theme.background)
+            .navigationTitle("Correct Card")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .foregroundStyle(MD3Theme.primary)
+                }
+            }
+        }
+    }
+
+    // MARK: - Search Field
+
+    private var searchField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(MD3Theme.onSurfaceVariant)
+
+            TextField("Search card name...", text: $searchText)
+                .font(MD3Typography.bodyLarge)
+                .foregroundStyle(MD3Theme.onSurface)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .onChange(of: searchText) { _, newValue in
+                    performSearch(query: newValue)
+                }
+
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                    searchResults = []
+                    selectedCardName = nil
+                    printings = []
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(MD3Theme.surface)
+    }
+
+    // MARK: - Results List
+
+    @ViewBuilder
+    private var resultsList: some View {
+        if let selectedName = selectedCardName {
+            printingsList(for: selectedName)
+        } else if searchResults.isEmpty && !searchText.isEmpty && !isSearching {
+            noResultsView
+        } else if isSearching {
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if searchResults.isEmpty {
+            promptView
+        } else {
+            cardNamesList
+        }
+    }
+
+    private var promptView: some View {
+        VStack(spacing: 12) {
+            Spacer()
+            Image(systemName: "text.magnifyingglass")
+                .font(.system(size: 40))
+                .foregroundStyle(MD3Theme.onSurfaceVariant)
+            Text("Type the correct card name")
+                .font(MD3Typography.bodyMedium)
+                .foregroundStyle(MD3Theme.onSurfaceVariant)
+            Spacer()
+        }
+    }
+
+    private var noResultsView: some View {
+        VStack(spacing: 12) {
+            Spacer()
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 40))
+                .foregroundStyle(MD3Theme.onSurfaceVariant)
+            Text("No cards found for \"\(searchText)\"")
+                .font(MD3Typography.bodyMedium)
+                .foregroundStyle(MD3Theme.onSurfaceVariant)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Spacer()
+        }
+    }
+
+    // MARK: - Card Names List (grouped by unique name)
+
+    private var cardNamesList: some View {
+        let uniqueNames = uniqueCardNames(from: searchResults)
+        return ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(uniqueNames, id: \.self) { name in
+                    Button {
+                        selectedCardName = name
+                        loadPrintings(for: name)
+                    } label: {
+                        HStack {
+                            Text(name)
+                                .font(MD3Typography.titleSmall)
+                                .foregroundStyle(MD3Theme.onSurface)
+                                .lineLimit(1)
+
+                            Spacer()
+
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(MD3Theme.onSurfaceVariant)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                    }
+                    .buttonStyle(.plain)
+
+                    Divider()
+                        .padding(.leading, 16)
+                }
+            }
+        }
+    }
+
+    // MARK: - Printings List
+
+    private func printingsList(for cardName: String) -> some View {
+        VStack(spacing: 0) {
+            // Back button
+            Button {
+                selectedCardName = nil
+                printings = []
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.left")
+                        .font(.caption)
+                    Text("Back to results")
+                        .font(MD3Typography.labelMedium)
+                }
+                .foregroundStyle(MD3Theme.primary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+
+            Divider()
+                .padding(.leading, 16)
+
+            Text(cardName)
+                .font(MD3Typography.titleMedium)
+                .foregroundStyle(MD3Theme.onSurface)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+
+            if printings.isEmpty {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(printings) { card in
+                            Button {
+                                onCorrection(card)
+                                dismiss()
+                            } label: {
+                                printingRow(card: card)
+                            }
+                            .buttonStyle(.plain)
+
+                            Divider()
+                                .padding(.leading, 16)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func printingRow(card: Card) -> some View {
+        HStack(spacing: 12) {
+            // Thumbnail
+            if let urlString = card.imageURIs["small"],
+               let url = URL(string: urlString) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    default:
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(MD3Theme.surfaceVariant)
+                    }
+                }
+                .frame(width: 36, height: 50)
+                .clipShape(RoundedRectangle(cornerRadius: 3))
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(card.set.name)
+                    .font(MD3Typography.bodyMedium)
+                    .foregroundStyle(MD3Theme.onSurface)
+                    .lineLimit(1)
+
+                Text("#\(card.collectorNumber)")
+                    .font(MD3Typography.bodySmall)
+                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+            }
+
+            Spacer()
+
+            if let usd = card.prices.usd {
+                Text("$\(usd)")
+                    .font(MD3Typography.labelMedium)
+                    .foregroundStyle(MD3Theme.primary)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    // MARK: - Search Logic
+
+    private func performSearch(query: String) {
+        searchTask?.cancel()
+        selectedCardName = nil
+        printings = []
+
+        guard query.count >= 2 else {
+            searchResults = []
+            isSearching = false
+            return
+        }
+
+        isSearching = true
+        searchTask = Task {
+            do {
+                try await Task.sleep(for: .milliseconds(250))
+                guard !Task.isCancelled else { return }
+                let results = try await repository.searchCards(query: query)
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    searchResults = results
+                    isSearching = false
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    searchResults = []
+                    isSearching = false
+                }
+            }
+        }
+    }
+
+    private func loadPrintings(for name: String) {
+        Task {
+            do {
+                let results = try await repository.findAllPrintings(name: name)
+                await MainActor.run {
+                    printings = results
+                }
+            } catch {
+                await MainActor.run {
+                    printings = []
+                }
+            }
+        }
+    }
+
+    private func uniqueCardNames(from cards: [Card]) -> [String] {
+        var seen = Set<String>()
+        var names: [String] = []
+        for card in cards {
+            if seen.insert(card.name).inserted {
+                names.append(card.name)
+            }
+        }
+        return names
+    }
+}

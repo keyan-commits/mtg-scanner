@@ -6,7 +6,21 @@ import SwiftUI
 struct ScannedCardsListView: View {
 
     let cards: [Card]
+    let repository: CardRepositoryProtocol?
+    let onCorrection: ((Int, Card) -> Void)?
     let onScanMore: () -> Void
+
+    init(
+        cards: [Card],
+        repository: CardRepositoryProtocol? = nil,
+        onCorrection: ((Int, Card) -> Void)? = nil,
+        onScanMore: @escaping () -> Void
+    ) {
+        self.cards = cards
+        self.repository = repository
+        self.onCorrection = onCorrection
+        self.onScanMore = onScanMore
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -23,12 +37,21 @@ struct ScannedCardsListView: View {
 
     // MARK: - Card List
 
+    @State private var correctionIndex: Int?
+    @State private var showCorrection = false
+
     private var cardList: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
-                ForEach(cards) { card in
+                ForEach(Array(cards.enumerated()), id: \.element.id) { index, card in
                     NavigationLink(value: card) {
-                        CardRowView(card: card)
+                        CardRowView(
+                            card: card,
+                            onWrongCard: repository != nil ? {
+                                correctionIndex = index
+                                showCorrection = true
+                            } : nil
+                        )
                     }
                     .buttonStyle(.plain)
                 }
@@ -36,7 +59,26 @@ struct ScannedCardsListView: View {
             .padding(16)
         }
         .navigationDestination(for: Card.self) { card in
-            CardDetailView(card: card) {}
+            CardDetailView(
+                card: card,
+                repository: repository,
+                onCorrection: { correctedCard in
+                    if let index = cards.firstIndex(where: { $0.id == card.id }) {
+                        onCorrection?(index, correctedCard)
+                    }
+                }
+            ) {}
+        }
+        .sheet(isPresented: $showCorrection) {
+            if let repository, let index = correctionIndex {
+                CardCorrectionView(
+                    repository: repository,
+                    onCorrection: { correctedCard in
+                        showCorrection = false
+                        onCorrection?(index, correctedCard)
+                    }
+                )
+            }
         }
     }
 
@@ -111,6 +153,7 @@ struct ScannedCardsListView: View {
 struct CardRowView: View {
 
     let card: Card
+    var onWrongCard: (() -> Void)?
 
     var body: some View {
         MD3Card {
@@ -118,7 +161,16 @@ struct CardRowView: View {
                 cardThumbnail
                 cardInfo
                 Spacer()
-                priceLabel
+                VStack(alignment: .trailing, spacing: 4) {
+                    priceLabel
+                    if let onWrongCard {
+                        Button("Wrong?") {
+                            onWrongCard()
+                        }
+                        .font(MD3Typography.labelSmall)
+                        .foregroundStyle(MD3Theme.primary)
+                    }
+                }
             }
             .padding(12)
         }

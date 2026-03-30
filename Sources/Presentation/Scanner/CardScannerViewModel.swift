@@ -45,11 +45,13 @@ final class CardScannerViewModel {
     var processingProgress: Double = 0
 
     private let pipeline: CardIdentificationPipelineProtocol
+    private(set) var correctionService: CardCorrectionService?
 
     // MARK: - Initialization
 
-    init(pipeline: CardIdentificationPipelineProtocol) {
+    init(pipeline: CardIdentificationPipelineProtocol, correctionService: CardCorrectionService? = nil) {
         self.pipeline = pipeline
+        self.correctionService = correctionService
     }
 
     /// Convenience initializer that builds the pipeline from individual components.
@@ -115,6 +117,25 @@ final class CardScannerViewModel {
     @MainActor
     func processImageData(_ data: Data) async -> Card? {
         await pipeline.identify(imageData: data)
+    }
+
+    /// Replaces a scanned card at the given index with a corrected card,
+    /// and updates the FeaturePrint cache so future scans improve.
+    @MainActor
+    func correctCard(at index: Int, to correctedCard: Card, originalImage: CGImage?) async {
+        guard index < scannedCards.count else { return }
+        scannedCards[index] = correctedCard
+
+        // Update the scan state to reflect the corrected card list
+        scanState = .completed(scannedCards)
+
+        // Apply correction to FeaturePrint cache if we have the original image
+        if let image = originalImage {
+            await correctionService?.applyCorrection(
+                correctCard: correctedCard,
+                originalCardImage: image
+            )
+        }
     }
 
     /// Resets to idle state.
