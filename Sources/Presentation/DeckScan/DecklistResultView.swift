@@ -87,7 +87,10 @@ struct DecklistResultView: View {
                 ForEach(cardTypeGroups, id: \.category) { group in
                     Section {
                         ForEach(group.entries, id: \.name) { entry in
-                            decklistRow(entry: entry)
+                            NavigationLink(value: entry.card) {
+                                decklistRow(entry: entry)
+                            }
+                            .buttonStyle(.plain)
                         }
                     } header: {
                         Text(group.category)
@@ -106,6 +109,9 @@ struct DecklistResultView: View {
                 }
             }
             .padding(16)
+        }
+        .navigationDestination(for: Card.self) { card in
+            CardDetailView(card: card) {}
         }
     }
 
@@ -135,6 +141,10 @@ struct DecklistResultView: View {
                     .font(MD3Typography.labelMedium)
                     .foregroundStyle(MD3Theme.tertiary)
             }
+
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(MD3Theme.onSurfaceVariant)
         }
         .padding(.vertical, 4)
     }
