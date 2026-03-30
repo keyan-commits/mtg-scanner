@@ -12,6 +12,9 @@ struct CardDetailView: View {
     private let onCorrection: ((Card) -> Void)?
 
     @State private var showCorrection = false
+    @State private var otherPrintings: [Card] = []
+    @State private var showAllPrintings = false
+    @State private var selectedPrinting: Card?
 
     /// Creates a card detail view.
     /// - Parameters:
@@ -37,6 +40,7 @@ struct CardDetailView: View {
                 cardImage
                 cardHeader
                 PriceComparisonView(card: viewModel.card)
+                otherPrintingsSection
                 legalitySection
                 DeckCompatibilityView(
                     card: viewModel.card,
@@ -53,6 +57,16 @@ struct CardDetailView: View {
         .background(MD3Theme.background)
         .task {
             await loadVariantInfo()
+        }
+        .sheet(item: $selectedPrinting) { printing in
+            NavigationStack {
+                CardDetailView(card: printing) {}
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") { selectedPrinting = nil }
+                        }
+                    }
+            }
         }
     }
 
@@ -222,6 +236,108 @@ struct CardDetailView: View {
             onScanAnother()
         }
         .padding(.top, 8)
+    }
+
+    // MARK: - Other Printings
+
+    private var otherPrintingsSection: some View {
+        MD3Card {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Other Printings")
+                        .font(MD3Typography.titleMedium)
+                        .foregroundStyle(MD3Theme.onSurface)
+
+                    Spacer()
+
+                    if !otherPrintings.isEmpty {
+                        Text("\(otherPrintings.count)")
+                            .font(MD3Typography.labelSmall)
+                            .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    }
+                }
+
+                if otherPrintings.isEmpty {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                } else {
+                    let displayed = showAllPrintings ? otherPrintings : Array(otherPrintings.prefix(5))
+
+                    ForEach(displayed) { printing in
+                        Button {
+                            selectedPrinting = printing
+                        } label: {
+                            HStack(spacing: 8) {
+                                if let urlString = printing.imageURIs["small"],
+                                   let url = URL(string: urlString) {
+                                    AsyncImage(url: url) { phase in
+                                        switch phase {
+                                        case .success(let image):
+                                            image.resizable().aspectRatio(contentMode: .fill)
+                                        default:
+                                            RoundedRectangle(cornerRadius: 3).fill(MD3Theme.surfaceVariant)
+                                        }
+                                    }
+                                    .frame(width: 32, height: 44)
+                                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                                }
+
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(printing.set.name)
+                                        .font(MD3Typography.bodySmall)
+                                        .foregroundStyle(MD3Theme.onSurface)
+                                        .lineLimit(1)
+                                    Text("#\(printing.collectorNumber)")
+                                        .font(MD3Typography.labelSmall)
+                                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                                }
+
+                                Spacer()
+
+                                if let usd = printing.prices.usd {
+                                    Text("$\(usd)")
+                                        .font(MD3Typography.labelMedium)
+                                        .foregroundStyle(MD3Theme.primary)
+                                }
+
+                                Image(systemName: "chevron.right")
+                                    .font(.caption2)
+                                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    if otherPrintings.count > 5 && !showAllPrintings {
+                        Button {
+                            showAllPrintings = true
+                        } label: {
+                            Text("Show all \(otherPrintings.count) printings")
+                                .font(MD3Typography.labelLarge)
+                                .foregroundStyle(MD3Theme.primary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 4)
+                        }
+                    }
+                }
+            }
+            .padding(16)
+        }
+        .task {
+            await loadOtherPrintings()
+        }
+    }
+
+    private func loadOtherPrintings() async {
+        guard let repository else { return }
+        do {
+            let all = try await repository.findAllPrintings(name: viewModel.card.name)
+            // Exclude current printing, sort by set type priority
+            otherPrintings = all.filter { $0.id != viewModel.card.id }
+        } catch {
+            otherPrintings = []
+        }
     }
 
     // MARK: - Variant Cross-Reference
