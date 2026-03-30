@@ -265,7 +265,7 @@ struct CardCorrectionView: View {
         selectedCardName = nil
         printings = []
 
-        guard query.count >= 2 else {
+        guard query.count >= 3 else {
             searchResults = []
             isSearching = false
             return
@@ -274,12 +274,14 @@ struct CardCorrectionView: View {
         isSearching = true
         searchTask = Task {
             do {
-                try await Task.sleep(for: .milliseconds(250))
+                try await Task.sleep(for: .milliseconds(300))
                 guard !Task.isCancelled else { return }
                 let results = try await repository.searchCards(query: query)
                 guard !Task.isCancelled else { return }
+                // Limit to 100 results to avoid UI lag
+                let limited = Array(results.prefix(100))
                 await MainActor.run {
-                    searchResults = results
+                    searchResults = limited
                     isSearching = false
                 }
             } catch {

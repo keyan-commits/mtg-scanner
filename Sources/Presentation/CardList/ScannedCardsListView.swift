@@ -164,11 +164,19 @@ struct CardRowView: View {
                 VStack(alignment: .trailing, spacing: 4) {
                     priceLabel
                     if let onWrongCard {
-                        Button("Wrong?") {
+                        Button {
                             onWrongCard()
+                        } label: {
+                            Text("Fix")
+                                .font(MD3Typography.labelLarge)
+                                .foregroundStyle(MD3Theme.primary)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(MD3Theme.outline, lineWidth: 1)
+                                )
                         }
-                        .font(MD3Typography.labelSmall)
-                        .foregroundStyle(MD3Theme.primary)
                     }
                 }
             }

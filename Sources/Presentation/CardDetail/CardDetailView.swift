@@ -125,12 +125,19 @@ struct CardDetailView: View {
             }
 
             if onCorrection != nil, repository != nil {
-                Button("Wrong card?") {
+                Button {
                     showCorrection = true
+                } label: {
+                    Text("Wrong card? Tap to correct")
+                        .font(MD3Typography.labelLarge)
+                        .foregroundStyle(MD3Theme.primary)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(MD3Theme.outline, lineWidth: 1)
+                        )
                 }
-                .font(MD3Typography.labelSmall)
-                .foregroundStyle(MD3Theme.primary)
-                .padding(.top, 4)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
