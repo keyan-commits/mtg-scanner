@@ -577,6 +577,42 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
             }
         }
 
+        // Fuzzy name matching: OCR often mangles 1-3 characters
+        // "Nacuralize" → "Naturalize", "Goblin Ringka" → "Goblin Ringleader"
+        if signals.cardName.count >= 5 {
+            if let results = try? await repository.searchCards(query: signals.cardName),
+               !results.isEmpty {
+                // Find the card name with the smallest edit distance
+                let uniqueNames = Array(Set(results.map(\.name)))
+                let ocrLower = signals.cardName.lowercased()
+                var bestName: String?
+                var bestDist = Int.max
+
+                for name in uniqueNames {
+                    let nameLower = name.lowercased()
+                    let dist = levenshteinDistance(ocrLower, nameLower)
+                    if dist < bestDist && dist <= 3 {
+                        bestDist = dist
+                        bestName = name
+                    }
+                }
+
+                if let matched = bestName {
+                    print("[MTGScanner] Fuzzy match: '\(signals.cardName)' → '\(matched)' (distance: \(bestDist))")
+                    let correctedSignals = OCRSignals(
+                        scanResults: signals.scanResults,
+                        cardName: matched,
+                        collectorCandidates: signals.collectorCandidates,
+                        artistName: signals.artistName,
+                        copyrightYear: signals.copyrightYear,
+                        hasOldTypeLine: signals.hasOldTypeLine,
+                        detectedBorder: signals.detectedBorder
+                    )
+                    return await matchByMetadata(signals: correctedSignals, cardImage: cardImage)
+                }
+            }
+        }
+
         // Last resort: try searching by distinctive words from the title
         // "bymn to Tourach" → try "Tourach" as a DB search
         let commonWords: Set<String> = [
@@ -821,5 +857,34 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
             if diffs > 1 { return false }
         }
         return diffs <= 1
+    }
+
+    /// Computes full Levenshtein edit distance between two strings.
+    private func levenshteinDistance(_ a: String, _ b: String) -> Int {
+        let a = Array(a)
+        let b = Array(b)
+        let m = a.count
+        let n = b.count
+
+        if m == 0 { return n }
+        if n == 0 { return m }
+
+        var prev = Array(0...n)
+        var curr = [Int](repeating: 0, count: n + 1)
+
+        for i in 1...m {
+            curr[0] = i
+            for j in 1...n {
+                let cost = a[i-1] == b[j-1] ? 0 : 1
+                curr[j] = min(
+                    prev[j] + 1,      // deletion
+                    curr[j-1] + 1,    // insertion
+                    prev[j-1] + cost  // substitution
+                )
+            }
+            prev = curr
+        }
+
+        return prev[n]
     }
 }
