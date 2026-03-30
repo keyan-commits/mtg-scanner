@@ -50,10 +50,43 @@ final class DeckScanViewModel {
 
     // MARK: - Actions
 
-    /// Sets the source image and transitions to the grid adjustment state.
+    /// Sets the source image, auto-detects grid size, and transitions to grid adjustment.
     func setImage(_ image: CGImage) {
         sourceImage = image
+        autoDetectGrid(image: image)
         scanState = .adjustingGrid
+    }
+
+    /// Auto-detect the most likely grid layout based on image dimensions and MTG card aspect ratio.
+    /// MTG cards are 63x88mm → aspect ratio 0.716 (width/height).
+    private func autoDetectGrid(image: CGImage) {
+        let imageAspect = Double(image.width) / Double(image.height)
+        let cardAspect = 0.716 // MTG card width/height
+
+        // Try different grid combinations and find the one where
+        // cell aspect ratio is closest to a single card
+        var bestRows = 3
+        var bestCols = 7
+        var bestError = Double.greatestFiniteMagnitude
+
+        for r in 1...6 {
+            for c in 1...10 {
+                let cellWidth = Double(image.width) / Double(c)
+                let cellHeight = Double(image.height) / Double(r)
+                let cellAspect = cellWidth / cellHeight
+                let error = abs(cellAspect - cardAspect)
+
+                if error < bestError {
+                    bestError = error
+                    bestRows = r
+                    bestCols = c
+                }
+            }
+        }
+
+        rows = bestRows
+        columns = bestCols
+        print("[MTGScanner] Auto-detected grid: \(rows)x\(columns) (cell aspect: \(String(format: "%.3f", Double(image.width) / Double(columns) / (Double(image.height) / Double(rows)))), card aspect: 0.716)")
     }
 
     /// Crops each grid cell from the source image and identifies each card sequentially.
