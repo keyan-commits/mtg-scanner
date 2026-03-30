@@ -168,7 +168,7 @@ struct DecklistResultView: View {
             .padding(16)
         }
         .navigationDestination(for: Card.self) { card in
-            CardDetailView(card: card) {}
+            CardDetailView(card: card, repository: repository) {}
         }
     }
 
