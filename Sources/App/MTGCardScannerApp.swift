@@ -118,6 +118,13 @@ struct MTGCardScannerApp: App {
         // Create FeaturePrint cache in Application Support (grows as user scans cards)
         let featurePrintCache = createFeaturePrintCache()
 
+        // Clear stale cache from development testing (one-time)
+        let cacheVersion = UserDefaults.standard.integer(forKey: "fpCacheVersion")
+        if cacheVersion < 2, let cache = featurePrintCache {
+            Task { await cache.clear() }
+            UserDefaults.standard.set(2, forKey: "fpCacheVersion")
+        }
+
         // Create correction service (requires FeaturePrint cache)
         let correctionService: CardCorrectionService? = featurePrintCache.map {
             CardCorrectionService(featurePrintCache: $0)

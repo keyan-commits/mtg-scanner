@@ -97,16 +97,20 @@ struct CardCorrectionView: View {
     }
 
     private var promptView: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
             Spacer()
             Image(systemName: "text.magnifyingglass")
-                .font(.system(size: 40))
-                .foregroundStyle(MD3Theme.onSurfaceVariant)
-            Text("Type the correct card name")
+                .font(.system(size: 48))
+                .foregroundStyle(MD3Theme.primary)
+            Text("Type the correct card name above")
+                .font(MD3Typography.titleMedium)
+                .foregroundStyle(MD3Theme.onBackground)
+            Text("Type at least 3 characters to search")
                 .font(MD3Typography.bodyMedium)
                 .foregroundStyle(MD3Theme.onSurfaceVariant)
             Spacer()
         }
+        .frame(maxWidth: .infinity)
     }
 
     private var noResultsView: some View {

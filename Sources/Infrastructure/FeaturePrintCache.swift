@@ -94,6 +94,13 @@ actor FeaturePrintCache {
 
     var count: Int { entries.count }
 
+    /// Clears all cached entries and deletes the cache file.
+    func clear() {
+        entries = []
+        try? FileManager.default.removeItem(at: fileURL)
+        print("[MTGScanner] FeaturePrint cache cleared")
+    }
+
     // MARK: - Private
 
     private static func loadEntries(from url: URL) -> [FeaturePrintCacheEntry] {
