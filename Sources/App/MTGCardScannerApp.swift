@@ -46,7 +46,7 @@ struct MTGCardScannerApp: App {
         do {
             // Version 2 = default_cards (all printings). Version 1 was oracle_cards.
             let dbVersion = UserDefaults.standard.integer(forKey: "dbVersion")
-            let currentVersion = 6
+            let currentVersion = 7
             let cardCount = try await databaseManager.cardCount()
 
             if cardCount > 0 && dbVersion >= currentVersion {

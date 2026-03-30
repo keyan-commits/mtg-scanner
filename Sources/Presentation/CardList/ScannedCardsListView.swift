@@ -33,32 +33,27 @@ struct ScannedCardsListView: View {
             footer
         }
         .background(MD3Theme.background)
-        .sheet(isPresented: $showCorrection) {
-            if let repository, let index = correctionIndex {
+        .sheet(item: $correctionItem) { item in
+            if let repository {
                 CardCorrectionView(
                     repository: repository,
                     onCorrection: { correctedCard in
-                        showCorrection = false
-                        onCorrection?(index, correctedCard)
+                        correctionItem = nil
+                        onCorrection?(item.index, correctedCard)
                     }
                 )
-            } else {
-                VStack(spacing: 16) {
-                    Text("Error: Missing data")
-                        .font(.title2)
-                    Text("repository: \(repository == nil ? "nil" : "ok")")
-                    Text("correctionIndex: \(correctionIndex.map(String.init) ?? "nil")")
-                    Button("Dismiss") { showCorrection = false }
-                }
-                .padding()
             }
         }
     }
 
     // MARK: - Card List
 
-    @State private var correctionIndex: Int?
-    @State private var showCorrection = false
+    @State private var correctionItem: CorrectionItem?
+
+    struct CorrectionItem: Identifiable {
+        let id = UUID()
+        let index: Int
+    }
 
     private var cardList: some View {
         ScrollView {
@@ -68,8 +63,7 @@ struct ScannedCardsListView: View {
                         CardRowView(
                             card: card,
                             onWrongCard: repository != nil ? {
-                                correctionIndex = index
-                                showCorrection = true
+                                correctionItem = CorrectionItem(index: index)
                             } : nil
                         )
                     }
