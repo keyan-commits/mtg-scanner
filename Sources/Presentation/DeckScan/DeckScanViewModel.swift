@@ -63,30 +63,41 @@ final class DeckScanViewModel {
         let imageAspect = Double(image.width) / Double(image.height)
         let cardAspect = 0.716 // MTG card width/height
 
-        // Try different grid combinations and find the one where
-        // cell aspect ratio is closest to a single card
-        var bestRows = 3
-        var bestCols = 7
+        // Try different grid combinations. Prefer grids with more cells
+        // when aspect ratio errors are similar (within 0.02).
+        var bestRows = 2
+        var bestCols = 4
         var bestError = Double.greatestFiniteMagnitude
+        var bestCells = 0
 
         for r in 1...6 {
             for c in 1...10 {
+                // Skip tiny grids (less than 2 cells)
+                guard r * c >= 2 else { continue }
+
                 let cellWidth = Double(image.width) / Double(c)
                 let cellHeight = Double(image.height) / Double(r)
                 let cellAspect = cellWidth / cellHeight
                 let error = abs(cellAspect - cardAspect)
 
-                if error < bestError {
+                // Accept if clearly better, or similar error but more cells
+                let cells = r * c
+                let isBetter = error < bestError - 0.02
+                let isSimilarButMoreCells = error < bestError + 0.02 && cells > bestCells
+
+                if isBetter || isSimilarButMoreCells {
                     bestError = error
                     bestRows = r
                     bestCols = c
+                    bestCells = cells
                 }
             }
         }
 
         rows = bestRows
         columns = bestCols
-        print("[MTGScanner] Auto-detected grid: \(rows)x\(columns) (cell aspect: \(String(format: "%.3f", Double(image.width) / Double(columns) / (Double(image.height) / Double(rows)))), card aspect: 0.716)")
+        let cellAspect = Double(image.width) / Double(columns) / (Double(image.height) / Double(rows))
+        print("[MTGScanner] Auto-detected grid: \(rows) rows × \(columns) cols = \(rows * columns) cells (cell aspect: \(String(format: "%.3f", cellAspect)), target: 0.716)")
     }
 
     /// Crops each grid cell from the source image and identifies each card sequentially.
