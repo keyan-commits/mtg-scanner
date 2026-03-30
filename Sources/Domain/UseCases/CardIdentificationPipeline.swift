@@ -578,19 +578,19 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         }
 
         // Fuzzy name matching: OCR often mangles 1-3 characters
-        // Search by individual words to find candidates, then fuzzy match the full name
+        // Strategy: gather candidates from multiple search approaches, then pick best Levenshtein match
         if signals.cardName.count >= 5 {
             var searchResults: [Card] = []
 
-            // Try full name search first
+            // Approach 1: Full name search (substring match)
             if let results = try? await repository.searchCards(query: signals.cardName),
                !results.isEmpty {
-                searchResults = results
+                searchResults.append(contentsOf: results)
             }
 
-            // If no results, try searching by each word (at least one word is usually correct)
+            // Approach 2: Search by each word individually
+            let words = signals.cardName.split(separator: " ").map(String.init)
             if searchResults.isEmpty {
-                let words = signals.cardName.split(separator: " ").map(String.init)
                 for word in words where word.count >= 4 {
                     if let results = try? await repository.searchCards(query: word),
                        !results.isEmpty {
@@ -599,23 +599,57 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
                 }
             }
 
+            // Approach 3: For single-word names, try first 3-4 chars as prefix search
+            // "Nacuralize" → search "Nac" won't work, but search "Natur" might via contains
+            // Instead: try common OCR corrections on the name itself
+            if searchResults.isEmpty && words.count == 1 {
+                let name = signals.cardName
+                // Try swapping common OCR confusions: c↔t, l↔i, m↔n, b↔h, o↔a
+                let swaps: [(Character, Character)] = [
+                    ("c", "t"), ("t", "c"), ("l", "i"), ("i", "l"),
+                    ("m", "n"), ("n", "m"), ("b", "h"), ("h", "b"),
+                    ("o", "a"), ("a", "o"), ("u", "n"), ("n", "u"),
+                ]
+                for (from, to) in swaps {
+                    let corrected = name.map { $0 == from ? to : $0 }
+                    let correctedStr = String(corrected)
+                    if correctedStr != name,
+                       let results = try? await repository.searchCards(query: correctedStr),
+                       !results.isEmpty {
+                        searchResults.append(contentsOf: results)
+                        break // Found candidates, stop trying swaps
+                    }
+                }
+            }
+
             if !searchResults.isEmpty {
                 let uniqueNames = Array(Set(searchResults.map(\.name)))
                 let ocrLower = signals.cardName.lowercased()
+                let ocrWordCount = words.count
                 var bestName: String?
-                var bestDist = Int.max
+                var bestScore = Int.max // Lower is better
 
                 for name in uniqueNames {
                     let nameLower = name.lowercased()
                     let dist = levenshteinDistance(ocrLower, nameLower)
-                    if dist < bestDist && dist <= 4 {
-                        bestDist = dist
+                    guard dist <= 4 else { continue }
+
+                    // Score: edit distance, but penalize word count mismatch
+                    // "Goblin Ringka" (2 words) should prefer "Goblin Ringleader" (2 words)
+                    // over "Goblin King" (2 words but shorter — actually same word count)
+                    // Better: penalize large length difference
+                    let lengthDiff = abs(ocrLower.count - nameLower.count)
+                    let score = dist * 3 + lengthDiff // Weight edit distance more, but length matters
+
+                    if score < bestScore {
+                        bestScore = score
                         bestName = name
                     }
                 }
 
                 if let matched = bestName {
-                    print("[MTGScanner] Fuzzy match: '\(signals.cardName)' → '\(matched)' (distance: \(bestDist))")
+                    let dist = levenshteinDistance(ocrLower, matched.lowercased())
+                    print("[MTGScanner] Fuzzy match: '\(signals.cardName)' → '\(matched)' (distance: \(dist), score: \(bestScore))")
                     let correctedSignals = OCRSignals(
                         scanResults: signals.scanResults,
                         cardName: matched,
