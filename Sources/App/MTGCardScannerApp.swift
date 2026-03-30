@@ -121,9 +121,9 @@ struct MTGCardScannerApp: App {
 
         // Clear stale cache from development testing (one-time)
         let cacheVersion = UserDefaults.standard.integer(forKey: "fpCacheVersion")
-        if cacheVersion < 4, let cache = featurePrintCache {
+        if cacheVersion < 5, let cache = featurePrintCache {
             Task { await cache.clear() }
-            UserDefaults.standard.set(4, forKey: "fpCacheVersion")
+            UserDefaults.standard.set(5, forKey: "fpCacheVersion")
         }
 
         // Create correction service (requires FeaturePrint cache)

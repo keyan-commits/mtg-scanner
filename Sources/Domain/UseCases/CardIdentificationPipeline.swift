@@ -137,6 +137,8 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
 
     /// Identifies a card from a pre-cropped CGImage (e.g., a grid cell from Deck Photo mode).
     /// Skips downsampling and card detection — the image IS the card.
+    /// Does NOT cache results — deck photo cells are too low-resolution for reliable caching.
+    /// Only single-card scans and explicit user corrections feed the cache.
     func identifyCropped(cardImage: CGImage) async -> Card? {
         print("[MTGScanner] Identifying cropped image \(cardImage.width)x\(cardImage.height)")
 
@@ -149,19 +151,7 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
             return nil
         }
 
-        let finalCard = await resolveArtVariant(card: identified, cardImage: finalImage)
-
-        if let cache = featurePrintCache,
-           let artImage = artVariantMatcher.extractArtRegion(from: finalImage) {
-            await cache.cache(
-                illustrationID: finalCard.illustrationID ?? "",
-                cardName: finalCard.name,
-                artImage: artImage
-            )
-            await cache.save()
-        }
-
-        return finalCard
+        return await resolveArtVariant(card: identified, cardImage: finalImage)
     }
 
     /// Identifies a card from raw image data.
@@ -634,12 +624,15 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
                     let dist = levenshteinDistance(ocrLower, nameLower)
                     guard dist <= 4 else { continue }
 
-                    // Score: prefer names with similar length to OCR input
-                    // "Goblin Ringka" (13 chars) → "Goblin Ringleader" (17, +4) better than "Goblin King" (11, -2)
-                    // Penalize names SHORTER than OCR more (OCR rarely adds chars, usually drops/mangles)
+                    // Score: prefer names where OCR looks like a truncated/mangled version
+                    // Bonus if OCR is a prefix of the candidate (common truncation pattern)
+                    let isPrefix = nameLower.hasPrefix(String(ocrLower.prefix(min(ocrLower.count, 8))))
+                    let prefixBonus = isPrefix ? -5 : 0
+
+                    // Penalize names shorter than OCR (OCR rarely ADDS chars)
                     let lengthDiff = nameLower.count - ocrLower.count
                     let lengthPenalty = lengthDiff < 0 ? abs(lengthDiff) * 5 : lengthDiff
-                    let score = dist * 2 + lengthPenalty
+                    let score = dist * 2 + lengthPenalty + prefixBonus
 
                     if score < bestScore {
                         bestScore = score
