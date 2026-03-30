@@ -284,16 +284,41 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         // Try FeaturePrint cache first (grows as user scans cards)
         if let cache = featurePrintCache,
            let cacheHit = await cache.search(artImage: artImage) {
-            // Cache hit — resolve to exact printing
-            if let printings = try? await repository.findAllPrintings(name: cacheHit.cardName),
-               !printings.isEmpty {
-                // Prefer the printing whose illustration_id matches the cache entry
-                if let artMatch = printings.first(where: { $0.illustrationID == cacheHit.illustrationID }) {
-                    print("[MTGScanner] \u{2713} FeaturePrint cache match: \(artMatch.set.name) #\(artMatch.collectorNumber)")
-                    return artMatch
+            print("[MTGScanner] FeaturePrint cache candidate: '\(cacheHit.cardName)'")
+
+            // Cross-validate with OCR — reject if OCR reads a different card
+            if let signals = await extractOCRSignals(from: cardImage, wasCropped: wasCropped) {
+                let ocrWords = signals.cardName.lowercased().split(separator: " ").filter { $0.count >= 4 }
+                let cacheWords = cacheHit.cardName.lowercased().split(separator: " ").filter { $0.count >= 4 }
+                let hasCommon = ocrWords.contains { ow in
+                    cacheWords.contains { cw in
+                        ow == cw || (ow.count == cw.count && levenshteinClose(String(ow), String(cw)))
+                    }
                 }
-                print("[MTGScanner] \u{2713} FeaturePrint cache match (first printing): \(printings[0].set.name)")
-                return printings.first
+                if !hasCommon && !ocrWords.isEmpty && !cacheWords.isEmpty {
+                    print("[MTGScanner] FeaturePrint cache rejected: OCR '\(signals.cardName)' ≠ cache '\(cacheHit.cardName)'")
+                    // Don't return nil — fall through to OCR pipeline
+                } else {
+                    // Cache + OCR agree — accept the match
+                    if let printings = try? await repository.findAllPrintings(name: cacheHit.cardName),
+                       !printings.isEmpty {
+                        if let artMatch = printings.first(where: { $0.illustrationID == cacheHit.illustrationID }) {
+                            print("[MTGScanner] \u{2713} FeaturePrint cache match: \(artMatch.set.name) #\(artMatch.collectorNumber)")
+                            return artMatch
+                        }
+                        return printings.first
+                    }
+                }
+            } else {
+                // OCR failed — trust the cache (it's our only signal)
+                if let printings = try? await repository.findAllPrintings(name: cacheHit.cardName),
+                   !printings.isEmpty {
+                    if let artMatch = printings.first(where: { $0.illustrationID == cacheHit.illustrationID }) {
+                        print("[MTGScanner] \u{2713} FeaturePrint cache match (no OCR): \(artMatch.set.name) #\(artMatch.collectorNumber)")
+                        return artMatch
+                    }
+                    return printings.first
+                }
             }
         }
 
