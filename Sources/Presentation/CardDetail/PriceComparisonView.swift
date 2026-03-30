@@ -47,17 +47,9 @@ struct PriceComparisonView: View {
 
                 HStack(spacing: 12) {
                     storeButton(name: "Card Kingdom") {
-                        let setSlug = card.set.name
-                            .lowercased()
-                            .replacingOccurrences(of: " ", with: "-")
-                            .replacingOccurrences(of: "'", with: "")
-                            .replacingOccurrences(of: ",", with: "")
-                        let cardSlug = card.name
-                            .lowercased()
-                            .replacingOccurrences(of: " ", with: "-")
-                            .replacingOccurrences(of: "'", with: "")
-                            .replacingOccurrences(of: ",", with: "")
-                        if let url = URL(string: "https://www.cardkingdom.com/mtg/\(setSlug)/\(cardSlug)") {
+                        let encodedName = card.name
+                            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? card.name
+                        if let url = URL(string: "https://www.cardkingdom.com/catalog/search?search=header&filter%5Bname%5D=\(encodedName)") {
                             openURL(url)
                         }
                     }
