@@ -147,11 +147,93 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         let finalImage = croppedCard ?? cardImage
         let wasCropped = croppedCard != nil
 
+        // Strategy 1: DB-validated OCR — try every text line against the DB
+        // This handles misaligned grid cells where the card name isn't the topmost text
+        if let card = await identifyByDBValidatedOCR(cardImage: finalImage, wasCropped: wasCropped) {
+            return await resolveArtVariant(card: card, cardImage: finalImage)
+        }
+
+        // Strategy 2: Fall back to the standard pipeline
         guard let identified = await resolvePrinting(cardImage: finalImage, wasCropped: wasCropped) else {
             return nil
         }
 
         return await resolveArtVariant(card: identified, cardImage: finalImage)
+    }
+
+    /// Tries every OCR text line against the DB to find actual card names.
+    /// Much more robust for deck photo grid cells where the card name may not be the topmost text.
+    private func identifyByDBValidatedOCR(cardImage: CGImage, wasCropped: Bool) async -> Card? {
+        guard let scanResults = try? await recognizer.recognizeText(in: cardImage) else {
+            return nil
+        }
+
+        // Try each text line as a potential card name — check against DB
+        for result in scanResults {
+            let text = nameExtractor.extractCardName(from: [result]) ?? result.recognizedText
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+
+            guard text.count >= 3, text.count <= 40 else { continue }
+
+            // Skip common non-name text
+            let lower = text.lowercased()
+            if lower.contains("summon") || lower.contains("instant") ||
+               lower.contains("sorcery") || lower.contains("protection") ||
+               lower.contains("damage") || lower.contains("creature or") ||
+               lower.contains("the ") && lower.count > 20 ||
+               lower.contains("illus") || lower.contains("wizard") {
+                continue
+            }
+
+            // Check if this text matches a card name in the DB
+            if let printings = try? await repository.findAllPrintings(name: text),
+               !printings.isEmpty {
+                print("[MTGScanner] DB-validated OCR: '\(text)' → \(printings.count) printings")
+
+                // Apply metadata filtering with the found name
+                let signals = await extractOCRSignals(from: cardImage, wasCropped: wasCropped)
+                let correctedSignals = OCRSignals(
+                    scanResults: signals?.scanResults ?? scanResults,
+                    cardName: text,
+                    collectorCandidates: signals?.collectorCandidates ?? [],
+                    artistName: signals?.artistName,
+                    copyrightYear: signals?.copyrightYear,
+                    hasOldTypeLine: signals?.hasOldTypeLine ?? false,
+                    detectedBorder: signals?.detectedBorder
+                )
+                return await matchByMetadata(signals: correctedSignals, cardImage: cardImage)
+            }
+
+            // Also try fuzzy match for this line
+            let words = text.split(separator: " ").map(String.init)
+            for word in words where word.count >= 5 {
+                if let results = try? await repository.searchCards(query: word),
+                   !results.isEmpty {
+                    let uniqueNames = Array(Set(results.map(\.name)))
+                    let ocrLower = text.lowercased()
+
+                    for name in uniqueNames {
+                        let dist = levenshteinDistance(ocrLower, name.lowercased())
+                        if dist <= 2 {
+                            print("[MTGScanner] DB-validated fuzzy: '\(text)' → '\(name)' (distance: \(dist))")
+                            let signals = await extractOCRSignals(from: cardImage, wasCropped: wasCropped)
+                            let correctedSignals = OCRSignals(
+                                scanResults: signals?.scanResults ?? scanResults,
+                                cardName: name,
+                                collectorCandidates: signals?.collectorCandidates ?? [],
+                                artistName: signals?.artistName,
+                                copyrightYear: signals?.copyrightYear,
+                                hasOldTypeLine: signals?.hasOldTypeLine ?? false,
+                                detectedBorder: signals?.detectedBorder
+                            )
+                            return await matchByMetadata(signals: correctedSignals, cardImage: cardImage)
+                        }
+                    }
+                }
+            }
+        }
+
+        return nil
     }
 
     /// Identifies a card from raw image data.
