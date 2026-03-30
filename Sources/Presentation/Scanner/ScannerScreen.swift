@@ -49,8 +49,8 @@ struct ScannerScreen: View {
             idleView
         case .processing(let current, let total):
             processingView(current: current, total: total)
-        case .completed(let cards):
-            completedView(cards: cards)
+        case .completed:
+            completedView(cards: viewModel.scannedCards)
         case .error(let message):
             errorView(message: message)
         }

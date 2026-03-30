@@ -22,7 +22,7 @@ extension ScanState: Equatable {
         case (.processing(let lhsCurrent, let lhsTotal), .processing(let rhsCurrent, let rhsTotal)):
             return lhsCurrent == rhsCurrent && lhsTotal == rhsTotal
         case (.completed(let lhsCards), .completed(let rhsCards)):
-            return lhsCards.count == rhsCards.count
+            return lhsCards.map(\.id) == rhsCards.map(\.id)
         case (.error(let lhsMessage), .error(let rhsMessage)):
             return lhsMessage == rhsMessage
         default:

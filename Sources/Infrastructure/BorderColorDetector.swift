@@ -23,10 +23,12 @@ struct BorderColorDetector: Sendable {
     private let samplesPerEdge = 10
 
     /// Luminance threshold above which a border is considered white.
-    private let whiteThreshold: Double = 0.7
+    /// Lowered from 0.7 to 0.55 for aged/photographed white-bordered cards.
+    private let whiteThreshold: Double = 0.55
 
     /// Luminance threshold below which a border is considered black.
-    private let blackThreshold: Double = 0.3
+    /// Raised from 0.3 to 0.4 for cards on dark backgrounds.
+    private let blackThreshold: Double = 0.4
 
     /// Detects the border color of a card image by sampling edge pixels.
     ///
