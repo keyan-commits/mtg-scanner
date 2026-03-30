@@ -88,11 +88,10 @@ final class CardScannerViewModel {
                     continue
                 }
 
-                let cards = await pipeline.identifyAll(imageData: data)
-                if cards.isEmpty {
-                    failedCount += 1
+                if let card = await pipeline.identify(imageData: data) {
+                    scannedCards.append(card)
                 } else {
-                    scannedCards.append(contentsOf: cards)
+                    failedCount += 1
                 }
             } catch {
                 failedCount += 1

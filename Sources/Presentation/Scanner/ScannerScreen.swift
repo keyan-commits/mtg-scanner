@@ -64,7 +64,7 @@ struct ScannerScreen: View {
                 .font(MD3Typography.headlineSmall)
                 .foregroundStyle(MD3Theme.onBackground)
 
-            Text("Select photos of your Magic: The Gathering cards to identify the expansion, check prices, and find deck archetypes.")
+            Text("Select one photo per card. You can select multiple photos at once to identify several cards.")
                 .font(MD3Typography.bodyMedium)
                 .foregroundStyle(MD3Theme.onSurfaceVariant)
                 .multilineTextAlignment(.center)
