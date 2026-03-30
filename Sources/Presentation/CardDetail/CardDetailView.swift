@@ -107,6 +107,14 @@ struct CardDetailView: View {
                     .font(MD3Typography.bodyMedium)
                     .foregroundStyle(MD3Theme.onSurfaceVariant)
 
+                Text(rarityLabel(viewModel.card.rarity))
+                    .font(MD3Typography.labelMedium)
+                    .foregroundStyle(rarityColor(viewModel.card.rarity))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(rarityColor(viewModel.card.rarity).opacity(0.15))
+                    .clipShape(Capsule())
+
                 if let variant = viewModel.variantLabel {
                     Text(variant)
                         .font(MD3Typography.labelMedium)
@@ -256,6 +264,26 @@ struct CardDetailView: View {
             }
         } catch {
             // Cross-reference failed, no variant label
+        }
+    }
+
+    // MARK: - Rarity
+
+    private func rarityLabel(_ rarity: CardRarity) -> String {
+        switch rarity {
+        case .mythic: return "Mythic"
+        case .rare: return "Rare"
+        case .uncommon: return "Uncommon"
+        case .common: return "Common"
+        }
+    }
+
+    private func rarityColor(_ rarity: CardRarity) -> Color {
+        switch rarity {
+        case .mythic: return .orange
+        case .rare: return .yellow
+        case .uncommon: return .gray
+        case .common: return Color(white: 0.5)
         }
     }
 
