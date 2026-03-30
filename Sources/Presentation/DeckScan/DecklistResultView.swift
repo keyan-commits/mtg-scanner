@@ -9,11 +9,18 @@ struct DecklistResultView: View {
     @Bindable var viewModel: DeckScanViewModel
     var mtgTop8Service: MTGTop8ServiceProtocol?
     var trainingDataExporter: TrainingDataExporter?
+    var repository: (any CardRepositoryProtocol)?
 
     @State private var deckIdentificationResult: DeckIdentificationResult?
     @State private var isIdentifyingDeck: Bool = false
     @State private var showDeckIdentification: Bool = false
     @State private var trainingDataCount: Int = 0
+    @State private var correctionItem: CorrectionItem?
+
+    struct CorrectionItem: Identifiable {
+        let id = UUID()
+        let cardIndex: Int  // index in identifiedCards
+    }
 
     private var decklist: [(name: String, card: Card, quantity: Int)] {
         viewModel.buildDecklist()
@@ -34,6 +41,21 @@ struct DecklistResultView: View {
         .background(MD3Theme.background)
         .onAppear {
             trainingDataCount = trainingDataExporter?.trainingDataCount() ?? 0
+        }
+        .sheet(item: $correctionItem) { item in
+            if let repository {
+                CardCorrectionView(
+                    repository: repository,
+                    currentCard: item.cardIndex < viewModel.identifiedCards.count
+                        ? viewModel.identifiedCards[item.cardIndex] : nil,
+                    onCorrection: { correctedCard in
+                        if item.cardIndex < viewModel.identifiedCards.count {
+                            viewModel.identifiedCards[item.cardIndex] = correctedCard
+                        }
+                        correctionItem = nil
+                    }
+                )
+            }
         }
     }
 
@@ -87,10 +109,30 @@ struct DecklistResultView: View {
                 ForEach(cardTypeGroups, id: \.category) { group in
                     Section {
                         ForEach(group.entries, id: \.name) { entry in
-                            NavigationLink(value: entry.card) {
-                                decklistRow(entry: entry)
+                            HStack(spacing: 8) {
+                                NavigationLink(value: entry.card) {
+                                    decklistRow(entry: entry)
+                                }
+                                .buttonStyle(.plain)
+
+                                if repository != nil {
+                                    Button {
+                                        if let idx = viewModel.identifiedCards.firstIndex(where: { $0.id == entry.card.id }) {
+                                            correctionItem = CorrectionItem(cardIndex: idx)
+                                        }
+                                    } label: {
+                                        Text("Fix")
+                                            .font(MD3Typography.labelLarge)
+                                            .foregroundStyle(MD3Theme.primary)
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 4)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .stroke(MD3Theme.outline, lineWidth: 1)
+                                            )
+                                    }
+                                }
                             }
-                            .buttonStyle(.plain)
                         }
                     } header: {
                         Text(group.category)

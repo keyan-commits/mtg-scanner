@@ -36,7 +36,7 @@ struct ScannerScreen: View {
             }
         }
         .sheet(isPresented: $showDeckScan) {
-            DeckScanScreen(viewModel: DeckScanViewModel(pipeline: pipeline))
+            DeckScanScreen(viewModel: DeckScanViewModel(pipeline: pipeline), repository: repository)
         }
     }
 
