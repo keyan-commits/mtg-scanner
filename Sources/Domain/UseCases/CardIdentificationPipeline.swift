@@ -399,12 +399,17 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
             }
 
             if let year = signals.copyrightYear {
-                let yearStr = String(year)
+                // Allow ±1 year tolerance: copyright year (printed on card) may differ
+                // from Scryfall's released_at (e.g., PELP copyright ©1999, released 2000)
+                let validYears = Set([String(year - 1), String(year), String(year + 1)])
                 let filtered = narrowed.filter { card in
                     guard let rel = card.releasedAt, rel.count >= 4 else { return false }
-                    return String(rel.prefix(4)) == yearStr
+                    return validYears.contains(String(rel.prefix(4)))
                 }
-                if !filtered.isEmpty { narrowed = filtered }
+                if !filtered.isEmpty {
+                    narrowed = filtered
+                    print("[MTGScanner] After year filter (\(year)±1): \(narrowed.count)")
+                }
             }
 
             if signals.hasOldTypeLine {
