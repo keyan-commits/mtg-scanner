@@ -6,8 +6,9 @@ struct MTGCardScannerApp: App {
 
     @State private var setupState: SetupState = .checking
     @State private var viewModel: CardScannerViewModel?
-    @State private var pipeline: CardIdentificationPipelineProtocol?
-    @State private var repository: CardRepositoryProtocol?
+    // Stored as concrete types wrapped in Any to avoid @State protocol issues
+    @State private var storedPipeline: CardIdentificationPipeline?
+    @State private var storedRepository: LocalCardRepository?
 
     private let databaseManager: DatabaseManager?
     private let downloader: ScryfallBulkDataDownloader
@@ -20,9 +21,9 @@ struct MTGCardScannerApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if let viewModel, let pipeline, setupState == .ready {
+                if let viewModel, let storedPipeline, setupState == .ready {
                     NavigationStack {
-                        ScannerScreen(viewModel: viewModel, pipeline: pipeline, repository: repository)
+                        ScannerScreen(viewModel: viewModel, pipeline: storedPipeline, repository: storedRepository)
                     }
                 } else {
                     SetupScreen(setupState: $setupState)
@@ -137,8 +138,8 @@ struct MTGCardScannerApp: App {
             featurePrintCache: featurePrintCache
         )
 
-        self.pipeline = pipeline
-        self.repository = repository
+        self.storedPipeline = pipeline
+        self.storedRepository = repository
         self.viewModel = CardScannerViewModel(pipeline: pipeline, correctionService: correctionService)
     }
 
