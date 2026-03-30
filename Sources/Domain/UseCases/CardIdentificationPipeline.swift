@@ -95,12 +95,16 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
     /// Visual search (primary identification — nil if index not available)
     private let visualSearchEngine: VisualSearchEngine?
 
+    /// VNFeaturePrint cache (grows as user scans cards — nil if not configured)
+    private let featurePrintCache: FeaturePrintCache?
+
     // MARK: - Initialization
 
     init(
         recognizer: TextRecognizerProtocol,
         repository: CardRepositoryProtocol,
         visualSearchEngine: VisualSearchEngine? = nil,
+        featurePrintCache: FeaturePrintCache? = nil,
         imageProcessor: ImageProcessor = ImageProcessor(),
         cardDetector: CardDetector = CardDetector(),
         nameExtractor: CardNameExtractor = CardNameExtractor(),
@@ -114,6 +118,7 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         self.recognizer = recognizer
         self.repository = repository
         self.visualSearchEngine = visualSearchEngine
+        self.featurePrintCache = featurePrintCache
         self.imageProcessor = imageProcessor
         self.cardDetector = cardDetector
         self.nameExtractor = nameExtractor
@@ -149,7 +154,20 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         }
 
         // Step 4: Art variant resolution
-        return await resolveArtVariant(card: identified, cardImage: cardImage)
+        let finalCard = await resolveArtVariant(card: identified, cardImage: cardImage)
+
+        // Step 5: Cache the result for future FeaturePrint lookups
+        if let cache = featurePrintCache,
+           let artImage = artVariantMatcher.extractArtRegion(from: cardImage) {
+            await cache.cache(
+                illustrationID: finalCard.illustrationID ?? "",
+                cardName: finalCard.name,
+                artImage: artImage
+            )
+            await cache.save()
+        }
+
+        return finalCard
     }
 
     /// Identifies all cards visible in the image data.
@@ -254,16 +272,33 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
 
     // MARK: - Step 1: Visual Search
 
-    /// Uses perceptual hashing to identify the card by its art region.
+    /// Uses VNFeaturePrint cache (and legacy pHash) to identify the card by its art region.
     /// If a match is found, uses OCR signals to narrow to the exact printing.
     /// Returns nil if visual search is unavailable or finds no match.
     private func resolveByVisualSearch(cardImage: CGImage, wasCropped: Bool) async -> Card? {
-        guard let visualEngine = visualSearchEngine else { return nil }
-
         guard let artImage = artVariantMatcher.extractArtRegion(from: cardImage) else {
             print("[MTGScanner] Visual search: could not extract art region")
             return nil
         }
+
+        // Try FeaturePrint cache first (grows as user scans cards)
+        if let cache = featurePrintCache,
+           let cacheHit = await cache.search(artImage: artImage) {
+            // Cache hit — resolve to exact printing
+            if let printings = try? await repository.findAllPrintings(name: cacheHit.cardName),
+               !printings.isEmpty {
+                // Prefer the printing whose illustration_id matches the cache entry
+                if let artMatch = printings.first(where: { $0.illustrationID == cacheHit.illustrationID }) {
+                    print("[MTGScanner] \u{2713} FeaturePrint cache match: \(artMatch.set.name) #\(artMatch.collectorNumber)")
+                    return artMatch
+                }
+                print("[MTGScanner] \u{2713} FeaturePrint cache match (first printing): \(printings[0].set.name)")
+                return printings.first
+            }
+        }
+
+        // Fall back to legacy pHash visual search engine
+        guard let visualEngine = visualSearchEngine else { return nil }
 
         // Use strict threshold (8) for confident visual matches
         guard let match = visualEngine.bestMatch(for: artImage, maxDistance: 8) else {

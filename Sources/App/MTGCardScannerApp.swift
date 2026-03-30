@@ -6,6 +6,7 @@ struct MTGCardScannerApp: App {
 
     @State private var setupState: SetupState = .checking
     @State private var viewModel: CardScannerViewModel?
+    @State private var pipeline: CardIdentificationPipelineProtocol?
 
     private let databaseManager: DatabaseManager?
     private let downloader: ScryfallBulkDataDownloader
@@ -18,9 +19,9 @@ struct MTGCardScannerApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if let viewModel, setupState == .ready {
+                if let viewModel, let pipeline, setupState == .ready {
                     NavigationStack {
-                        ScannerScreen(viewModel: viewModel)
+                        ScannerScreen(viewModel: viewModel, pipeline: pipeline)
                     }
                 } else {
                     SetupScreen(setupState: $setupState)
@@ -113,13 +114,31 @@ struct MTGCardScannerApp: App {
         // Load visual search index (optional — pipeline falls back to OCR if nil)
         let visualEngine = loadVisualSearchEngine()
 
+        // Create FeaturePrint cache in Application Support (grows as user scans cards)
+        let featurePrintCache = createFeaturePrintCache()
+
         let pipeline = CardIdentificationPipeline(
             recognizer: recognizer,
             repository: repository,
-            visualSearchEngine: visualEngine
+            visualSearchEngine: visualEngine,
+            featurePrintCache: featurePrintCache
         )
 
+        self.pipeline = pipeline
         self.viewModel = CardScannerViewModel(pipeline: pipeline)
+    }
+
+    /// Creates a FeaturePrint cache stored in Application Support.
+    /// The cache grows organically as the user scans cards.
+    private func createFeaturePrintCache() -> FeaturePrintCache? {
+        guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        let appDir = appSupport.appendingPathComponent("MTGCardScanner", isDirectory: true)
+        try? FileManager.default.createDirectory(at: appDir, withIntermediateDirectories: true)
+        let cacheURL = appDir.appendingPathComponent("featureprint_cache.json")
+        print("[MTGScanner] FeaturePrint cache at: \(cacheURL.path)")
+        return FeaturePrintCache(fileURL: cacheURL)
     }
 
     /// Attempts to load the visual search engine from the bundle or Application Support.

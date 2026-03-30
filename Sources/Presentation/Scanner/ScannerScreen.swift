@@ -8,8 +8,10 @@ import PhotosUI
 struct ScannerScreen: View {
 
     @Bindable var viewModel: CardScannerViewModel
+    let pipeline: CardIdentificationPipelineProtocol
 
     @State private var selectedItems: [PhotosPickerItem] = []
+    @State private var showDeckScan = false
 
     var body: some View {
         ZStack {
@@ -31,6 +33,9 @@ struct ScannerScreen: View {
                 await viewModel.processSelectedPhotos(newItems)
                 selectedItems = []
             }
+        }
+        .sheet(isPresented: $showDeckScan) {
+            DeckScanScreen(viewModel: DeckScanViewModel(pipeline: pipeline))
         }
     }
 
@@ -72,6 +77,10 @@ struct ScannerScreen: View {
 
             PhotoPickerView(selectedItems: $selectedItems)
                 .padding(.top, 8)
+
+            MD3OutlinedButton("Scan Deck Photo") {
+                showDeckScan = true
+            }
 
             Spacer()
         }
