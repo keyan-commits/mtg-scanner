@@ -37,6 +37,7 @@ struct ScannedCardsListView: View {
             if let repository {
                 CardCorrectionView(
                     repository: repository,
+                    currentCard: item.index < cards.count ? cards[item.index] : nil,
                     onCorrection: { correctedCard in
                         correctionItem = nil
                         onCorrection?(item.index, correctedCard)

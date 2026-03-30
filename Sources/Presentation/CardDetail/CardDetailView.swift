@@ -145,6 +145,7 @@ struct CardDetailView: View {
             if let repository, let onCorrection {
                 CardCorrectionView(
                     repository: repository,
+                    currentCard: viewModel.card,
                     onCorrection: { correctedCard in
                         showCorrection = false
                         onCorrection(correctedCard)

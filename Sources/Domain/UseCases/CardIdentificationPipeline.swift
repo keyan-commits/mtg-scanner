@@ -646,16 +646,16 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
             }
         }
 
-        // Filter by copyright year
+        // Filter by copyright year (±1 tolerance: copyright may differ from release date)
         if let year = signals.copyrightYear {
-            let yearStr = String(year)
+            let validYears = Set([String(year - 1), String(year), String(year + 1)])
             let filtered = printings.filter { card in
                 guard let rel = card.releasedAt, rel.count >= 4 else { return false }
-                return String(rel.prefix(4)) == yearStr
+                return validYears.contains(String(rel.prefix(4)))
             }
             if !filtered.isEmpty {
                 printings = filtered
-                print("[MTGScanner] After year filter (\(year)): \(printings.count)")
+                print("[MTGScanner] After year filter (\(year)±1): \(printings.count)")
             }
         }
 

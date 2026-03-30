@@ -13,6 +13,7 @@ import SwiftUI
 struct CardCorrectionView: View {
 
     let repository: CardRepositoryProtocol
+    let currentCard: Card?  // The wrongly-identified card — used to pre-filter
     let onCorrection: (Card) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -301,7 +302,15 @@ struct CardCorrectionView: View {
     private func loadPrintings(for name: String) {
         Task {
             do {
-                let results = try await repository.findAllPrintings(name: name)
+                var results = try await repository.findAllPrintings(name: name)
+
+                // Sort by relevance: prioritize printings matching the current card's signals
+                if let current = currentCard {
+                    results.sort { a, b in
+                        relevanceScore(a, for: current) > relevanceScore(b, for: current)
+                    }
+                }
+
                 await MainActor.run {
                     printings = results
                 }
@@ -311,6 +320,33 @@ struct CardCorrectionView: View {
                 }
             }
         }
+    }
+
+    /// Scores a printing's relevance to the current (wrongly identified) card's signals.
+    /// Higher = more relevant. Matches artist and release year from the current card.
+    private func relevanceScore(_ card: Card, for current: Card) -> Int {
+        var score = 0
+
+        // Artist match (strongest signal)
+        if let a = card.artist, let ca = current.artist {
+            let la = a.lowercased()
+            let lca = ca.lowercased()
+            if la == lca { score += 10 }
+            else if la.contains(lca) || lca.contains(la) { score += 5 }
+        }
+
+        // Prefer expansion/core sets over promos
+        switch card.set.setType {
+        case "expansion": score += 3
+        case "core": score += 2
+        case "masters": score += 1
+        default: break
+        }
+
+        // Penalize foreign/variant sets
+        if card.set.name.lowercased().contains("foreign") { score -= 5 }
+
+        return score
     }
 
     private func uniqueCardNames(from cards: [Card]) -> [String] {
