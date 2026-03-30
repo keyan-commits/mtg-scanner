@@ -402,14 +402,18 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
                 // Allow ±1 year tolerance: copyright year (printed on card) may differ
                 // from Scryfall's released_at (e.g., PELP copyright ©1999, released 2000)
                 let validYears = Set([String(year - 1), String(year), String(year + 1)])
+                print("[MTGScanner] Year filter: checking \(narrowed.count) cards for years \(validYears)")
                 let filtered = narrowed.filter { card in
                     guard let rel = card.releasedAt, rel.count >= 4 else { return false }
                     return validYears.contains(String(rel.prefix(4)))
                 }
+                print("[MTGScanner] Year filter: \(filtered.count) matched out of \(narrowed.count)")
                 if !filtered.isEmpty {
                     narrowed = filtered
                     print("[MTGScanner] After year filter (\(year)±1): \(narrowed.count)")
                 }
+            } else {
+                print("[MTGScanner] Year filter: copyright year is nil, skipping")
             }
 
             if signals.hasOldTypeLine {

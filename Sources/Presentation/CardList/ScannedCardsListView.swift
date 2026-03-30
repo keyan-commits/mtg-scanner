@@ -42,6 +42,15 @@ struct ScannedCardsListView: View {
                         onCorrection?(index, correctedCard)
                     }
                 )
+            } else {
+                VStack(spacing: 16) {
+                    Text("Error: Missing data")
+                        .font(.title2)
+                    Text("repository: \(repository == nil ? "nil" : "ok")")
+                    Text("correctionIndex: \(correctionIndex.map(String.init) ?? "nil")")
+                    Button("Dismiss") { showCorrection = false }
+                }
+                .padding()
             }
         }
     }

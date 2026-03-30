@@ -141,6 +141,7 @@ struct MTGCardScannerApp: App {
         self.storedPipeline = pipeline
         self.storedRepository = repository
         self.viewModel = CardScannerViewModel(pipeline: pipeline, correctionService: correctionService)
+        print("[MTGScanner] Wired: pipeline=\(pipeline), repo=\(repository), correction=\(String(describing: correctionService))")
     }
 
     /// Creates a FeaturePrint cache stored in Application Support.
