@@ -10,6 +10,7 @@ struct DecklistResultView: View {
     var mtgTop8Service: MTGTop8ServiceProtocol?
     var trainingDataExporter: TrainingDataExporter?
     var repository: (any CardRepositoryProtocol)?
+    var correctionService: CardCorrectionService?
 
     @State private var deckIdentificationResult: DeckIdentificationResult?
     @State private var isIdentifyingDeck: Bool = false
@@ -51,6 +52,20 @@ struct DecklistResultView: View {
                     onCorrection: { correctedCard in
                         if item.cardIndex < viewModel.identifiedCards.count {
                             viewModel.identifiedCards[item.cardIndex] = correctedCard
+                            // Feed correction to FeaturePrint cache — ML learns
+                            if let service = correctionService,
+                               let image = viewModel.sourceImage {
+                                let cellWidth = image.width / viewModel.columns
+                                let cellHeight = image.height / viewModel.rows
+                                let row = item.cardIndex / viewModel.columns
+                                let col = item.cardIndex % viewModel.columns
+                                let rect = CGRect(x: col * cellWidth, y: row * cellHeight, width: cellWidth, height: cellHeight)
+                                if let cellImage = image.cropping(to: rect) {
+                                    Task {
+                                        await service.applyCorrection(correctCard: correctedCard, originalCardImage: cellImage)
+                                    }
+                                }
+                            }
                         }
                         correctionItem = nil
                     }

@@ -10,6 +10,7 @@ struct DeckScanScreen: View {
 
     @Bindable var viewModel: DeckScanViewModel
     var repository: (any CardRepositoryProtocol)?
+    var correctionService: CardCorrectionService?
 
     @State private var selectedItem: PhotosPickerItem?
     @Environment(\.dismiss) private var dismiss
@@ -148,7 +149,7 @@ struct DeckScanScreen: View {
     // MARK: - Results
 
     private var resultsView: some View {
-        DecklistResultView(viewModel: viewModel, repository: repository)
+        DecklistResultView(viewModel: viewModel, repository: repository, correctionService: correctionService)
     }
 
     // MARK: - Image Loading
