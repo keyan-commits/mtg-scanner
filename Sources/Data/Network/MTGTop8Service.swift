@@ -17,6 +17,28 @@ struct MTGTop8Archetype: Sendable, Identifiable {
     let count: Int
 }
 
+struct MTGTop8Deck: Sendable, Identifiable {
+    let id = UUID()
+    let deckID: String
+    let name: String
+    let player: String
+    let event: String
+    let finish: String
+    let date: String
+    let format: String
+}
+
+struct MTGTop8DecklistEntry: Sendable, Identifiable {
+    let id = UUID()
+    let quantity: Int
+    let cardName: String
+}
+
+struct MTGTop8Decklist: Sendable {
+    let mainboard: [MTGTop8DecklistEntry]
+    let sideboard: [MTGTop8DecklistEntry]
+}
+
 // MARK: - Error
 
 enum MTGTop8Error: Error {
@@ -29,6 +51,8 @@ enum MTGTop8Error: Error {
 protocol MTGTop8ServiceProtocol: Sendable {
     func fetchCardData(name: String) async throws -> MTGTop8CardData
     func fetchCardData(name: String, format: String) async throws -> MTGTop8CardData
+    func fetchTopDecks(archetype: String, format: String?, cardName: String?) async throws -> [MTGTop8Deck]
+    func fetchDecklist(deckID: String) async throws -> MTGTop8Decklist
 }
 
 // MARK: - Implementation
@@ -157,5 +181,155 @@ struct MTGTop8Service: MTGTop8ServiceProtocol {
         return Array(sorted.prefix(10)).map { key, value in
             MTGTop8Archetype(name: key, format: value.format, count: value.count)
         }
+    }
+
+    // MARK: - Top Decks for Archetype
+
+    func fetchTopDecks(archetype: String, format: String?, cardName: String? = nil) async throws -> [MTGTop8Deck] {
+        // Search MTGTop8 by card name, then filter to the target archetype.
+        // MTGTop8 archetype IDs are numeric and format-specific, so we can't search by name directly.
+        let searchCard = cardName ?? archetype
+        let searchURL = Self.buildSearchURL(for: searchCard, format: format)
+
+        guard let url = URL(string: searchURL) else { throw MTGTop8Error.parsingError }
+
+        let html: String
+        do {
+            let (data, _) = try await httpClient.data(for: URLRequest(url: url))
+            guard let decoded = String(data: data, encoding: .utf8)
+                    ?? String(data: data, encoding: .isoLatin1) else {
+                throw MTGTop8Error.parsingError
+            }
+            html = decoded
+        } catch let error as MTGTop8Error {
+            throw error
+        } catch {
+            throw MTGTop8Error.networkError(underlying: error)
+        }
+
+        let allDecks = parseDecks(from: html)
+
+        // Filter to decks matching the target archetype name
+        let filtered = allDecks.filter { $0.name.lowercased() == archetype.lowercased() }
+        return filtered.isEmpty ? allDecks : filtered
+    }
+
+    private func parseDecks(from html: String) -> [MTGTop8Deck] {
+        let rowPattern = #"<tr class=.?hover_tr.?>(.*?)</tr>"#
+        guard let rowRegex = try? NSRegularExpression(pattern: rowPattern, options: .dotMatchesLineSeparators) else {
+            return []
+        }
+
+        let matches = rowRegex.matches(in: html, range: NSRange(html.startIndex..., in: html))
+        var decks: [MTGTop8Deck] = []
+
+        for match in matches.prefix(20) {
+            guard let rowRange = Range(match.range(at: 1), in: html) else { continue }
+            let row = String(html[rowRange])
+
+            // Extract deck ID from href: event?e=xxx&d=xxx&f=xxx
+            let linkPattern = #"<a\s+href=.?event\?e=(\d+)&d=(\d+)[^>]*>([^<]+)</a>"#
+            guard let linkRegex = try? NSRegularExpression(pattern: linkPattern),
+                  let linkMatch = linkRegex.firstMatch(in: row, range: NSRange(row.startIndex..., in: row)),
+                  let deckIDRange = Range(linkMatch.range(at: 2), in: row),
+                  let nameRange = Range(linkMatch.range(at: 3), in: row) else { continue }
+
+            let deckID = String(row[deckIDRange])
+            let deckName = String(row[nameRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+
+            // Extract player from player link
+            let playerPattern = #"<a\s+class=.?player.?\s+href=[^>]*>([^<]+)</a>"#
+            let player: String
+            if let playerRegex = try? NSRegularExpression(pattern: playerPattern),
+               let playerMatch = playerRegex.firstMatch(in: row, range: NSRange(row.startIndex..., in: row)),
+               let playerRange = Range(playerMatch.range(at: 1), in: row) {
+                player = String(row[playerRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+            } else {
+                player = ""
+            }
+
+            // Extract all <td> contents for event, finish, date
+            let tdPattern = #"<td[^>]*>(.*?)</td>"#
+            guard let tdRegex = try? NSRegularExpression(pattern: tdPattern, options: .dotMatchesLineSeparators) else { continue }
+            let tdMatches = tdRegex.matches(in: row, range: NSRange(row.startIndex..., in: row))
+            let tds = tdMatches.compactMap { m -> String? in
+                guard let range = Range(m.range(at: 1), in: row) else { return nil }
+                // Strip HTML tags
+                let content = String(row[range])
+                return content.replacingOccurrences(of: #"<[^>]+>"#, with: "", options: .regularExpression)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+
+            // tds: [deckName, player, format, event, level, finish, date]
+            let knownFormats = ["Standard", "Pioneer", "Modern", "Legacy", "Vintage", "Pauper"]
+            let format = knownFormats.first { f in tds.contains(where: { $0 == f }) } ?? ""
+            let event = tds.count > 3 ? tds[3] : ""
+            let finish = tds.count > 5 ? tds[5] : ""
+            let date = tds.last ?? ""
+
+            decks.append(MTGTop8Deck(
+                deckID: deckID, name: deckName, player: player,
+                event: event, finish: finish, date: date, format: format
+            ))
+        }
+
+        return decks
+    }
+
+    // MARK: - Decklist Fetching
+
+    func fetchDecklist(deckID: String) async throws -> MTGTop8Decklist {
+        let urlString = "https://mtgtop8.com/mtgo?d=\(deckID)"
+        guard let url = URL(string: urlString) else { throw MTGTop8Error.parsingError }
+
+        let text: String
+        do {
+            let (data, _) = try await httpClient.data(for: URLRequest(url: url))
+            guard let decoded = String(data: data, encoding: .utf8)
+                    ?? String(data: data, encoding: .isoLatin1) else {
+                throw MTGTop8Error.parsingError
+            }
+            text = decoded
+        } catch let error as MTGTop8Error {
+            throw error
+        } catch {
+            throw MTGTop8Error.networkError(underlying: error)
+        }
+
+        return parseDecklist(from: text)
+    }
+
+    private func parseDecklist(from text: String) -> MTGTop8Decklist {
+        let lines = text.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        var mainboard: [MTGTop8DecklistEntry] = []
+        var sideboard: [MTGTop8DecklistEntry] = []
+        var isSideboard = false
+
+        for line in lines {
+            if line.lowercased() == "sideboard" {
+                isSideboard = true
+                continue
+            }
+
+            // Parse "4 Card Name"
+            guard let spaceIndex = line.firstIndex(of: " ") else { continue }
+            let qtyStr = String(line[line.startIndex..<spaceIndex])
+            guard let qty = Int(qtyStr) else { continue }
+            let cardName = String(line[line.index(after: spaceIndex)...])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !cardName.isEmpty else { continue }
+
+            let entry = MTGTop8DecklistEntry(quantity: qty, cardName: cardName)
+            if isSideboard {
+                sideboard.append(entry)
+            } else {
+                mainboard.append(entry)
+            }
+        }
+
+        return MTGTop8Decklist(mainboard: mainboard, sideboard: sideboard)
     }
 }

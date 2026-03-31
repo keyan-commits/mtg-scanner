@@ -90,32 +90,44 @@ struct DeckCompatibilityView: View {
                     Divider()
 
                     ForEach(topArchetypes) { archetype in
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text(archetype.name)
-                                    .font(MD3Typography.titleSmall)
-                                    .foregroundStyle(MD3Theme.onSurface)
-                                    .lineLimit(1)
+                        NavigationLink(destination: ArchetypeDecksView(
+                            archetype: archetype.name,
+                            format: formatData.format,
+                            formatCode: Self.formatCode(for: formatData.format),
+                            cardName: card.name
+                        )) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text(archetype.name)
+                                        .font(MD3Typography.titleSmall)
+                                        .foregroundStyle(MD3Theme.onSurface)
+                                        .lineLimit(1)
 
-                                Spacer()
+                                    Spacer()
 
-                                Text("\(archetype.count)")
-                                    .font(MD3Typography.labelMedium)
-                                    .foregroundStyle(MD3Theme.onPrimary)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 3)
-                                    .background(MD3Theme.primary)
-                                    .clipShape(Capsule())
+                                    Text("\(archetype.count)")
+                                        .font(MD3Typography.labelMedium)
+                                        .foregroundStyle(MD3Theme.onPrimary)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 3)
+                                        .background(MD3Theme.primary)
+                                        .clipShape(Capsule())
+
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                                }
+
+                                GeometryReader { geometry in
+                                    let fraction = CGFloat(archetype.count) / CGFloat(maxCount)
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(MD3Theme.primary.opacity(0.35))
+                                        .frame(width: geometry.size.width * fraction, height: 6)
+                                }
+                                .frame(height: 6)
                             }
-
-                            GeometryReader { geometry in
-                                let fraction = CGFloat(archetype.count) / CGFloat(maxCount)
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(MD3Theme.primary.opacity(0.35))
-                                    .frame(width: geometry.size.width * fraction, height: 6)
-                            }
-                            .frame(height: 6)
                         }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -241,5 +253,19 @@ struct DeckCompatibilityView: View {
             result = nil
         }
         isLoading = false
+    }
+
+    // MARK: - Format Code Mapping
+
+    private static func formatCode(for format: String) -> String? {
+        switch format.lowercased() {
+        case "standard": return "ST"
+        case "pioneer": return "PI"
+        case "modern": return "MO"
+        case "legacy": return "LE"
+        case "vintage": return "VI"
+        case "pauper": return "PAU"
+        default: return nil
+        }
     }
 }
