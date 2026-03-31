@@ -59,37 +59,38 @@ final class DeckScanViewModel {
 
     /// Auto-detect the most likely grid layout based on image dimensions and MTG card aspect ratio.
     /// MTG cards are 63x88mm → aspect ratio 0.716 (width/height).
+    /// Uses a combined score of aspect ratio error + cell count penalty to prefer simpler grids.
+    /// Requires minimum 4 cells (a deck photo should have at least 4 cards).
     private func autoDetectGrid(image: CGImage) {
-        let imageAspect = Double(image.width) / Double(image.height)
         let cardAspect = 0.716 // MTG card width/height
+        let cellPenalty = 0.002 // Small penalty per cell — prefers simpler grids
+        let minCellDimension = 200.0 // Minimum pixels per cell side
 
-        // Try different grid combinations. Prefer grids with more cells
-        // when aspect ratio errors are similar (within 0.02).
         var bestRows = 2
         var bestCols = 4
-        var bestError = Double.greatestFiniteMagnitude
-        var bestCells = 0
+        var bestScore = Double.greatestFiniteMagnitude
 
         for r in 1...6 {
             for c in 1...10 {
-                // Skip tiny grids (less than 2 cells)
-                guard r * c >= 2 else { continue }
+                let cells = r * c
+                guard cells >= 4 else { continue }
 
                 let cellWidth = Double(image.width) / Double(c)
                 let cellHeight = Double(image.height) / Double(r)
+
+                // Skip if cells would be too small to contain a readable card
+                guard cellWidth >= minCellDimension && cellHeight >= minCellDimension else { continue }
+
                 let cellAspect = cellWidth / cellHeight
                 let error = abs(cellAspect - cardAspect)
 
-                // Accept if clearly better, or similar error but more cells
-                let cells = r * c
-                let isBetter = error < bestError - 0.02
-                let isSimilarButMoreCells = error < bestError + 0.02 && cells > bestCells
+                // Combined score: aspect error + penalty for more cells
+                let score = error + Double(cells) * cellPenalty
 
-                if isBetter || isSimilarButMoreCells {
-                    bestError = error
+                if score < bestScore {
+                    bestScore = score
                     bestRows = r
                     bestCols = c
-                    bestCells = cells
                 }
             }
         }

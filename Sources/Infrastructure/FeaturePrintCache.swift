@@ -6,6 +6,8 @@ import Vision
 struct FeaturePrintCacheEntry: Codable, Sendable {
     let illustrationID: String
     let cardName: String
+    let setCode: String?
+    let collectorNumber: String?
     let featurePrintData: Data  // NSKeyedArchiver-encoded VNFeaturePrintObservation
 }
 
@@ -21,12 +23,12 @@ actor FeaturePrintCache {
     }
 
     /// Searches the cache for a matching art image.
-    /// Returns the card name and illustration ID if a match is found within threshold.
-    func search(artImage: CGImage, maxDistance: Float = 7.0) -> (illustrationID: String, cardName: String)? {
+    /// Returns the card name, illustration ID, and optional printing info if a match is found within threshold.
+    func search(artImage: CGImage, maxDistance: Float = 7.0) -> (illustrationID: String, cardName: String, setCode: String?, collectorNumber: String?)? {
         // Generate feature print for the query art
         guard let queryPrint = generateFeaturePrint(for: artImage) else { return nil }
 
-        var bestMatch: (illustrationID: String, cardName: String)?
+        var bestMatch: (illustrationID: String, cardName: String, setCode: String?, collectorNumber: String?)?
         var bestDistance: Float = Float.greatestFiniteMagnitude
 
         for entry in entries {
@@ -37,7 +39,7 @@ actor FeaturePrintCache {
                 try queryPrint.computeDistance(&distance, to: cachedPrint)
                 if distance < bestDistance && distance <= maxDistance {
                     bestDistance = distance
-                    bestMatch = (entry.illustrationID, entry.cardName)
+                    bestMatch = (entry.illustrationID, entry.cardName, entry.setCode, entry.collectorNumber)
                 }
             } catch { continue }
         }
@@ -50,7 +52,7 @@ actor FeaturePrintCache {
     }
 
     /// Adds a new entry to the cache after successful identification.
-    func cache(illustrationID: String, cardName: String, artImage: CGImage) {
+    func cache(illustrationID: String, cardName: String, setCode: String? = nil, collectorNumber: String? = nil, artImage: CGImage) {
         // Don't cache duplicates
         guard !entries.contains(where: { $0.illustrationID == illustrationID }) else { return }
 
@@ -60,6 +62,8 @@ actor FeaturePrintCache {
         entries.append(FeaturePrintCacheEntry(
             illustrationID: illustrationID,
             cardName: cardName,
+            setCode: setCode,
+            collectorNumber: collectorNumber,
             featurePrintData: data
         ))
 
@@ -70,7 +74,7 @@ actor FeaturePrintCache {
     /// Unlike `cache()`, this replaces an existing entry if one exists
     /// with the same illustration ID. Used by the correction flow to
     /// override incorrect cached identifications.
-    func cacheOrUpdate(illustrationID: String, cardName: String, artImage: CGImage) {
+    func cacheOrUpdate(illustrationID: String, cardName: String, setCode: String? = nil, collectorNumber: String? = nil, artImage: CGImage) {
         guard let featurePrint = generateFeaturePrint(for: artImage) else { return }
         guard let data = serializeFeaturePrint(featurePrint) else { return }
 
@@ -80,6 +84,8 @@ actor FeaturePrintCache {
         entries.append(FeaturePrintCacheEntry(
             illustrationID: illustrationID,
             cardName: cardName,
+            setCode: setCode,
+            collectorNumber: collectorNumber,
             featurePrintData: data
         ))
 
@@ -90,6 +96,12 @@ actor FeaturePrintCache {
     func save() {
         guard let data = try? JSONEncoder().encode(entries) else { return }
         try? data.write(to: fileURL)
+    }
+
+    /// Finds all cache entries matching a card name (case-insensitive).
+    func findByName(_ name: String) -> [FeaturePrintCacheEntry] {
+        let lower = name.lowercased()
+        return entries.filter { $0.cardName.lowercased() == lower }
     }
 
     var count: Int { entries.count }

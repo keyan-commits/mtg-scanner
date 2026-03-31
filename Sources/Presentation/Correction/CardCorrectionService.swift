@@ -46,6 +46,8 @@ struct CardCorrectionService: Sendable {
         await featurePrintCache.cacheOrUpdate(
             illustrationID: correctCard.illustrationID ?? "",
             cardName: correctCard.name,
+            setCode: correctCard.set.code,
+            collectorNumber: correctCard.collectorNumber,
             artImage: artImage
         )
         await featurePrintCache.save()
