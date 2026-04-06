@@ -56,6 +56,9 @@ protocol CardIdentificationPipelineProtocol: Sendable {
     /// Returns nil if the card cannot be identified.
     func identify(imageData: Data) async -> Card?
 
+    /// Identifies a single card from a CGImage (skips downsample, runs card detection + full pipeline).
+    func identify(cgImage: CGImage) async -> Card?
+
     /// Identifies a card from a pre-cropped CGImage (skips downsample + card detection).
     func identifyCropped(cardImage: CGImage) async -> Card?
 
@@ -360,6 +363,34 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         return finalCard
     }
 
+    func identify(cgImage: CGImage) async -> Card? {
+        let croppedCard = await cardDetector.detectAndCrop(from: cgImage)
+        let cardImage = croppedCard ?? cgImage
+        let wasCropped = croppedCard != nil
+
+        print("[MTGScanner] Card detection: \(wasCropped ? "✓ cropped" : "✗ using raw image")")
+
+        guard let identified = await resolvePrinting(cardImage: cardImage, wasCropped: wasCropped) else {
+            return nil
+        }
+
+        let finalCard = await resolveArtVariant(card: identified, cardImage: cardImage)
+
+        if let cache = featurePrintCache,
+           let artImage = artVariantMatcher.extractArtRegion(from: cardImage) {
+            await cache.cache(
+                illustrationID: finalCard.illustrationID ?? "",
+                cardName: finalCard.name,
+                setCode: finalCard.set.code,
+                collectorNumber: finalCard.collectorNumber,
+                artImage: artImage
+            )
+            await cache.save()
+        }
+
+        return finalCard
+    }
+
     /// Identifies all cards visible in the image data.
     ///
     /// Detects multiple card rectangles, perspective-corrects each,
@@ -493,21 +524,28 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
                     print("[MTGScanner] FeaturePrint cache rejected: OCR '\(signals.cardName)' ≠ cache '\(cacheHit.cardName)'")
                     // Don't return nil — fall through to OCR pipeline
                 } else {
-                    // Cache + OCR agree — try exact printing first, then fall back to metadata
-                    print("[MTGScanner] FeaturePrint cache confirmed name: '\(cacheHit.cardName)' — resolving printing")
+                    // Cache + OCR words overlap. Use the cache name ONLY if it's actually
+                    // the same card (case-insensitive). Otherwise trust the OCR name —
+                    // the cache might match a visually similar but different card.
+                    let namesMatch = cacheHit.cardName.lowercased() == signals.cardName.lowercased()
+                        || levenshteinDistance(cacheHit.cardName.lowercased(), signals.cardName.lowercased()) <= 2
 
-                    // If cache has full printing identity (from a correction), use it directly
-                    if let setCode = cacheHit.setCode, let collectorNum = cacheHit.collectorNumber,
-                       let printings = try? await repository.findAllPrintings(name: cacheHit.cardName),
+                    let resolvedName = namesMatch ? cacheHit.cardName : signals.cardName
+                    print("[MTGScanner] FeaturePrint cache confirmed: cache '\(cacheHit.cardName)', OCR '\(signals.cardName)' → using '\(resolvedName)'")
+
+                    // If names match AND cache has full printing identity, use it directly
+                    if namesMatch,
+                       let setCode = cacheHit.setCode, let collectorNum = cacheHit.collectorNumber,
+                       let printings = try? await repository.findAllPrintings(name: resolvedName),
                        let exact = printings.first(where: { $0.set.code == setCode && $0.collectorNumber == collectorNum }) {
                         print("[MTGScanner] \u{2713} Matched by cached printing: \(exact.set.name) #\(exact.collectorNumber)")
                         return exact
                     }
 
-                    // Fall back to metadata resolution with corrected name
+                    // Resolve via metadata with the best name
                     let correctedSignals = OCRSignals(
                         scanResults: signals.scanResults,
-                        cardName: cacheHit.cardName,
+                        cardName: resolvedName,
                         collectorCandidates: signals.collectorCandidates,
                         artistName: signals.artistName,
                         copyrightYear: signals.copyrightYear,
