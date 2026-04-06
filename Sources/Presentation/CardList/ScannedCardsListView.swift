@@ -7,17 +7,20 @@ struct ScannedCardsListView: View {
 
     let cards: [Card]
     let repository: CardRepositoryProtocol?
+    let deckRepository: DeckListRepository?
     let onCorrection: ((Int, Card) -> Void)?
     let onScanMore: () -> Void
 
     init(
         cards: [Card],
         repository: CardRepositoryProtocol? = nil,
+        deckRepository: DeckListRepository? = nil,
         onCorrection: ((Int, Card) -> Void)? = nil,
         onScanMore: @escaping () -> Void
     ) {
         self.cards = cards
         self.repository = repository
+        self.deckRepository = deckRepository
         self.onCorrection = onCorrection
         self.onScanMore = onScanMore
     }
@@ -77,6 +80,7 @@ struct ScannedCardsListView: View {
             CardDetailView(
                 card: card,
                 repository: repository,
+                deckRepository: deckRepository,
                 onCorrection: { correctedCard in
                     if let index = cards.firstIndex(where: { $0.id == card.id }) {
                         onCorrection?(index, correctedCard)

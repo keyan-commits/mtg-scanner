@@ -8,7 +8,7 @@ final class DatabaseManager: Sendable {
     let modelContainer: ModelContainer
 
     init(inMemory: Bool = false) throws {
-        let schema = Schema([CardRecord.self])
+        let schema = Schema([CardRecord.self, DeckList.self, PurchaseItem.self])
         let configuration = ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: inMemory

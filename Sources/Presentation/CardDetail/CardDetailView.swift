@@ -9,27 +9,32 @@ struct CardDetailView: View {
     private let viewModel: CardDetailViewModel
     private let onScanAnother: () -> Void
     private let repository: CardRepositoryProtocol?
+    private let deckRepository: DeckListRepository?
     private let onCorrection: ((Card) -> Void)?
 
     @State private var showCorrection = false
     @State private var otherPrintings: [Card] = []
     @State private var showAllPrintings = false
     @State private var selectedPrinting: Card?
+    @State private var showAddToDeck = false
 
     /// Creates a card detail view.
     /// - Parameters:
     ///   - card: The card to display.
     ///   - repository: Optional repository for card correction search.
+    ///   - deckRepository: Optional repository for adding the card to a deck.
     ///   - onCorrection: Optional callback when the user corrects the card.
     ///   - onScanAnother: Closure invoked when the user taps "Scan Another".
     init(
         card: Card,
         repository: CardRepositoryProtocol? = nil,
+        deckRepository: DeckListRepository? = nil,
         onCorrection: ((Card) -> Void)? = nil,
         onScanAnother: @escaping () -> Void
     ) {
         self.viewModel = CardDetailViewModel(card: card)
         self.repository = repository
+        self.deckRepository = deckRepository
         self.onCorrection = onCorrection
         self.onScanAnother = onScanAnother
     }
@@ -50,6 +55,7 @@ struct CardDetailView: View {
                     )
                 )
                 oracleTextSection
+                addToDeckButton
                 scanAnotherButton
             }
             .padding(16)
@@ -66,6 +72,22 @@ struct CardDetailView: View {
                             Button("Done") { selectedPrinting = nil }
                         }
                     }
+            }
+        }
+        .sheet(isPresented: $showAddToDeck) {
+            if let deckRepository {
+                AddToDeckSheet(card: viewModel.card, repository: deckRepository) {
+                    showAddToDeck = false
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var addToDeckButton: some View {
+        if deckRepository != nil {
+            MD3FilledButton("Add to Deck") {
+                showAddToDeck = true
             }
         }
     }

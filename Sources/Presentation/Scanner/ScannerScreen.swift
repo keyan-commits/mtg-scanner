@@ -10,6 +10,7 @@ struct ScannerScreen: View {
     @Bindable var viewModel: CardScannerViewModel
     let pipeline: CardIdentificationPipelineProtocol
     let repository: CardRepositoryProtocol?
+    let deckRepository: DeckListRepository?
 
     @State private var selectedItems: [PhotosPickerItem] = []
     @State private var showDeckScan = false
@@ -83,8 +84,48 @@ struct ScannerScreen: View {
             PhotoPickerView(selectedItems: $selectedItems)
                 .padding(.top, 8)
 
+            NavigationLink(destination: LiveScannerView(
+                pipeline: pipeline,
+                correctionService: viewModel.correctionService,
+                repository: repository,
+                onCardsScanned: { cards in
+                    viewModel.scannedCards = cards
+                    viewModel.scanState = .completed(cards)
+                }
+            )) {
+                HStack {
+                    Image(systemName: "camera.viewfinder")
+                    Text("Live Scan")
+                }
+                .font(MD3Typography.labelLarge)
+                .foregroundStyle(MD3Theme.primary)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .overlay(
+                    Capsule()
+                        .stroke(MD3Theme.outline, lineWidth: 1)
+                )
+            }
+
             MD3OutlinedButton("Scan Deck Photo") {
                 showDeckScan = true
+            }
+
+            if let deckRepository {
+                NavigationLink(destination: DecksScreen(repository: deckRepository)) {
+                    HStack {
+                        Image(systemName: "list.bullet.rectangle")
+                        Text("My Decks")
+                    }
+                    .font(MD3Typography.labelLarge)
+                    .foregroundStyle(MD3Theme.primary)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .overlay(
+                        Capsule()
+                            .stroke(MD3Theme.outline, lineWidth: 1)
+                    )
+                }
             }
 
             Spacer()
@@ -142,6 +183,7 @@ struct ScannerScreen: View {
                 ScannedCardsListView(
                     cards: cards,
                     repository: repository,
+                    deckRepository: deckRepository,
                     onCorrection: { index, correctedCard in
                         Task {
                             await viewModel.correctCard(

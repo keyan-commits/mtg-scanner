@@ -9,6 +9,7 @@ struct MTGCardScannerApp: App {
     // Stored as concrete types wrapped in Any to avoid @State protocol issues
     @State private var storedPipeline: CardIdentificationPipeline?
     @State private var storedRepository: LocalCardRepository?
+    @State private var storedDeckRepository: DeckListRepository?
 
     private let databaseManager: DatabaseManager?
     private let downloader: ScryfallBulkDataDownloader
@@ -23,7 +24,12 @@ struct MTGCardScannerApp: App {
             Group {
                 if let viewModel, let storedPipeline, setupState == .ready {
                     NavigationStack {
-                        ScannerScreen(viewModel: viewModel, pipeline: storedPipeline, repository: storedRepository)
+                        ScannerScreen(
+                            viewModel: viewModel,
+                            pipeline: storedPipeline,
+                            repository: storedRepository,
+                            deckRepository: storedDeckRepository
+                        )
                     }
                 } else {
                     SetupScreen(setupState: $setupState)
@@ -140,6 +146,7 @@ struct MTGCardScannerApp: App {
 
         self.storedPipeline = pipeline
         self.storedRepository = repository
+        self.storedDeckRepository = DeckListRepository(modelContainer: databaseManager.modelContainer)
         self.viewModel = CardScannerViewModel(pipeline: pipeline, correctionService: correctionService)
         print("[MTGScanner] Wired: pipeline=\(pipeline), repo=\(repository), correction=\(String(describing: correctionService))")
     }
