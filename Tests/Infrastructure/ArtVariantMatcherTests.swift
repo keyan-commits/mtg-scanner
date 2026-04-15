@@ -172,7 +172,6 @@ struct ArtVariantMatcherTests {
         }
 
         return Card(
-            id: UUID(),
             scryfallID: "test-\(collectorNumber)",
             name: "Test Card",
             manaCost: "{1}{R}",
@@ -191,6 +190,7 @@ struct ArtVariantMatcherTests {
             releasedAt: "2024-01-01",
             borderColor: "black",
             frame: "2015",
+            frameEffects: [],
             illustrationID: "illust-\(collectorNumber)",
             edhrecRank: nil,
             prices: CardPrices(usd: nil, usdFoil: nil, eur: nil, eurFoil: nil, tix: nil),

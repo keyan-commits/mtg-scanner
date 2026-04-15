@@ -14,13 +14,16 @@ struct CardCorrectionService: Sendable {
 
     private let featurePrintCache: FeaturePrintCache
     private let artVariantMatcher: ArtVariantMatcher
+    let embeddingStore: VisualEmbeddingStore?
 
     init(
         featurePrintCache: FeaturePrintCache,
-        artVariantMatcher: ArtVariantMatcher = ArtVariantMatcher()
+        artVariantMatcher: ArtVariantMatcher = ArtVariantMatcher(),
+        embeddingStore: VisualEmbeddingStore? = nil
     ) {
         self.featurePrintCache = featurePrintCache
         self.artVariantMatcher = artVariantMatcher
+        self.embeddingStore = embeddingStore
     }
 
     /// Applies a user correction: caches the correct card's art feature print.
@@ -51,6 +54,17 @@ struct CardCorrectionService: Sendable {
             artImage: artImage
         )
         await featurePrintCache.save()
+
+        // Feed correction to persistent embedding store (real ML learning)
+        if let store = embeddingStore {
+            await store.addCorrection(
+                cardImage: originalCardImage,
+                cardName: correctCard.name,
+                setCode: correctCard.set.code,
+                collectorNumber: correctCard.collectorNumber
+            )
+            print("[MTGScanner] Embedding store: added correction for '\(correctCard.name)' (\(await store.count) total)")
+        }
 
         print("[MTGScanner] Correction applied: cached '\(correctCard.name)' (\(correctCard.set.name) #\(correctCard.collectorNumber))")
     }

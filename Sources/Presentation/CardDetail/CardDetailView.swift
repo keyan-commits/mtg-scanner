@@ -6,7 +6,7 @@ import SwiftUI
 /// including its image, name, set, price, format legality, and oracle text.
 struct CardDetailView: View {
 
-    private let viewModel: CardDetailViewModel
+    @State private var viewModel: CardDetailViewModel
     private let onScanAnother: () -> Void
     private let repository: CardRepositoryProtocol?
     private let deckRepository: DeckListRepository?
@@ -15,8 +15,22 @@ struct CardDetailView: View {
     @State private var showCorrection = false
     @State private var otherPrintings: [Card] = []
     @State private var showAllPrintings = false
-    @State private var selectedPrinting: Card?
     @State private var showAddToDeck = false
+    @State private var showAddToCollection = false
+    @State private var rulings: [CardRuling] = []
+    @State private var rulingsState: RulingsState = .idle
+    @State private var phListings: [TCGPHListing] = []
+    @State private var phLoading = false
+    @State private var phURL: String?
+
+    private enum RulingsState: Equatable {
+        case idle
+        case loading
+        case loaded
+        case error(String)
+    }
+
+    private let rulingsService: CardRulingsServiceProtocol = CardRulingsService.shared
 
     /// Creates a card detail view.
     /// - Parameters:
@@ -32,7 +46,7 @@ struct CardDetailView: View {
         onCorrection: ((Card) -> Void)? = nil,
         onScanAnother: @escaping () -> Void
     ) {
-        self.viewModel = CardDetailViewModel(card: card)
+        self._viewModel = State(initialValue: CardDetailViewModel(card: card))
         self.repository = repository
         self.deckRepository = deckRepository
         self.onCorrection = onCorrection
@@ -45,17 +59,23 @@ struct CardDetailView: View {
                 cardImage
                 cardHeader
                 PriceComparisonView(card: viewModel.card)
+                phStoresSection
                 otherPrintingsSection
+                classicArchetypesSection
                 legalitySection
                 DeckCompatibilityView(
                     card: viewModel.card,
                     deckLookupService: DeckLookupService(
                         mtgTop8Service: MTGTop8Service(),
                         edhrecService: EDHRECService()
-                    )
+                    ),
+                    cardRepository: repository,
+                    deckRepository: deckRepository
                 )
                 oracleTextSection
+                rulingsSection
                 addToDeckButton
+                addToCollectionButton
                 scanAnotherButton
             }
             .padding(16)
@@ -64,20 +84,29 @@ struct CardDetailView: View {
         .task {
             await loadVariantInfo()
         }
-        .sheet(item: $selectedPrinting) { printing in
-            NavigationStack {
-                CardDetailView(card: printing) {}
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Done") { selectedPrinting = nil }
-                        }
-                    }
-            }
+        .task(id: viewModel.card.scryfallID) {
+            await loadPHListings()
+        }
+        .task(id: viewModel.card.scryfallID) {
+            // Refetches rulings when the user swaps to a different
+            // printing via the Other Printings list (the view model's
+            // card mutates in place rather than spawning a new view).
+            await loadRulings()
         }
         .sheet(isPresented: $showAddToDeck) {
             if let deckRepository {
                 AddToDeckSheet(card: viewModel.card, repository: deckRepository) {
                     showAddToDeck = false
+                }
+            }
+        }
+        .sheet(isPresented: $showAddToCollection) {
+            if let deckRepository {
+                QuickAddToCollectionSheet(
+                    card: viewModel.card,
+                    deckRepository: deckRepository
+                ) {
+                    showAddToCollection = false
                 }
             }
         }
@@ -92,30 +121,75 @@ struct CardDetailView: View {
         }
     }
 
+    @ViewBuilder
+    private var addToCollectionButton: some View {
+        if deckRepository != nil {
+            MD3OutlinedButton("Add to Collection") {
+                showAddToCollection = true
+            }
+        }
+    }
+
     // MARK: - Card Image
 
-    @ViewBuilder
+    @State private var showFullImage = false
+
     private var cardImage: some View {
-        if let url = viewModel.cardImageURL {
+        Group {
+            if let url = viewModel.cardImageURL {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .onTapGesture { showFullImage = true }
+                    case .failure:
+                        imagePlaceholder
+                    case .empty:
+                        ProgressView()
+                            .frame(height: 340)
+                    @unknown default:
+                        imagePlaceholder
+                    }
+                }
+                .frame(maxHeight: 340)
+            } else {
+                imagePlaceholder
+            }
+        }
+        .fullScreenCover(isPresented: $showFullImage) {
+            if let url = viewModel.cardImageURL {
+                fullImageView(url: url)
+            }
+        }
+    }
+
+    private func fullImageView(url: URL) -> some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.ignoresSafeArea()
             AsyncImage(url: url) { phase in
                 switch phase {
                 case .success(let image):
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                case .failure:
-                    imagePlaceholder
-                case .empty:
-                    ProgressView()
-                        .frame(height: 340)
-                @unknown default:
-                    imagePlaceholder
+                        .ignoresSafeArea()
+                default:
+                    ProgressView().tint(.white)
                 }
             }
-            .frame(maxHeight: 340)
-        } else {
-            imagePlaceholder
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            Button {
+                showFullImage = false
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 30))
+                    .foregroundStyle(.white.opacity(0.8))
+                    .padding(20)
+            }
         }
     }
 
@@ -139,7 +213,7 @@ struct CardDetailView: View {
                 .foregroundStyle(MD3Theme.onBackground)
 
             HStack(spacing: 6) {
-                Text("\(viewModel.card.set.name) \u{2022} #\(viewModel.card.collectorNumber)")
+                Text("\(viewModel.card.setNameWithYear) \u{2022} #\(viewModel.card.collectorNumber)")
                     .font(MD3Typography.bodyMedium)
                     .foregroundStyle(MD3Theme.onSurfaceVariant)
 
@@ -199,6 +273,271 @@ struct CardDetailView: View {
         }
     }
 
+    // MARK: - Classic Archetypes Section
+
+    /// Lists every hand-curated classic deck (from `ClassicArchetypes`) that
+    /// plays this card. Lets the user discover that the card they just
+    /// scanned is a piece of a famous historical deck.
+    @ViewBuilder
+    private var classicArchetypesSection: some View {
+        let cardName = viewModel.card.name.lowercased()
+        let matches = ClassicArchetypes.all.filter { archetype in
+            archetype.mainboard.keys.contains { $0.lowercased() == cardName }
+                || (archetype.sideboard?.keys.contains { $0.lowercased() == cardName } ?? false)
+        }
+        if !matches.isEmpty {
+            MD3Card {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Played in Classic Decks")
+                            .font(MD3Typography.titleMedium)
+                            .foregroundStyle(MD3Theme.onSurface)
+                        Spacer()
+                        Text("\(matches.count)")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    }
+                    ForEach(matches) { archetype in
+                        if let repo = repository, let deckRepo = deckRepository {
+                            NavigationLink {
+                                ClassicDeckDetailView(
+                                    archetype: archetype,
+                                    deckRepository: deckRepo,
+                                    cardRepository: repo
+                                )
+                            } label: {
+                                archetypeRow(archetype, cardName: cardName)
+                            }
+                        } else {
+                            archetypeRow(archetype, cardName: cardName)
+                        }
+                        if archetype.id != matches.last?.id {
+                            Divider()
+                        }
+                    }
+                }
+                .padding(16)
+            }
+        }
+    }
+
+    private func archetypeRow(_ archetype: ClassicArchetype, cardName: String) -> some View {
+        let mainQty = archetype.mainboard.first { $0.key.lowercased() == cardName }?.value ?? 0
+        let sideQty = archetype.sideboard?.first { $0.key.lowercased() == cardName }?.value ?? 0
+        return HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(archetype.name)
+                    .font(MD3Typography.bodyMedium)
+                    .foregroundStyle(MD3Theme.onSurface)
+                Text("\(archetype.format) · \(archetype.era)")
+                    .font(.caption2)
+                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+            }
+            Spacer()
+            HStack(spacing: 4) {
+                if mainQty > 0 {
+                    Text("\(mainQty)×")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(MD3Theme.primary)
+                        .monospacedDigit()
+                }
+                if sideQty > 0 {
+                    Text("(SB \(sideQty))")
+                        .font(.caption2)
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    // MARK: - PH Stores (tcgph.com)
+
+    @ViewBuilder
+    private var phStoresSection: some View {
+        if phLoading {
+            MD3Card {
+                HStack(spacing: 8) {
+                    ProgressView().scaleEffect(0.7)
+                    Text("Checking PH stores\u{2026}")
+                        .font(MD3Typography.bodySmall)
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        } else if !phListings.isEmpty {
+            MD3Card {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("PH Stores")
+                            .font(MD3Typography.titleMedium)
+                            .foregroundStyle(MD3Theme.onSurface)
+                        Spacer()
+                        Text("\(phListings.count) listing\(phListings.count == 1 ? "" : "s")")
+                            .font(.caption2)
+                            .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    }
+
+                    ForEach(phListings) { listing in
+                        phListingRow(listing)
+                        if listing.id != phListings.last?.id {
+                            Divider()
+                        }
+                    }
+
+                    HStack(spacing: 16) {
+                        if let phURL, let url = URL(string: phURL) {
+                            Link(destination: url) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "magnifyingglass")
+                                        .font(.caption)
+                                    Text("tcgph.com")
+                                }
+                                .font(MD3Typography.labelLarge)
+                                .foregroundStyle(MD3Theme.primary)
+                            }
+                        }
+                        Spacer()
+                        // MTG Tambayan FB Group search link
+                        if let tambayURL = mtgTambayURL {
+                            Link(destination: tambayURL) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "person.3.fill")
+                                        .font(.caption)
+                                    Text("MTG Tambayan")
+                                }
+                                .font(MD3Typography.labelLarge)
+                                .foregroundStyle(.blue)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+
+                    Text("Prices in PHP from tcgph.com (17 PH stores)")
+                        .font(.caption2)
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                }
+                .padding(16)
+            }
+        } else if !phLoading {
+            // Always show PH section with search links
+            MD3Card {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("PH Stores")
+                        .font(MD3Typography.titleMedium)
+                        .foregroundStyle(MD3Theme.onSurface)
+
+                    Text("No listings found on tcgph.com")
+                        .font(.caption)
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+
+                    HStack(spacing: 16) {
+                        // tcgph.com search
+                        let slug = viewModel.card.name.lowercased()
+                            .replacingOccurrences(of: " ", with: "-")
+                            .replacingOccurrences(of: ",", with: "")
+                            .replacingOccurrences(of: "'", with: "")
+                        if let url = URL(string: "https://tcgph.com/card/\(slug)") {
+                            Link(destination: url) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "magnifyingglass")
+                                        .font(.caption)
+                                    Text("tcgph.com")
+                                }
+                                .font(MD3Typography.labelLarge)
+                                .foregroundStyle(MD3Theme.primary)
+                            }
+                        }
+                        Spacer()
+                        if let tambayURL = mtgTambayURL {
+                            Link(destination: tambayURL) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "person.3.fill")
+                                        .font(.caption)
+                                    Text("MTG Tambayan")
+                                }
+                                .font(MD3Typography.labelLarge)
+                                .foregroundStyle(.blue)
+                            }
+                        }
+                    }
+                }
+                .padding(16)
+            }
+        }
+    }
+
+    private func phListingRow(_ listing: TCGPHListing) -> some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(listing.storeName)
+                    .font(MD3Typography.bodyMedium)
+                    .foregroundStyle(MD3Theme.onSurface)
+                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(listing.condition)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(conditionColor(listing.condition))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1)
+                        .background(conditionColor(listing.condition).opacity(0.15))
+                        .clipShape(Capsule())
+                    if listing.quantity > 1 {
+                        Text("\(listing.quantity) avail")
+                            .font(.caption2)
+                            .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    }
+                }
+            }
+            Spacer()
+            Text("\u{20B1}\(String(format: "%.0f", listing.price))")
+                .font(MD3Typography.titleMedium)
+                .foregroundStyle(MD3Theme.primary)
+                .monospacedDigit()
+            if let url = URL(string: listing.storeURL) {
+                Link(destination: url) {
+                    Image(systemName: "arrow.up.right.square")
+                        .font(.caption)
+                        .foregroundStyle(MD3Theme.primary)
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    /// URL for searching the card on MTG Tambayan Facebook group.
+    private var mtgTambayURL: URL? {
+        let query = viewModel.card.name
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        return URL(string: "https://www.facebook.com/groups/135914699791891/search/?q=\(query)")
+    }
+
+    private func conditionColor(_ condition: String) -> Color {
+        switch condition {
+        case "NM": return .green
+        case "LP": return .yellow
+        case "MP": return .orange
+        case "HP", "DMG": return .red
+        default: return .gray
+        }
+    }
+
+    private func loadPHListings() async {
+        phLoading = true
+        phListings = []
+        phURL = nil
+        let card = viewModel.card
+        let result = await TCGPHService.shared.fetchListings(
+            setCode: card.set.code,
+            collectorNumber: card.collectorNumber,
+            cardName: card.name
+        )
+        phListings = result?.listings ?? []
+        phURL = result?.tcgphURL
+        phLoading = false
+    }
+
     // MARK: - Legality Section
 
     private var legalitySection: some View {
@@ -251,6 +590,104 @@ struct CardDetailView: View {
         }
     }
 
+    // MARK: - Rules & Rulings
+
+    /// Live-fetched ruling list from Scryfall (judge clarifications,
+    /// errata, interaction notes). Cached in-session per scryfallID
+    /// via `CardRulingsService.shared`. Renders nothing for cards
+    /// with no rulings — most cards never get ruling activity.
+    @ViewBuilder
+    private var rulingsSection: some View {
+        switch rulingsState {
+        case .idle:
+            EmptyView()
+        case .loading:
+            MD3Card {
+                HStack(spacing: 8) {
+                    ProgressView().scaleEffect(0.7)
+                    Text("Loading rulings…")
+                        .font(MD3Typography.bodySmall)
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        case .error(let message):
+            MD3Card {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Rules & Rulings")
+                        .font(MD3Typography.titleMedium)
+                        .foregroundStyle(MD3Theme.onSurface)
+                    Text(message)
+                        .font(MD3Typography.bodySmall)
+                        .foregroundStyle(.orange)
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        case .loaded:
+            if rulings.isEmpty {
+                EmptyView()
+            } else {
+                MD3Card {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Rules & Rulings")
+                                .font(MD3Typography.titleMedium)
+                                .foregroundStyle(MD3Theme.onSurface)
+                            Spacer()
+                            Text("\(rulings.count)")
+                                .font(.caption2)
+                                .foregroundStyle(MD3Theme.onSurfaceVariant)
+                        }
+                        Text("Official judge clarifications and interaction notes from Scryfall.")
+                            .font(.caption2)
+                            .foregroundStyle(MD3Theme.onSurfaceVariant)
+                        ForEach(rulings) { ruling in
+                            rulingRow(ruling)
+                            if ruling.id != rulings.last?.id {
+                                Divider()
+                            }
+                        }
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+    }
+
+    private func rulingRow(_ ruling: CardRuling) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(ruling.comment)
+                .font(MD3Typography.bodySmall)
+                .foregroundStyle(MD3Theme.onSurface)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 6) {
+                Text(ruling.source.uppercased())
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(MD3Theme.primary)
+                Text(ruling.publishedAt)
+                    .font(.caption2)
+                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+            }
+        }
+    }
+
+    private func loadRulings() async {
+        rulingsState = .loading
+        do {
+            let result = try await rulingsService.rulings(forScryfallID: viewModel.card.scryfallID)
+            rulings = result
+            rulingsState = .loaded
+        } catch {
+            // Don't show an error for the empty case (most cards have
+            // no rulings) — only surface real failures.
+            rulings = []
+            rulingsState = .loaded
+        }
+    }
+
     // MARK: - Scan Another Button
 
     private var scanAnotherButton: some View {
@@ -288,7 +725,13 @@ struct CardDetailView: View {
 
                     ForEach(displayed) { printing in
                         Button {
-                            selectedPrinting = printing
+                            // Swap the displayed card in-place. The view
+                            // re-renders with the new printing's data —
+                            // no new screen, no stack.
+                            viewModel.swap(to: printing)
+                            // Re-fetch other printings for the new card
+                            // (will dedupe out the now-current one).
+                            Task { await loadOtherPrintings() }
                         } label: {
                             HStack(spacing: 8) {
                                 if let urlString = printing.imageURIs["small"],
@@ -306,7 +749,7 @@ struct CardDetailView: View {
                                 }
 
                                 VStack(alignment: .leading, spacing: 1) {
-                                    Text(printing.set.name)
+                                    Text(printing.setNameWithYear)
                                         .font(MD3Typography.bodySmall)
                                         .foregroundStyle(MD3Theme.onSurface)
                                         .lineLimit(1)
@@ -355,8 +798,10 @@ struct CardDetailView: View {
         guard let repository else { return }
         do {
             let all = try await repository.findAllPrintings(name: viewModel.card.name)
-            // Exclude current printing, sort by set type priority
-            otherPrintings = all.filter { $0.id != viewModel.card.id }
+            // Exclude the printing currently being viewed. Card identity
+            // is the Scryfall printing ID, so this is now stable across
+            // separate fetches.
+            otherPrintings = all.filter { $0 != viewModel.card }
         } catch {
             otherPrintings = []
         }

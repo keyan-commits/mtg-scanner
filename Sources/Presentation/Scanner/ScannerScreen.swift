@@ -14,6 +14,7 @@ struct ScannerScreen: View {
 
     @State private var selectedItems: [PhotosPickerItem] = []
     @State private var showDeckScan = false
+    @State private var showImageSplitter = false
 
     var body: some View {
         ZStack {
@@ -21,7 +22,7 @@ struct ScannerScreen: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                MD3TopAppBar(title: "MTG Card Identifier")
+                MD3TopAppBar(title: "MTG Keyan")
 
                 contentView
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -40,8 +41,14 @@ struct ScannerScreen: View {
             DeckScanScreen(
                 viewModel: DeckScanViewModel(pipeline: pipeline),
                 repository: repository,
+                deckRepository: deckRepository,
                 correctionService: viewModel.correctionService
             )
+        }
+        .sheet(isPresented: $showImageSplitter) {
+            NavigationStack {
+                ImageSplitterScreen(pipeline: pipeline, deckRepository: deckRepository, cardRepository: repository, correctionService: viewModel.correctionService)
+            }
         }
     }
 
@@ -67,59 +74,74 @@ struct ScannerScreen: View {
         VStack(spacing: 24) {
             Spacer()
 
-            Image(systemName: "rectangle.stack.badge.plus")
-                .font(.system(size: 64))
+            Image(systemName: "viewfinder")
+                .font(.system(size: 72, weight: .light))
                 .foregroundStyle(MD3Theme.primary)
 
-            Text("Identify your MTG cards")
-                .font(MD3Typography.headlineSmall)
+            Text("Identify a card")
+                .font(.system(size: 24, weight: .bold, design: .rounded))
                 .foregroundStyle(MD3Theme.onBackground)
 
-            Text("Select one photo per card. You can select multiple photos at once to identify several cards.")
-                .font(MD3Typography.bodyMedium)
+            Text("Pick photos to scan, take a single live shot, or scan a whole deck photo at once.")
+                .font(.system(size: 14, weight: .medium, design: .rounded))
                 .foregroundStyle(MD3Theme.onSurfaceVariant)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
 
-            PhotoPickerView(selectedItems: $selectedItems)
-                .padding(.top, 8)
+            VStack(spacing: 12) {
+                PhotoPickerView(selectedItems: $selectedItems)
 
-            NavigationLink(destination: LiveScannerView(
-                pipeline: pipeline,
-                correctionService: viewModel.correctionService,
-                repository: repository,
-                onCardsScanned: { cards in
-                    viewModel.scannedCards = cards
-                    viewModel.scanState = .completed(cards)
-                }
-            )) {
-                HStack {
-                    Image(systemName: "camera.viewfinder")
-                    Text("Live Scan")
-                }
-                .font(MD3Typography.labelLarge)
-                .foregroundStyle(MD3Theme.primary)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
-                .overlay(
-                    Capsule()
-                        .stroke(MD3Theme.outline, lineWidth: 1)
-                )
-            }
-
-            MD3OutlinedButton("Scan Deck Photo") {
-                showDeckScan = true
-            }
-
-            if let deckRepository {
-                NavigationLink(destination: DecksScreen(repository: deckRepository)) {
-                    HStack {
-                        Image(systemName: "list.bullet.rectangle")
-                        Text("My Decks")
+                NavigationLink(destination: LiveScannerView(
+                    pipeline: pipeline,
+                    correctionService: viewModel.correctionService,
+                    repository: repository,
+                    deckRepository: deckRepository,
+                    onCardsScanned: { cards in
+                        viewModel.scannedCards = cards
+                        viewModel.scanState = .completed(cards)
                     }
-                    .font(MD3Typography.labelLarge)
+                )) {
+                    HStack {
+                        Image(systemName: "camera.viewfinder")
+                        Text("Live Scan")
+                    }
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(MD3Theme.primary)
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 12)
+                    .overlay(
+                        Capsule()
+                            .stroke(MD3Theme.outline, lineWidth: 1)
+                    )
+                }
+
+                Button {
+                    showDeckScan = true
+                } label: {
+                    HStack {
+                        Image(systemName: "rectangle.grid.2x2")
+                        Text("Scan Deck Photo")
+                    }
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(MD3Theme.primary)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 12)
+                    .overlay(
+                        Capsule()
+                            .stroke(MD3Theme.outline, lineWidth: 1)
+                    )
+                }
+
+                Button {
+                    showImageSplitter = true
+                } label: {
+                    HStack {
+                        Image(systemName: "scissors")
+                        Text("Split Cards")
+                    }
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(MD3Theme.primary)
+                    .padding(.horizontal, 28)
                     .padding(.vertical, 12)
                     .overlay(
                         Capsule()
@@ -127,6 +149,7 @@ struct ScannerScreen: View {
                     )
                 }
             }
+            .padding(.top, 8)
 
             Spacer()
         }

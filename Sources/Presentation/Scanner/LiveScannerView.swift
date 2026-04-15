@@ -7,6 +7,7 @@ struct LiveScannerView: View {
     let pipeline: CardIdentificationPipelineProtocol
     let correctionService: CardCorrectionService?
     let repository: CardRepositoryProtocol?
+    let deckRepository: DeckListRepository?
     var onCardsScanned: (([Card]) -> Void)?
 
     @StateObject private var cameraManager = CameraManager()
@@ -14,6 +15,8 @@ struct LiveScannerView: View {
     @State private var lastIdentified: Card?
     @State private var isLookingUp = false
     @State private var showScannedList = false
+    @State private var addedToCollection: Set<String> = []
+    @State private var didAddAll: Bool = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -163,6 +166,19 @@ struct LiveScannerView: View {
 
             Spacer()
 
+            // Quick "add to collection" on the banner itself
+            if deckRepository != nil {
+                Button {
+                    quickAddToCollection(card)
+                } label: {
+                    Image(systemName: addedToCollection.contains(card.scryfallID)
+                          ? "checkmark.circle.fill"
+                          : "plus.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(addedToCollection.contains(card.scryfallID) ? .green : .cyan)
+                }
+            }
+
             Image(systemName: "checkmark.circle.fill")
                 .font(.title2)
                 .foregroundStyle(.green)
@@ -174,18 +190,68 @@ struct LiveScannerView: View {
         .padding(.bottom, 8)
     }
 
+    private func quickAddToCollection(_ card: Card) {
+        guard let deckRepository,
+              !addedToCollection.contains(card.scryfallID) else { return }
+        if let _ = try? deckRepository.addToCollection(card: card) {
+            addedToCollection.insert(card.scryfallID)
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.success)
+        }
+    }
+
     // MARK: - Scanned Cards List
 
     private var scannedListSheet: some View {
         NavigationStack {
-            List(scannedCards) { card in
-                HStack {
-                    Text(card.name)
-                        .font(.body)
-                    Spacer()
-                    Text(card.set.name)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            VStack(spacing: 0) {
+                List(scannedCards) { card in
+                    HStack {
+                        Text(card.name)
+                            .font(.body)
+                        Spacer()
+                        if addedToCollection.contains(card.scryfallID) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                                .font(.caption)
+                        }
+                        Text(card.set.name)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                // "Add All to Collection" footer
+                if deckRepository != nil && !scannedCards.isEmpty {
+                    VStack(spacing: 8) {
+                        Divider()
+                        if didAddAll || scannedCards.allSatisfy({ addedToCollection.contains($0.scryfallID) }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                                Text("All \(scannedCards.count) added")
+                                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.green)
+                            }
+                            .padding(.vertical, 8)
+                        } else {
+                            let unadded = scannedCards.filter { !addedToCollection.contains($0.scryfallID) }
+                            Button {
+                                addAllScannedToCollection()
+                            } label: {
+                                Label("Add All \(unadded.count) to Collection", systemImage: "rectangle.stack.fill.badge.plus")
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 10)
+                                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.white)
+                                    .background(Color.accentColor)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.horizontal, 16)
+                        }
+                    }
+                    .padding(.bottom, 8)
                 }
             }
             .navigationTitle("Scanned (\(scannedCards.count))")
@@ -195,6 +261,22 @@ struct LiveScannerView: View {
                     Button("Done") { showScannedList = false }
                 }
             }
+        }
+    }
+
+    private func addAllScannedToCollection() {
+        guard let deckRepository else { return }
+        var count = 0
+        for card in scannedCards where !addedToCollection.contains(card.scryfallID) {
+            if let _ = try? deckRepository.addToCollection(card: card) {
+                addedToCollection.insert(card.scryfallID)
+                count += 1
+            }
+        }
+        if count > 0 {
+            didAddAll = true
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.success)
         }
     }
 

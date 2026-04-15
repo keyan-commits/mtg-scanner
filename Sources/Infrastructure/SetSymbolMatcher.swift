@@ -191,6 +191,53 @@ struct SetSymbolMatcher: Sendable {
         return bestIndex
     }
 
+    // MARK: - Symbol Distance (for weighted comparison)
+
+    /// Computes VNFeaturePrint distances between the source symbol and each
+    /// candidate's symbol region. Returns an array aligned with `candidateImages`.
+    /// Nil entries mean the symbol crop or feature print failed for that candidate.
+    func symbolDistances(
+        sourceImage: CGImage,
+        candidateImages: [(index: Int, image: CGImage)],
+        scanResults: [ScanResult]
+    ) async -> [Float?] {
+        let matcher = ImageMatcher()
+
+        // Try to extract source symbol from OCR-located type line
+        let sourceSymbol = extractSymbolRegion(from: sourceImage, scanResults: scanResults)
+
+        // If source symbol extraction fails, try fixed-position fallback
+        // (works when the card is well-framed in the photo)
+        let symbol: CGImage?
+        if let s = sourceSymbol {
+            symbol = s
+        } else {
+            symbol = extractReferenceSymbolRegion(from: sourceImage)
+        }
+
+        guard let sourceSymbolImage = symbol,
+              let sourcePrint = await matcher.generateFeaturePrint(for: sourceSymbolImage) else {
+            return Array(repeating: nil, count: candidateImages.count)
+        }
+
+        var distances: [Float?] = []
+        for (_, candidateImage) in candidateImages {
+            guard let refSymbol = extractReferenceSymbolRegion(from: candidateImage),
+                  let refPrint = await matcher.generateFeaturePrint(for: refSymbol) else {
+                distances.append(nil)
+                continue
+            }
+            var dist: Float = 0
+            do {
+                try sourcePrint.computeDistance(&dist, to: refPrint)
+                distances.append(dist)
+            } catch {
+                distances.append(nil)
+            }
+        }
+        return distances
+    }
+
     // MARK: - Private Helpers
 
     /// Finds the type line among OCR scan results by matching against known

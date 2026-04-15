@@ -8,9 +8,26 @@ struct DeckCompatibilityView: View {
 
     let card: Card
     let deckLookupService: DeckLookupServiceProtocol
+    /// Forwarded into `ArchetypeDecksView` → `MTGTop8DeckDetailView`
+    /// so the rich detail view can resolve card names against the
+    /// local DB and offer add-to-deck actions.
+    let cardRepository: CardRepositoryProtocol?
+    let deckRepository: DeckListRepository?
 
     @State private var result: DeckLookupResult?
     @State private var isLoading: Bool = true
+
+    init(
+        card: Card,
+        deckLookupService: DeckLookupServiceProtocol,
+        cardRepository: CardRepositoryProtocol? = nil,
+        deckRepository: DeckListRepository? = nil
+    ) {
+        self.card = card
+        self.deckLookupService = deckLookupService
+        self.cardRepository = cardRepository
+        self.deckRepository = deckRepository
+    }
 
     @Environment(\.openURL) private var openURL
 
@@ -94,7 +111,9 @@ struct DeckCompatibilityView: View {
                             archetype: archetype.name,
                             format: formatData.format,
                             formatCode: Self.formatCode(for: formatData.format),
-                            cardName: card.name
+                            cardName: card.name,
+                            cardRepository: cardRepository,
+                            deckRepository: deckRepository
                         )) {
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack {

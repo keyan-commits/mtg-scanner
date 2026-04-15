@@ -11,8 +11,11 @@ struct MarkOrderedSheet: View {
     @State private var store: String = ""
     @State private var purchaseURL: String = ""
     @State private var pricePaidText: String = ""
+    @State private var currency: String = "USD"
     @State private var notes: String = ""
     @State private var recentStores: [String] = []
+
+    private let currencies = ["USD", "PHP", "JPY", "EUR", "GBP", "CAD", "AUD"]
 
     var body: some View {
         NavigationStack {
@@ -57,8 +60,15 @@ struct MarkOrderedSheet: View {
                 }
 
                 Section("Price Paid (optional)") {
-                    TextField("$0.00", text: $pricePaidText)
-                        .keyboardType(.decimalPad)
+                    HStack {
+                        Picker("Currency", selection: $currency) {
+                            ForEach(currencies, id: \.self) { Text($0).tag($0) }
+                        }
+                        .pickerStyle(.menu)
+                        TextField("0.00", text: $pricePaidText)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                    }
                 }
 
                 Section("Notes (optional)") {
@@ -81,13 +91,15 @@ struct MarkOrderedSheet: View {
             store = item.store ?? ""
             purchaseURL = item.purchaseURL ?? ""
             pricePaidText = item.pricePaid.map { String(format: "%.2f", $0) } ?? ""
+            currency = item.currency ?? "USD"
             notes = item.notes ?? ""
             recentStores = (try? repository.recentStores()) ?? []
         }
     }
 
     private func save() {
-        let price = Double(pricePaidText.replacingOccurrences(of: "$", with: "")
+        let price = Double(pricePaidText
+            .replacingOccurrences(of: "$", with: "")
             .replacingOccurrences(of: ",", with: ""))
         try? repository.updateItem(
             item,
@@ -95,6 +107,7 @@ struct MarkOrderedSheet: View {
             store: store,
             purchaseURL: purchaseURL,
             pricePaid: price,
+            currency: currency,
             notes: notes
         )
         onDone()

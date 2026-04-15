@@ -83,6 +83,39 @@ final class CardRecord {
     }
 }
 
+// MARK: - Frame effects encoding
+//
+// `frame_effects` is needed by `PrintingStrategy` to filter out
+// borderless / showcase / extendedart variants whose `borderColor`
+// is "black". Adding a new SwiftData field for this would force a
+// schema migration that can fail mid-flight on existing installs,
+// so we instead piggyback on the existing `imageURIsJSON` blob using
+// a sentinel key. Pure encoding trick — no on-disk schema change.
+
+extension CardRecord {
+    /// Sentinel key used inside the persisted `imageURIsJSON` dict to
+    /// hold a comma-separated list of frame effects.
+    static let frameEffectsKey = "__frame_effects"
+
+    /// Encodes frame effects into the imageURIs dict before JSON
+    /// serialization. Empty effects are not written.
+    static func encodeFrameEffects(_ effects: [String], into imageURIs: inout [String: String]) {
+        guard !effects.isEmpty else { return }
+        imageURIs[frameEffectsKey] = effects.joined(separator: ",")
+    }
+
+    /// Pulls frame effects out of a decoded imageURIs dict, mutating
+    /// the dict to remove the sentinel so the rest of the app sees a
+    /// clean image-URL map.
+    static func extractFrameEffects(from imageURIs: inout [String: String]) -> [String] {
+        guard let raw = imageURIs.removeValue(forKey: frameEffectsKey),
+              !raw.isEmpty else {
+            return []
+        }
+        return raw.split(separator: ",").map(String.init)
+    }
+}
+
 // MARK: - Domain Mapping
 
 extension CardRecord {
@@ -111,17 +144,19 @@ extension CardRecord {
         }
         let formatLegality = FormatLegality(legalityMap)
 
-        // Decode image URIs JSON
+        // Decode image URIs JSON. Frame effects are piggybacked under a
+        // sentinel key inside this same blob (see `encodeFrameEffects`)
+        // so they're extracted out before the dict reaches the UI.
         var imageURIs: [String: String] = [:]
         if let data = imageURIsJSON.data(using: .utf8),
            let dict = try? JSONSerialization.jsonObject(with: data) as? [String: String] {
             imageURIs = dict
         }
+        let frameEffectsList = Self.extractFrameEffects(from: &imageURIs)
 
         let cardRarity = CardRarity(rawValue: rarity) ?? .common
 
         return Card(
-            id: UUID(),
             scryfallID: scryfallID,
             name: name,
             manaCost: manaCost,
@@ -134,6 +169,7 @@ extension CardRecord {
             releasedAt: releasedAt,
             borderColor: borderColor,
             frame: frame,
+            frameEffects: frameEffectsList,
             illustrationID: illustrationID,
             edhrecRank: edhrecRank,
             prices: cardPrices,
@@ -239,8 +275,28 @@ extension CardRecord {
             legalitiesJSON = "{}"
         }
 
-        // Image URIs -> JSON string
-        let imageURIs = json["image_uris"] as? [String: String] ?? [:]
+        // Image URIs -> JSON string.
+        //
+        // Single-faced cards: `image_uris` lives at the top level.
+        // Double-faced / split / adventure / MDFC cards: the top-level
+        // `image_uris` field is missing, and each face owns its own
+        // `image_uris` under `card_faces[].image_uris`. Without the
+        // fallback below, DFCs render as gray placeholders in the grid
+        // view because the parser sees an empty top-level dict.
+        var imageURIs = json["image_uris"] as? [String: String] ?? [:]
+        if imageURIs.isEmpty,
+           let cardFaces = json["card_faces"] as? [[String: Any]],
+           let frontFaceURIs = cardFaces.first?["image_uris"] as? [String: String] {
+            imageURIs = frontFaceURIs
+        }
+
+        // Encode frame_effects into the imageURIs blob via a sentinel
+        // key. Avoids a SwiftData schema change while still letting
+        // PrintingStrategy filter borderless / showcase / extendedart
+        // variants whose borderColor is "black".
+        let frameEffects = json["frame_effects"] as? [String] ?? []
+        Self.encodeFrameEffects(frameEffects, into: &imageURIs)
+
         let imageURIsJSON: String
         if let data = try? JSONSerialization.data(withJSONObject: imageURIs),
            let jsonString = String(data: data, encoding: .utf8) {

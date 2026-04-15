@@ -30,3 +30,9 @@ Pods/
 # Secrets
 *.env
 *.key
+
+# Large ML/embedding files (download on first launch or generate locally)
+Resources/base_embeddings.json
+Resources/base_embeddings_progress.json
+Resources/MTGCardDetector.mlmodel
+Sources/base_embeddings.json

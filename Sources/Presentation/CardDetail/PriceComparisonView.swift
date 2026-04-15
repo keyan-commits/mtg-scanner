@@ -9,21 +9,56 @@ struct PriceComparisonView: View {
     let card: Card
 
     @Environment(\.openURL) private var openURL
+    @Bindable private var currencyService = CurrencyService.shared
 
     var body: some View {
+        let preferred = LocalCurrency.current
+        let marketUSD = card.prices.usd.flatMap(Double.init)
+        let foilUSD = card.prices.usdFoil.flatMap(Double.init)
+        let eurAmount = card.prices.eur.flatMap(Double.init)
         MD3Card {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 14) {
                 Text("Market Prices (NM)")
                     .font(MD3Typography.titleMedium)
                     .foregroundStyle(MD3Theme.onSurface)
 
-                // TCGPlayer — from local DB (instant)
-                if let usd = card.prices.usd {
-                    priceRow(source: "TCGPlayer", price: "$\(usd)")
+                // Estimated TCGPlayer range — synthesised because Scryfall
+                // only exposes the market (mid) price, not real low/high.
+                if let marketUSD {
+                    tcgRange(marketUSD: marketUSD, preferred: preferred)
                 }
 
-                if let usdFoil = card.prices.usdFoil {
-                    priceRow(source: "TCGPlayer (Foil)", price: "$\(usdFoil)")
+                if marketUSD != nil || foilUSD != nil || eurAmount != nil {
+                    Divider()
+                }
+
+                // Other authentic tiers from Scryfall (foil, EUR, MTGO).
+                if let usdString = card.prices.usd, let usd = Double(usdString) {
+                    priceRow(
+                        source: "TCGPlayer Market",
+                        primary: formatLocal(usd, currency: preferred),
+                        secondary: preferred == "USD" ? nil : "$\(usdString) USD"
+                    )
+                }
+
+                if let usdFoilString = card.prices.usdFoil, let usdFoil = Double(usdFoilString) {
+                    priceRow(
+                        source: "TCGPlayer (Foil)",
+                        primary: formatLocal(usdFoil, currency: preferred),
+                        secondary: preferred == "USD" ? nil : "$\(usdFoilString) USD"
+                    )
+                }
+
+                if let eurString = card.prices.eur, let eurValue = Double(eurString) {
+                    let displayCurrency = preferred == "EUR" ? "EUR" : preferred
+                    let converted = displayCurrency == "EUR"
+                        ? eurValue
+                        : currencyService.convert(eurValue / (currencyService.convert(1, to: "EUR") ?? 1), to: preferred) ?? eurValue
+                    priceRow(
+                        source: "Cardmarket (EUR)",
+                        primary: LocalCurrency.format(converted, currency: displayCurrency),
+                        secondary: preferred == "EUR" ? nil : "€\(eurString)"
+                    )
                 }
 
                 if card.prices.usd == nil && card.prices.usdFoil == nil {
@@ -35,8 +70,8 @@ struct PriceComparisonView: View {
                     }
                 }
 
-                Text("Source: TCGPlayer via Scryfall")
-                    .font(MD3Typography.labelSmall)
+                Text(sourceLabel(preferred: preferred))
+                    .font(.caption2)
                     .foregroundStyle(MD3Theme.onSurfaceVariant)
 
                 Divider()
@@ -67,9 +102,75 @@ struct PriceComparisonView: View {
         }
     }
 
+    // MARK: - TCG Range
+
+    /// Renders an "estimated low / market / high" tier strip. Scryfall
+    /// only exposes the market price, so the low and high are synthesized
+    /// from typical TCGPlayer spreads (-15% / +20%) and clearly labeled
+    /// as approximations in the footer caption.
+    @ViewBuilder
+    private func tcgRange(marketUSD: Double, preferred: String) -> some View {
+        let low = marketUSD * 0.85
+        let high = marketUSD * 1.20
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("TCGPlayer range (estimated)")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    .textCase(.uppercase)
+                Spacer()
+            }
+            HStack(alignment: .top, spacing: 0) {
+                tier(label: "Low", amount: low, preferred: preferred, color: .green)
+                Divider().frame(height: 36)
+                tier(label: "Market", amount: marketUSD, preferred: preferred, color: MD3Theme.primary, emphasized: true)
+                Divider().frame(height: 36)
+                tier(label: "High", amount: high, preferred: preferred, color: .red)
+            }
+            .padding(10)
+            .background(MD3Theme.surfaceVariant.opacity(0.4))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+    }
+
+    private func tier(label: String, amount: Double, preferred: String, color: Color, emphasized: Bool = false) -> some View {
+        VStack(spacing: 2) {
+            Text(formatLocal(amount, currency: preferred))
+                .font(.system(size: emphasized ? 17 : 15, weight: emphasized ? .bold : .semibold, design: .rounded))
+                .foregroundStyle(color)
+                .monospacedDigit()
+            Text(label)
+                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .foregroundStyle(MD3Theme.onSurfaceVariant)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Helpers
+
+    /// Converts a USD amount to the user's preferred display currency.
+    /// Falls back to the original USD string if the rate isn't available.
+    private func formatLocal(_ usd: Double, currency: String) -> String {
+        if currency == "USD" {
+            return String(format: "$%.2f", usd)
+        }
+        if let converted = currencyService.convert(usd, to: currency) {
+            return LocalCurrency.format(converted, currency: currency)
+        }
+        // Rate unavailable — surface raw USD so we never show nothing.
+        return String(format: "$%.2f", usd)
+    }
+
+    private func sourceLabel(preferred: String) -> String {
+        let conversionNote = preferred == "USD"
+            ? ""
+            : " · converted to \(preferred) via frankfurter.app"
+        return "Market price from TCGPlayer via Scryfall. Low/high are estimated (-15% / +20%) since Scryfall doesn't expose tier prices.\(conversionNote)"
+    }
+
     // MARK: - Subviews
 
-    private func priceRow(source: String, price: String) -> some View {
+    private func priceRow(source: String, primary: String, secondary: String?) -> some View {
         HStack {
             Text(source)
                 .font(MD3Typography.bodyMedium)
@@ -77,9 +178,18 @@ struct PriceComparisonView: View {
 
             Spacer()
 
-            Text(price)
-                .font(MD3Typography.titleMedium)
-                .foregroundStyle(MD3Theme.primary)
+            VStack(alignment: .trailing, spacing: 1) {
+                Text(primary)
+                    .font(MD3Typography.titleMedium)
+                    .foregroundStyle(MD3Theme.primary)
+                    .monospacedDigit()
+                if let secondary {
+                    Text(secondary)
+                        .font(.caption2)
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                        .monospacedDigit()
+                }
+            }
         }
     }
 

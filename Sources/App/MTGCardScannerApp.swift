@@ -22,15 +22,17 @@ struct MTGCardScannerApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if let viewModel, let storedPipeline, setupState == .ready {
-                    NavigationStack {
-                        ScannerScreen(
-                            viewModel: viewModel,
-                            pipeline: storedPipeline,
-                            repository: storedRepository,
-                            deckRepository: storedDeckRepository
-                        )
-                    }
+                if let viewModel,
+                   let storedPipeline,
+                   let storedRepository,
+                   let storedDeckRepository,
+                   setupState == .ready {
+                    RootView(
+                        viewModel: viewModel,
+                        pipeline: storedPipeline,
+                        repository: storedRepository,
+                        deckRepository: storedDeckRepository
+                    )
                 } else {
                     SetupScreen(setupState: $setupState)
                 }
@@ -38,6 +40,11 @@ struct MTGCardScannerApp: App {
             .background(MD3Theme.background)
             .task {
                 await setupDatabase()
+            }
+            .task {
+                // Daily WUBRG icon rotation. No-op if rotation is
+                // disabled or the day hasn't changed.
+                AppIconManager.shared.rotateIfNeeded()
             }
         }
     }
@@ -51,8 +58,11 @@ struct MTGCardScannerApp: App {
 
         do {
             // Version 2 = default_cards (all printings). Version 1 was oracle_cards.
+            // Version 8 = DFC image URI fallback to card_faces[0].image_uris
+            // (without this, double-faced cards render as gray
+            // placeholders in the deck grid view).
             let dbVersion = UserDefaults.standard.integer(forKey: "dbVersion")
-            let currentVersion = 7
+            let currentVersion = 8
             let cardCount = try await databaseManager.cardCount()
 
             if cardCount > 0 && dbVersion >= currentVersion {
@@ -132,16 +142,20 @@ struct MTGCardScannerApp: App {
             UserDefaults.standard.set(5, forKey: "fpCacheVersion")
         }
 
+        // Create persistent embedding store (k-NN classifier that learns from corrections)
+        let embeddingStore = VisualEmbeddingStore()
+
         // Create correction service (requires FeaturePrint cache)
         let correctionService: CardCorrectionService? = featurePrintCache.map {
-            CardCorrectionService(featurePrintCache: $0)
+            CardCorrectionService(featurePrintCache: $0, embeddingStore: embeddingStore)
         }
 
         let pipeline = CardIdentificationPipeline(
             recognizer: recognizer,
             repository: repository,
             visualSearchEngine: visualEngine,
-            featurePrintCache: featurePrintCache
+            featurePrintCache: featurePrintCache,
+            embeddingStore: embeddingStore
         )
 
         self.storedPipeline = pipeline

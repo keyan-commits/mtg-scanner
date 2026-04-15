@@ -38,6 +38,26 @@ struct DeckIDMockMTGTop8Service: MTGTop8ServiceProtocol {
             format: format
         )
     }
+
+    func fetchTopDecks(archetype: String, format: String?, cardName: String?, maxPlacement: Int?) async throws -> [MTGTop8Deck] {
+        []
+    }
+
+    func fetchDecksByArchetypeID(_ archetypeID: String, format: String, maxPlacement: Int?) async throws -> [MTGTop8Deck] {
+        []
+    }
+
+    func fetchLatestTop1(archetypeID: String, format: String) async throws -> MTGTop8Deck? {
+        nil
+    }
+
+    func fetchMostRecentDeck(archetypeID: String, format: String) async throws -> MTGTop8Deck? {
+        nil
+    }
+
+    func fetchDecklist(deckID: String) async throws -> MTGTop8Decklist {
+        MTGTop8Decklist(mainboard: [], sideboard: [])
+    }
 }
 
 // MARK: - Test Helpers
@@ -47,7 +67,6 @@ private func makeTestCard(
     legalities: [String: LegalityStatus]
 ) -> Card {
     Card(
-        id: UUID(),
         scryfallID: "test-\(name)",
         name: name,
         manaCost: "{R}",
@@ -60,6 +79,7 @@ private func makeTestCard(
         releasedAt: "2020-07-03",
         borderColor: "black",
         frame: "2015",
+        frameEffects: [],
         illustrationID: nil,
         edhrecRank: nil,
         prices: CardPrices(usd: nil, usdFoil: nil, eur: nil, eurFoil: nil, tix: nil),

@@ -87,7 +87,6 @@ extension ScryfallCardDTO {
         let cardRarity = CardRarity(rawValue: rarity) ?? .common
 
         return Card(
-            id: UUID(),
             scryfallID: id,
             name: name,
             manaCost: manaCost,
@@ -100,6 +99,7 @@ extension ScryfallCardDTO {
             releasedAt: releasedAt,
             borderColor: borderColor,
             frame: frame,
+            frameEffects: [],
             illustrationID: illustrationID,
             edhrecRank: edhrecRank,
             prices: cardPrices,

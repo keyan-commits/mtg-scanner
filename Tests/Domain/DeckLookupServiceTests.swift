@@ -33,6 +33,26 @@ struct MockMTGTop8Service: MTGTop8ServiceProtocol {
             format: format
         )
     }
+
+    func fetchTopDecks(archetype: String, format: String?, cardName: String?, maxPlacement: Int?) async throws -> [MTGTop8Deck] {
+        []
+    }
+
+    func fetchDecksByArchetypeID(_ archetypeID: String, format: String, maxPlacement: Int?) async throws -> [MTGTop8Deck] {
+        []
+    }
+
+    func fetchLatestTop1(archetypeID: String, format: String) async throws -> MTGTop8Deck? {
+        nil
+    }
+
+    func fetchMostRecentDeck(archetypeID: String, format: String) async throws -> MTGTop8Deck? {
+        nil
+    }
+
+    func fetchDecklist(deckID: String) async throws -> MTGTop8Decklist {
+        MTGTop8Decklist(mainboard: [], sideboard: [])
+    }
 }
 
 // MARK: - Mock EDHREC Service
@@ -59,7 +79,6 @@ private func makeCard(
     legalities: [String: LegalityStatus]
 ) -> Card {
     Card(
-        id: UUID(),
         scryfallID: "test-id",
         name: name,
         manaCost: "{R}",
@@ -72,6 +91,7 @@ private func makeCard(
         releasedAt: "2020-07-03",
         borderColor: "black",
         frame: "2015",
+        frameEffects: [],
         illustrationID: nil,
         edhrecRank: 1,
         prices: CardPrices(usd: "0.50", usdFoil: "1.00", eur: "0.40", eurFoil: "0.80", tix: "0.01"),

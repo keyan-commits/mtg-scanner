@@ -10,6 +10,7 @@ struct DecklistResultView: View {
     var mtgTop8Service: MTGTop8ServiceProtocol?
     var trainingDataExporter: TrainingDataExporter?
     var repository: (any CardRepositoryProtocol)?
+    var deckRepository: DeckListRepository?
     var correctionService: CardCorrectionService?
 
     @State private var deckIdentificationResult: DeckIdentificationResult?
@@ -17,6 +18,9 @@ struct DecklistResultView: View {
     @State private var showDeckIdentification: Bool = false
     @State private var trainingDataCount: Int = 0
     @State private var correctionItem: CorrectionItem?
+    @State private var addedToCollection: Set<String> = []
+    @State private var didAddAll: Bool = false
+    @State private var collectionSheetCard: Card?
 
     struct CorrectionItem: Identifiable {
         let id = UUID()
@@ -279,6 +283,11 @@ struct DecklistResultView: View {
 
             totalValueRow
 
+            // "Add All to Collection" batch button
+            if deckRepository != nil {
+                addAllToCollectionButton
+            }
+
             HStack(spacing: 12) {
                 MD3OutlinedButton("Export") {
                     copyDecklistToClipboard()
@@ -292,6 +301,54 @@ struct DecklistResultView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(MD3Theme.surface)
+    }
+
+    @ViewBuilder
+    private var addAllToCollectionButton: some View {
+        let allCards = viewModel.identifiedCards
+        let unadded = allCards.filter { !addedToCollection.contains($0.scryfallID) }
+        if didAddAll || unadded.isEmpty {
+            HStack(spacing: 6) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                Text("All \(allCards.count) cards added to collection")
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.green)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Color.green.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        } else {
+            Button {
+                addAllToCollection()
+            } label: {
+                Label("Add All \(unadded.count) to Collection", systemImage: "rectangle.stack.fill.badge.plus")
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(MD3Theme.primary)
+                    .background(MD3Theme.primaryContainer)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func addAllToCollection() {
+        guard let deckRepository else { return }
+        var count = 0
+        for card in viewModel.identifiedCards where !addedToCollection.contains(card.scryfallID) {
+            if let _ = try? deckRepository.addToCollection(card: card) {
+                addedToCollection.insert(card.scryfallID)
+                count += 1
+            }
+        }
+        if count > 0 {
+            didAddAll = true
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.success)
+        }
     }
 
     private var totalValueRow: some View {

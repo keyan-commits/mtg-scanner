@@ -61,11 +61,10 @@ struct StubbedCardRepository: CardRepositoryProtocol {
 
 private func makeTestCard(
     name: String = "Lightning Bolt",
-    id: UUID = UUID()
+    scryfallID: String = "abc-123"
 ) -> Card {
     Card(
-        id: id,
-        scryfallID: "abc-123",
+        scryfallID: scryfallID,
         name: name,
         manaCost: "{R}",
         typeLine: "Instant",
@@ -83,6 +82,7 @@ private func makeTestCard(
         releasedAt: nil,
         borderColor: nil,
         frame: nil,
+        frameEffects: [],
         illustrationID: nil,
         edhrecRank: nil,
         prices: CardPrices(usd: "1.50", usdFoil: nil, eur: "1.20", eurFoil: nil, tix: nil),
@@ -109,7 +109,11 @@ struct MockPipeline: CardIdentificationPipelineProtocol {
         return resultCard
     }
 
-    func identifyCropped(cardImage: CGImage) async -> Card? {
+    func identify(cgImage: CGImage) async -> Card? {
+        return resultCard
+    }
+
+    func identifyCropped(cardImage: CGImage, visualOnly: Bool) async -> Card? {
         return resultCard
     }
 
@@ -118,6 +122,10 @@ struct MockPipeline: CardIdentificationPipelineProtocol {
         if let cards = resultCards { return cards }
         if let card = resultCard { return [card] }
         return []
+    }
+
+    func clearFeaturePrintCache() async {
+        // No-op for tests
     }
 }
 

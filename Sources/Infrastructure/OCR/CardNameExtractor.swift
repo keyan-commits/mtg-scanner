@@ -24,7 +24,7 @@ struct CardNameExtractor: Sendable {
     /// - Parameters:
     ///   - minimumConfidence: Minimum confidence to consider a result. Defaults to 0.5.
     ///   - minimumNameLength: Minimum cleaned text length for a valid name. Defaults to 3.
-    init(minimumConfidence: Double = 0.5, minimumNameLength: Int = 3) {
+    init(minimumConfidence: Double = 0.6, minimumNameLength: Int = 3) {
         self.minimumConfidence = minimumConfidence
         self.minimumNameLength = minimumNameLength
     }

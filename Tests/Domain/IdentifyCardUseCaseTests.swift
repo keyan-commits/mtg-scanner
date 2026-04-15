@@ -47,7 +47,6 @@ struct IdentifyCardUseCaseTests {
 
     static func makeCard(name: String = "Lightning Bolt") -> Card {
         Card(
-            id: UUID(),
             scryfallID: "abc-123",
             name: name,
             manaCost: "{R}",
@@ -60,6 +59,7 @@ struct IdentifyCardUseCaseTests {
             releasedAt: nil,
             borderColor: nil,
             frame: nil,
+            frameEffects: [],
             illustrationID: nil,
             edhrecRank: nil,
             prices: CardPrices(usd: "1.00", usdFoil: nil, eur: nil, eurFoil: nil, tix: nil),

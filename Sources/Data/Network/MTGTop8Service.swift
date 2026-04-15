@@ -26,6 +26,11 @@ struct MTGTop8Deck: Sendable, Identifiable {
     let finish: String
     let date: String
     let format: String
+    /// MTGTop8 tournament tier — number of stars in the level column.
+    /// 1 = local / FNM-tier, 5 = premier (Pro Tour, Worlds, GP). Lets
+    /// the UI surface "this is a 4-star event" so the user knows how
+    /// prominent each result is. 0 means no stars / unknown.
+    let level: Int
 }
 
 struct MTGTop8DecklistEntry: Sendable, Identifiable {
@@ -51,8 +56,49 @@ enum MTGTop8Error: Error {
 protocol MTGTop8ServiceProtocol: Sendable {
     func fetchCardData(name: String) async throws -> MTGTop8CardData
     func fetchCardData(name: String, format: String) async throws -> MTGTop8CardData
-    func fetchTopDecks(archetype: String, format: String?, cardName: String?) async throws -> [MTGTop8Deck]
+    func fetchTopDecks(
+        archetype: String,
+        format: String?,
+        cardName: String?,
+        maxPlacement: Int?
+    ) async throws -> [MTGTop8Deck]
+    /// Fetches decks for an MTGTop8 archetype using its native numeric
+    /// archetype ID — this avoids the card-name-search workaround that
+    /// `fetchTopDecks(archetype:format:cardName:)` uses, so results are
+    /// the actual list MTGTop8 displays for that archetype page.
+    func fetchDecksByArchetypeID(
+        _ archetypeID: String,
+        format: String,
+        maxPlacement: Int?
+    ) async throws -> [MTGTop8Deck]
+    /// Returns the most recent #1 finish for an archetype, or nil if
+    /// there are none. Used by the Browse Archetypes screen.
+    func fetchLatestTop1(archetypeID: String, format: String) async throws -> MTGTop8Deck?
+    /// Returns the most recent deck for an archetype regardless of
+    /// placement. Unlike `fetchLatestTop1`, this never returns nil
+    /// for a format that has any tournament data — it's the right
+    /// primitive for "give me a representative deck for this format"
+    /// (used by `CommonCardsAggregator` so every format the archetype
+    /// exists in contributes to the universal-cards intersection).
+    func fetchMostRecentDeck(archetypeID: String, format: String) async throws -> MTGTop8Deck?
     func fetchDecklist(deckID: String) async throws -> MTGTop8Decklist
+}
+
+extension MTGTop8ServiceProtocol {
+    /// Convenience overload that preserves the older 3-argument call site
+    /// (no placement filter).
+    func fetchTopDecks(
+        archetype: String,
+        format: String?,
+        cardName: String?
+    ) async throws -> [MTGTop8Deck] {
+        try await fetchTopDecks(
+            archetype: archetype,
+            format: format,
+            cardName: cardName,
+            maxPlacement: nil
+        )
+    }
 }
 
 // MARK: - Implementation
@@ -185,7 +231,12 @@ struct MTGTop8Service: MTGTop8ServiceProtocol {
 
     // MARK: - Top Decks for Archetype
 
-    func fetchTopDecks(archetype: String, format: String?, cardName: String? = nil) async throws -> [MTGTop8Deck] {
+    func fetchTopDecks(
+        archetype: String,
+        format: String?,
+        cardName: String? = nil,
+        maxPlacement: Int? = nil
+    ) async throws -> [MTGTop8Deck] {
         // Search MTGTop8 by card name, then filter to the target archetype.
         // MTGTop8 archetype IDs are numeric and format-specific, so we can't search by name directly.
         let searchCard = cardName ?? archetype
@@ -209,9 +260,126 @@ struct MTGTop8Service: MTGTop8ServiceProtocol {
 
         let allDecks = parseDecks(from: html)
 
-        // Filter to decks matching the target archetype name
-        let filtered = allDecks.filter { $0.name.lowercased() == archetype.lowercased() }
-        return filtered.isEmpty ? allDecks : filtered
+        // Filter to decks matching the target archetype name. Strip any
+        // parenthesized suffix from our query (e.g. "Affinity (Robots)")
+        // so we still match MTGTop8's bare archetype name "Affinity".
+        let normalized = Self.normalizeArchetypeName(archetype)
+        let nameFiltered = allDecks.filter { deck in
+            let deckName = Self.normalizeArchetypeName(deck.name)
+            return deckName == normalized || deckName.contains(normalized) || normalized.contains(deckName)
+        }
+
+        let archetypeFiltered = nameFiltered.isEmpty ? allDecks : nameFiltered
+
+        guard let maxPlacement else { return archetypeFiltered }
+        return archetypeFiltered.filter { deck in
+            guard let placement = Self.parsePlacement(deck.finish) else { return false }
+            return placement <= maxPlacement
+        }
+    }
+
+    /// Returns the most recent top-1 finish for an archetype, or nil
+    /// if no #1 finishes exist in the recent decks list. Used by the
+    /// Browse Archetypes screen to display each archetype's latest
+    /// winning deck.
+    ///
+    /// MTGTop8 returns decks in date-descending order, so the first
+    /// deck whose finish parses to 1 is the most recent winner.
+    func fetchLatestTop1(archetypeID: String, format: String) async throws -> MTGTop8Deck? {
+        let decks = try await fetchDecksByArchetypeID(
+            archetypeID,
+            format: format,
+            maxPlacement: 1
+        )
+        return decks.first
+    }
+
+    func fetchMostRecentDeck(archetypeID: String, format: String) async throws -> MTGTop8Deck? {
+        // No placement filter — MTGTop8 returns rows in date-desc
+        // order, so the first row is the most recent representative
+        // deck regardless of finish.
+        let decks = try await fetchDecksByArchetypeID(
+            archetypeID,
+            format: format,
+            maxPlacement: nil
+        )
+        return decks.first
+    }
+
+    /// Lowercases and strips any parenthesized suffix (e.g. "(Robots)").
+    /// Used for archetype-name comparison so curated names match MTGTop8.
+    static func normalizeArchetypeName(_ name: String) -> String {
+        let lowered = name.lowercased()
+        guard let parenIdx = lowered.firstIndex(of: "(") else {
+            return lowered.trimmingCharacters(in: .whitespaces)
+        }
+        return String(lowered[..<parenIdx]).trimmingCharacters(in: .whitespaces)
+    }
+
+    // MARK: - Top Decks by Archetype ID (native MTGTop8 endpoint)
+
+    func fetchDecksByArchetypeID(
+        _ archetypeID: String,
+        format: String,
+        maxPlacement: Int? = nil
+    ) async throws -> [MTGTop8Deck] {
+        // The `/archetype?a=N&f=X` page only shows ONE representative
+        // deck for the archetype. To get the full list of recent
+        // tournament decks tagged with this archetype we have to hit
+        // the search endpoint with the archetype filter applied — same
+        // as what the form on /search submits when the user picks an
+        // archetype from the dropdown. The bracket characters need to
+        // be percent-encoded.
+        let urlString = "https://mtgtop8.com/search?format=\(format)&archetype_sel%5B\(format)%5D=\(archetypeID)&MD_check=1&SB_check=1"
+        guard let url = URL(string: urlString) else { throw MTGTop8Error.parsingError }
+
+        let html: String
+        do {
+            let (data, _) = try await httpClient.data(for: URLRequest(url: url))
+            guard let decoded = String(data: data, encoding: .utf8)
+                    ?? String(data: data, encoding: .isoLatin1) else {
+                throw MTGTop8Error.parsingError
+            }
+            html = decoded
+        } catch let error as MTGTop8Error {
+            throw error
+        } catch {
+            throw MTGTop8Error.networkError(underlying: error)
+        }
+
+        let decks = parseDecks(from: html)
+        guard let maxPlacement else { return decks }
+        return decks.filter { deck in
+            guard let placement = Self.parsePlacement(deck.finish) else { return false }
+            return placement <= maxPlacement
+        }
+    }
+
+    /// Parses the leading numeric placement out of an MTGTop8 finish
+    /// string. Handles "1st", "5", "T8", "9-12", "5-8", and similar.
+    /// Returns nil for unparseable inputs (e.g., "—", "").
+    static func parsePlacement(_ finish: String) -> Int? {
+        let trimmed = finish.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return nil }
+
+        // Strip a leading "T" (top-N) marker — "T8" → "8"
+        let withoutT: String
+        if let first = trimmed.first, first == "T" || first == "t" {
+            withoutT = String(trimmed.dropFirst())
+        } else {
+            withoutT = trimmed
+        }
+
+        // Pull the leading run of digits
+        var digits = ""
+        for ch in withoutT {
+            if ch.isNumber {
+                digits.append(ch)
+            } else {
+                break
+            }
+        }
+        return Int(digits)
     }
 
     private func parseDecks(from html: String) -> [MTGTop8Deck] {
@@ -227,8 +395,13 @@ struct MTGTop8Service: MTGTop8ServiceProtocol {
             guard let rowRange = Range(match.range(at: 1), in: html) else { continue }
             let row = String(html[rowRange])
 
-            // Extract deck ID from href: event?e=xxx&d=xxx&f=xxx
-            let linkPattern = #"<a\s+href=.?event\?e=(\d+)&d=(\d+)[^>]*>([^<]+)</a>"#
+            // Extract deck ID from href. Real MTGTop8 hrefs come in two
+            // shapes — quoted/unquoted and with/without a leading slash:
+            //   href="event?e=N&d=N&f=X"
+            //   href=/event?e=N&d=N&f=X
+            // The regex tolerates the optional opening quote and the
+            // optional leading slash.
+            let linkPattern = #"<a\s+href=.?/?event\?e=(\d+)&d=(\d+)[^>]*>([^<]+)</a>"#
             guard let linkRegex = try? NSRegularExpression(pattern: linkPattern),
                   let linkMatch = linkRegex.firstMatch(in: row, range: NSRange(row.startIndex..., in: row)),
                   let deckIDRange = Range(linkMatch.range(at: 2), in: row),
@@ -248,32 +421,74 @@ struct MTGTop8Service: MTGTop8ServiceProtocol {
                 player = ""
             }
 
-            // Extract all <td> contents for event, finish, date
+            // Extract all <td> contents. Keep BOTH the raw HTML (for
+            // counting star images in the level column) and the
+            // stripped text (for the displayable fields).
             let tdPattern = #"<td[^>]*>(.*?)</td>"#
             guard let tdRegex = try? NSRegularExpression(pattern: tdPattern, options: .dotMatchesLineSeparators) else { continue }
             let tdMatches = tdRegex.matches(in: row, range: NSRange(row.startIndex..., in: row))
-            let tds = tdMatches.compactMap { m -> String? in
+            let rawTds: [String] = tdMatches.compactMap { m in
                 guard let range = Range(m.range(at: 1), in: row) else { return nil }
-                // Strip HTML tags
-                let content = String(row[range])
-                return content.replacingOccurrences(of: #"<[^>]+>"#, with: "", options: .regularExpression)
+                return String(row[range])
+            }
+            let tds = rawTds.map { content in
+                content.replacingOccurrences(of: #"<[^>]+>"#, with: "", options: .regularExpression)
                     .trimmingCharacters(in: .whitespacesAndNewlines)
             }
 
-            // tds: [deckName, player, format, event, level, finish, date]
+            // Real row layout (verified against MTGTop8 /search results):
+            //   tds[0] = checkbox cell
+            //   tds[1] = deck name
+            //   tds[2] = player name
+            //   tds[3] = format
+            //   tds[4] = event
+            //   tds[5] = level (star icons; empty after stripping HTML)
+            //   tds[6] = finish placement (e.g. "1", "8", "3-4", "T8")
+            //   tds[7] = date
+            //
+            // Counting from the END of the list is more robust than
+            // hardcoded indices because some queries omit the leading
+            // checkbox column. Last → date, second-last → finish,
+            // third-last → level (star images), fourth-last → event.
             let knownFormats = ["Standard", "Pioneer", "Modern", "Legacy", "Vintage", "Pauper"]
             let format = knownFormats.first { f in tds.contains(where: { $0 == f }) } ?? ""
-            let event = tds.count > 3 ? tds[3] : ""
-            let finish = tds.count > 5 ? tds[5] : ""
             let date = tds.last ?? ""
+            let finish = tds.count >= 2 ? tds[tds.count - 2] : ""
+            let event = tds.count >= 4 ? tds[tds.count - 4] : ""
+
+            // Star count comes from the raw HTML — count occurrences
+            // of `<img` inside the level cell (third from end). Each
+            // star is one img tag (`<img src=/graph/star.png>`).
+            let level: Int
+            if rawTds.count >= 3 {
+                let levelCell = rawTds[rawTds.count - 3]
+                level = Self.countOccurrences(of: "<img", in: levelCell)
+            } else {
+                level = 0
+            }
 
             decks.append(MTGTop8Deck(
                 deckID: deckID, name: deckName, player: player,
-                event: event, finish: finish, date: date, format: format
+                event: event, finish: finish, date: date, format: format,
+                level: level
             ))
         }
 
         return decks
+    }
+
+    /// Counts non-overlapping occurrences of `needle` in `haystack`.
+    /// Used to count `<img` tags in the level cell (each represents
+    /// one star).
+    private static func countOccurrences(of needle: String, in haystack: String) -> Int {
+        guard !needle.isEmpty else { return 0 }
+        var count = 0
+        var searchRange = haystack.startIndex..<haystack.endIndex
+        while let found = haystack.range(of: needle, range: searchRange) {
+            count += 1
+            searchRange = found.upperBound..<haystack.endIndex
+        }
+        return count
     }
 
     // MARK: - Decklist Fetching

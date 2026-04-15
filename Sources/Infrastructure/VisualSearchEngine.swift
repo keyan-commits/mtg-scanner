@@ -60,6 +60,14 @@ struct VisualSearchEngine: Sendable {
         return best.entry
     }
 
+    /// Returns the top N matches within maxDistance, sorted by distance (closest first).
+    func topMatches(for image: CGImage, maxDistance: Int, limit: Int = 5) -> [VisualIndexEntry] {
+        let matches = findMatches(for: image, maxResults: limit)
+        return matches
+            .filter { $0.distance <= maxDistance }
+            .map { $0.entry }
+    }
+
     /// The number of entries in the index.
     var count: Int { index.count }
 }

@@ -20,7 +20,7 @@ struct AddToDeckSheet: View {
                 Section {
                     Text(card.name)
                         .font(.headline)
-                    Text("\(card.set.name) #\(card.collectorNumber)")
+                    Text("\(card.setNameWithYear) #\(card.collectorNumber)")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }

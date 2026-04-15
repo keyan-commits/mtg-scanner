@@ -10,6 +10,7 @@ struct DeckScanScreen: View {
 
     @Bindable var viewModel: DeckScanViewModel
     var repository: (any CardRepositoryProtocol)?
+    var deckRepository: DeckListRepository?
     var correctionService: CardCorrectionService?
 
     @State private var selectedItem: PhotosPickerItem?
@@ -55,7 +56,10 @@ struct DeckScanScreen: View {
             selectingPhotoView
 
         case .adjustingGrid:
-            adjustingGridView
+            // Grid adjustment screen removed — rectangle detection
+            // handles card finding automatically. If we somehow land
+            // here (shouldn't happen), show processing immediately.
+            processingView(current: 0, total: 1)
 
         case .processing(let current, let total):
             processingView(current: current, total: total)
@@ -79,7 +83,7 @@ struct DeckScanScreen: View {
                 .font(MD3Typography.headlineSmall)
                 .foregroundStyle(MD3Theme.onBackground)
 
-            Text("Take a photo of your deck laid out on a table. Arrange cards in a grid for best results.")
+            Text("Take a photo of your cards laid out on a table. Cards are detected automatically — no grid alignment needed.")
                 .font(MD3Typography.bodyMedium)
                 .foregroundStyle(MD3Theme.onSurfaceVariant)
                 .multilineTextAlignment(.center)
@@ -138,7 +142,7 @@ struct DeckScanScreen: View {
             .tint(MD3Theme.primary)
             .padding(.horizontal, 48)
 
-            Text("Processing grid cells...")
+            Text("Detecting and identifying cards...")
                 .font(MD3Typography.bodyMedium)
                 .foregroundStyle(MD3Theme.onSurfaceVariant)
 
@@ -149,7 +153,7 @@ struct DeckScanScreen: View {
     // MARK: - Results
 
     private var resultsView: some View {
-        DecklistResultView(viewModel: viewModel, repository: repository, correctionService: correctionService)
+        DecklistResultView(viewModel: viewModel, repository: repository, deckRepository: deckRepository, correctionService: correctionService)
     }
 
     // MARK: - Image Loading

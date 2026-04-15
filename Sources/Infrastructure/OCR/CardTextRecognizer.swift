@@ -34,7 +34,11 @@ struct VisionTextRecognizer: TextRecognizerProtocol {
     private let minimumConfidence: Float
 
     /// Creates a recognizer with the given confidence threshold.
-    /// - Parameter minimumConfidence: Minimum confidence to keep a result. Defaults to 0.5.
+    /// - Parameter minimumConfidence: Minimum confidence to keep a result.
+    ///   Kept at 0.5 so the small copyright/collector text at the
+    ///   bottom of cards passes through — that text is lower-confidence
+    ///   than the card name but essential for exact printing resolution.
+    ///   Card name matching applies its own higher-confidence filter.
     init(minimumConfidence: Float = 0.5) {
         self.minimumConfidence = minimumConfidence
     }

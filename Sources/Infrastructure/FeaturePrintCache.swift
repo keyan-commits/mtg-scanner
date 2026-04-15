@@ -24,11 +24,11 @@ actor FeaturePrintCache {
 
     /// Searches the cache for a matching art image.
     /// Returns the card name, illustration ID, and optional printing info if a match is found within threshold.
-    func search(artImage: CGImage, maxDistance: Float = 7.0) -> (illustrationID: String, cardName: String, setCode: String?, collectorNumber: String?)? {
+    func search(artImage: CGImage, maxDistance: Float = 7.0) -> (illustrationID: String, cardName: String, setCode: String?, collectorNumber: String?, distance: Float)? {
         // Generate feature print for the query art
         guard let queryPrint = generateFeaturePrint(for: artImage) else { return nil }
 
-        var bestMatch: (illustrationID: String, cardName: String, setCode: String?, collectorNumber: String?)?
+        var bestMatch: (illustrationID: String, cardName: String, setCode: String?, collectorNumber: String?, distance: Float)?
         var bestDistance: Float = Float.greatestFiniteMagnitude
 
         for entry in entries {
@@ -39,7 +39,7 @@ actor FeaturePrintCache {
                 try queryPrint.computeDistance(&distance, to: cachedPrint)
                 if distance < bestDistance && distance <= maxDistance {
                     bestDistance = distance
-                    bestMatch = (entry.illustrationID, entry.cardName, entry.setCode, entry.collectorNumber)
+                    bestMatch = (entry.illustrationID, entry.cardName, entry.setCode, entry.collectorNumber, distance)
                 }
             } catch { continue }
         }

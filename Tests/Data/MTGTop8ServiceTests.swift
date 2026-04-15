@@ -263,4 +263,115 @@ struct MTGTop8ServiceTests {
             Issue.record("Expected MTGTop8Error but got \(error)")
         }
     }
+
+    // MARK: - Placement parsing
+
+    @Test("parsePlacement handles plain digits")
+    func placementPlainDigits() {
+        #expect(MTGTop8Service.parsePlacement("1") == 1)
+        #expect(MTGTop8Service.parsePlacement("5") == 5)
+        #expect(MTGTop8Service.parsePlacement("12") == 12)
+    }
+
+    @Test("parsePlacement handles ordinal suffixes")
+    func placementOrdinals() {
+        #expect(MTGTop8Service.parsePlacement("1st") == 1)
+        #expect(MTGTop8Service.parsePlacement("2nd") == 2)
+        #expect(MTGTop8Service.parsePlacement("3rd") == 3)
+        #expect(MTGTop8Service.parsePlacement("8th") == 8)
+    }
+
+    @Test("parsePlacement handles top-N markers and ranges")
+    func placementTopAndRange() {
+        #expect(MTGTop8Service.parsePlacement("T8") == 8)
+        #expect(MTGTop8Service.parsePlacement("t16") == 16)
+        // Range "9-12" → take the lower bound, which is the best finish
+        #expect(MTGTop8Service.parsePlacement("9-12") == 9)
+        #expect(MTGTop8Service.parsePlacement("5-8") == 5)
+    }
+
+    @Test("parsePlacement returns nil for unparseable input")
+    func placementUnparseable() {
+        #expect(MTGTop8Service.parsePlacement("") == nil)
+        #expect(MTGTop8Service.parsePlacement("—") == nil)
+        #expect(MTGTop8Service.parsePlacement("DNF") == nil)
+    }
+
+    // MARK: - Archetype name normalization
+
+    @Test("normalizeArchetypeName lowercases and strips parenthesized suffixes")
+    func normalizeArchetype() {
+        #expect(MTGTop8Service.normalizeArchetypeName("Affinity (Robots)") == "affinity")
+        #expect(MTGTop8Service.normalizeArchetypeName("Burn") == "burn")
+        #expect(MTGTop8Service.normalizeArchetypeName("Mono-Black Devotion") == "mono-black devotion")
+        #expect(MTGTop8Service.normalizeArchetypeName("  Goblins  ") == "goblins")
+    }
+
+    // MARK: - Real archetype-search row layout
+
+    /// Verifies the parser handles the actual MTGTop8 row structure for
+    /// archetype-filtered search results — specifically the 8-column
+    /// layout with leading checkbox cell and trailing date.
+    /// Counting from the END of the tds list lets us pull `finish` and
+    /// `event` reliably regardless of how many leading columns there are.
+    static let realArchetypeRowsHTML = "<html><body><table>"
+        + "<tr class=hover_tr>"
+        + "<td><input type=checkbox></td>"
+        + "<td><a href=/event?e=82539&d=827356&f=MO>Burn</a></td>"
+        + "<td><a class=player href=/search?player=Demian>Demian</a></td>"
+        + "<td>Modern</td>"
+        + "<td><a href=/event?e=82539&f=MO>MTGO Challenge 32</a></td>"
+        + "<td><img src=star.png></td>"
+        + "<td>14</td>"
+        + "<td>28/03/26</td>"
+        + "</tr>"
+        + "<tr class=hover_tr>"
+        + "<td><input type=checkbox></td>"
+        + "<td><a href=/event?e=81449&d=818927&f=MO>Red Deck Wins</a></td>"
+        + "<td><a class=player href=/search?player=Simon>Simon Ek</a></td>"
+        + "<td>Modern</td>"
+        + "<td><a href=/event?e=81449&f=MO>Kalmar Eternal Fest</a></td>"
+        + "<td></td>"
+        + "<td>3-4</td>"
+        + "<td>28/02/26</td>"
+        + "</tr>"
+        + "</table></body></html>"
+
+    @Test("fetchDecksByArchetypeID parses real archetype-row layout correctly")
+    func realArchetypeRowParsing() async throws {
+        let mockClient = MockHTTPClient.success(data: Self.realArchetypeRowsHTML.data(using: .utf8)!)
+        let service = MTGTop8Service(httpClient: mockClient)
+
+        let decks = try await service.fetchDecksByArchetypeID(
+            "226",
+            format: "MO",
+            maxPlacement: nil
+        )
+
+        try #require(decks.count == 2)
+        // First deck: position 14, event "MTGO Challenge 32"
+        #expect(decks[0].name == "Burn")
+        #expect(decks[0].finish == "14")
+        #expect(decks[0].event == "MTGO Challenge 32")
+        #expect(decks[0].date == "28/03/26")
+        // Second deck: position 3-4 → parsePlacement returns 3
+        #expect(decks[1].name == "Red Deck Wins")
+        #expect(decks[1].finish == "3-4")
+        #expect(decks[1].event == "Kalmar Eternal Fest")
+    }
+
+    @Test("fetchDecksByArchetypeID top-10 filter keeps decks with finish ≤ 10")
+    func placementFilterIncludesTop10() async throws {
+        let mockClient = MockHTTPClient.success(data: Self.realArchetypeRowsHTML.data(using: .utf8)!)
+        let service = MTGTop8Service(httpClient: mockClient)
+
+        let decks = try await service.fetchDecksByArchetypeID(
+            "226",
+            format: "MO",
+            maxPlacement: 10
+        )
+        // Position 14 excluded, position 3-4 (parsed as 3) kept
+        try #require(decks.count == 1)
+        #expect(decks[0].finish == "3-4")
+    }
 }

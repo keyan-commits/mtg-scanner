@@ -29,7 +29,7 @@ struct SetupScreen: View {
                     .font(.system(size: 72))
                     .foregroundStyle(MD3Theme.primary)
 
-                Text("MTG Card Identifier")
+                Text("MTG Keyan")
                     .font(MD3Typography.headlineLarge)
                     .foregroundStyle(MD3Theme.onBackground)
 

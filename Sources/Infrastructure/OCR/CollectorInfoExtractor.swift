@@ -84,25 +84,36 @@ struct CollectorInfoExtractor: Sendable {
         return nil
     }
 
-    /// Extracts a 3-5 letter uppercase set code from text.
+    /// Extracts a 2-5 character alphanumeric set code from text.
+    /// Case-insensitive to handle OCR returning "mid" instead of "MID".
+    /// Allows digit-first codes like "40K" (Warhammer 40,000).
     private func extractSetCode(from text: String) -> String? {
         let excludedCodes: Set<String> = [
             "THE", "AND", "FOR", "BUT", "NOT", "ALL", "ARE", "WAS", "HAS",
-            "HIS", "HER", "ITS", "INC", "LLC"
+            "HIS", "HER", "ITS", "INC", "LLC", "TM"
         ]
 
-        let setCodePattern = #"\b([A-Z][A-Z0-9]{2,4})\b"#
+        // Allow digit-first (40K) and letter-first (MID, BRO, VOW).
+        // Case-insensitive flag so "mid", "Mid", "MID" all match.
+        let setCodePattern = #"\b([A-Z0-9]{2,5})\b"#
 
-        guard let regex = try? NSRegularExpression(pattern: setCodePattern) else { return nil }
+        guard let regex = try? NSRegularExpression(
+            pattern: setCodePattern,
+            options: .caseInsensitive
+        ) else { return nil }
+
         let nsText = text as NSString
         let matches = regex.matches(in: text, range: NSRange(location: 0, length: nsText.length))
 
         for match in matches {
             if match.numberOfRanges > 1 {
-                let code = nsText.substring(with: match.range(at: 1))
-                if code.count >= 3 && code.count <= 5 && !excludedCodes.contains(code) {
-                    return code
-                }
+                let code = nsText.substring(with: match.range(at: 1)).uppercased()
+                // Must have at least one letter (pure numbers like "2023" aren't set codes)
+                guard code.count >= 2,
+                      code.count <= 5,
+                      code.contains(where: \.isLetter),
+                      !excludedCodes.contains(code) else { continue }
+                return code
             }
         }
 

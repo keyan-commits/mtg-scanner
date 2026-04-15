@@ -125,7 +125,7 @@ struct CardCorrectionView: View {
     }
 
     private var noResultsView: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
             Spacer()
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 40))
@@ -135,6 +135,23 @@ struct CardCorrectionView: View {
                 .foregroundStyle(MD3Theme.onSurfaceVariant)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
+            Text("The card may not be in your local database. Try updating the Scryfall data from Settings, or check the spelling.")
+                .font(.caption)
+                .foregroundStyle(MD3Theme.onSurfaceVariant)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+
+            // Scryfall online search link
+            if let url = URL(string: "https://scryfall.com/search?q=\(searchText.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")") {
+                Link(destination: url) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "globe")
+                        Text("Search on Scryfall")
+                    }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(MD3Theme.primary)
+                }
+            }
             Spacer()
         }
     }

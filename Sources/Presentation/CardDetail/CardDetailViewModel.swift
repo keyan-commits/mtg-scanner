@@ -9,12 +9,22 @@ final class CardDetailViewModel {
 
     // MARK: - Properties
 
-    let card: Card
+    /// The currently displayed card. Mutable so the detail screen can
+    /// swap to a different printing in-place when the user taps the
+    /// "Other Printings" section, instead of stacking new sheets/screens.
+    var card: Card
 
     // MARK: - Initialization
 
     init(card: Card) {
         self.card = card
+    }
+
+    /// Swaps the displayed card. Resets transient state (variant
+    /// cross-reference) so it gets recomputed for the new printing.
+    func swap(to newCard: Card) {
+        self.card = newCard
+        self.crossReferencedVariant = nil
     }
 
     // MARK: - Computed Properties

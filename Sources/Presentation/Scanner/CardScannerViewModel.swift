@@ -1,5 +1,7 @@
 import Foundation
 import CoreGraphics
+import CoreImage
+import ImageIO
 import Observation
 import SwiftUI
 import PhotosUI
@@ -80,6 +82,12 @@ final class CardScannerViewModel {
         processingProgress = 0
         var failedCount = 0
 
+        // Clear stale FeaturePrint cache entries from previous scans.
+        // Without this, the FP cache can return a wrong printing hint
+        // (e.g., Masters Edition instead of Ice Age for Zuran Orb)
+        // because the cache stores set/collector from the LAST scan.
+        await pipeline.clearFeaturePrintCache()
+
         for (index, item) in items.enumerated() {
             scanState = .processing(current: index + 1, total: items.count)
             processingProgress = Double(index) / Double(items.count)
@@ -91,6 +99,13 @@ final class CardScannerViewModel {
                 }
 
                 if let card = await pipeline.identify(imageData: data) {
+                    scannedCards.append(card)
+                } else if let cgImage = Self.cgImage(from: data),
+                          let card = await pipeline.identifyCropped(cardImage: cgImage, visualOnly: false) {
+                    // Fallback: the image may already BE the card (e.g. saved
+                    // from the Split Cards tool). Card detection fails because
+                    // there's no background to separate from. Treat the full
+                    // image as a pre-cropped card and run identification directly.
                     scannedCards.append(card)
                 } else {
                     failedCount += 1
@@ -136,6 +151,14 @@ final class CardScannerViewModel {
                 originalCardImage: image
             )
         }
+    }
+
+    // MARK: - Helpers
+
+    /// Converts raw image Data to a CGImage for the pre-cropped fallback path.
+    private static func cgImage(from data: Data) -> CGImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        return CGImageSourceCreateImageAtIndex(source, 0, nil)
     }
 
     /// Resets to idle state.

@@ -53,6 +53,15 @@ struct ScannedCardsListView: View {
     // MARK: - Card List
 
     @State private var correctionItem: CorrectionItem?
+    /// Tracks which cards have been added to the collection in this
+    /// session. Shows a checkmark instead of "+" for already-added
+    /// cards so the user knows which scanned cards are accounted for.
+    @State private var addedToCollection: Set<String> = []
+    /// Card being shown in the QuickAddToCollectionSheet.
+    @State private var collectionSheetCard: Card?
+    /// True after "Add All to Collection" has been tapped — disables
+    /// the button and shows confirmation text.
+    @State private var didAddAll: Bool = false
 
     struct CorrectionItem: Identifiable {
         let id = UUID()
@@ -63,15 +72,36 @@ struct ScannedCardsListView: View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 ForEach(Array(cards.enumerated()), id: \.element.id) { index, card in
-                    NavigationLink(value: card) {
-                        CardRowView(
-                            card: card,
-                            onWrongCard: repository != nil ? {
-                                correctionItem = CorrectionItem(index: index)
-                            } : nil
-                        )
+                    ZStack(alignment: .topTrailing) {
+                        NavigationLink(value: card) {
+                            CardRowView(
+                                card: card,
+                                onWrongCard: repository != nil ? {
+                                    correctionItem = CorrectionItem(index: index)
+                                } : nil
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        // Quick "Add to Collection" button
+                        if deckRepository != nil {
+                            Button {
+                                collectionSheetCard = card
+                            } label: {
+                                Image(systemName: addedToCollection.contains(card.scryfallID)
+                                      ? "checkmark.circle.fill"
+                                      : "plus.circle.fill")
+                                    .font(.system(size: 22))
+                                    .foregroundStyle(addedToCollection.contains(card.scryfallID) ? .green : MD3Theme.primary)
+                                    .background(Circle().fill(MD3Theme.background).padding(2))
+                            }
+                            .buttonStyle(.plain)
+                            .padding(8)
+                            .accessibilityLabel(addedToCollection.contains(card.scryfallID)
+                                                ? "Added to collection"
+                                                : "Add to collection")
+                        }
                     }
-                    .buttonStyle(.plain)
                 }
             }
             .padding(16)
@@ -87,6 +117,16 @@ struct ScannedCardsListView: View {
                     }
                 }
             ) {}
+        }
+        .sheet(item: $collectionSheetCard) { card in
+            if let deckRepository {
+                QuickAddToCollectionSheet(
+                    card: card,
+                    deckRepository: deckRepository
+                ) {
+                    addedToCollection.insert(card.scryfallID)
+                }
+            }
         }
     }
 
@@ -122,12 +162,66 @@ struct ScannedCardsListView: View {
                 totalPriceRow
             }
 
+            // "Add All to Collection" batch button — one tap adds
+            // every scanned card to the user's collection with
+            // defaults (qty 1, non-foil). ManaBox / TCGplayer pattern.
+            if deckRepository != nil && !cards.isEmpty {
+                addAllToCollectionButton
+            }
+
             MD3FilledButton("Identify More Cards") {
                 onScanMore()
             }
         }
         .padding(16)
         .background(MD3Theme.surface)
+    }
+
+    @ViewBuilder
+    private var addAllToCollectionButton: some View {
+        let unadded = cards.filter { !addedToCollection.contains($0.scryfallID) }
+        if didAddAll || unadded.isEmpty {
+            HStack(spacing: 6) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                Text("All \(cards.count) cards added to collection")
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.green)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Color.green.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        } else {
+            Button {
+                addAllToCollection()
+            } label: {
+                Label("Add All \(unadded.count) to Collection", systemImage: "rectangle.stack.fill.badge.plus")
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(MD3Theme.primary)
+                    .background(MD3Theme.primaryContainer)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func addAllToCollection() {
+        guard let deckRepository else { return }
+        var addedCount = 0
+        for card in cards where !addedToCollection.contains(card.scryfallID) {
+            if let _ = try? deckRepository.addToCollection(card: card) {
+                addedToCollection.insert(card.scryfallID)
+                addedCount += 1
+            }
+        }
+        if addedCount > 0 {
+            didAddAll = true
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.success)
+        }
     }
 
     private var totalPriceRow: some View {

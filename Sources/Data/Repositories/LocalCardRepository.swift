@@ -40,4 +40,26 @@ final class LocalCardRepository: CardRepositoryProtocol {
         let records = try await databaseManager.findVariants(name: name, setCode: setCode)
         return records.map { $0.toDomain() }
     }
+
+    nonisolated func findFuzzyMatch(name: String) async throws -> Card? {
+        guard let record = try await databaseManager.findFuzzyMatch(name: name) else {
+            return nil
+        }
+        return record.toDomain()
+    }
+
+    nonisolated func fetchBasicLands() async throws -> [Card] {
+        let records = try await databaseManager.fetchBasicLands()
+        return records.map { $0.toDomain() }
+    }
+
+    nonisolated func fetchAllSets() async throws -> [SetInfo] {
+        let tuples = try await databaseManager.fetchDistinctSets()
+        return tuples.map { SetInfo(code: $0.code, name: $0.name, setType: $0.setType, iconSVGURI: nil, releasedAt: $0.releasedAt) }
+    }
+
+    nonisolated func fetchCardsBySet(setCode: String) async throws -> [Card] {
+        let records = try await databaseManager.fetchCards(setCode: setCode)
+        return records.map { $0.toDomain() }
+    }
 }

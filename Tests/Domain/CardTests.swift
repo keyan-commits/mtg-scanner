@@ -40,7 +40,6 @@ struct CardTests {
     }
 
     static func makeCard(
-        id: UUID = UUID(),
         scryfallID: String = "abc-123",
         name: String = "Lightning Bolt",
         manaCost: String? = "{R}",
@@ -53,6 +52,7 @@ struct CardTests {
         releasedAt: String? = nil,
         borderColor: String? = nil,
         frame: String? = nil,
+        frameEffects: [String] = [],
         illustrationID: String? = nil,
         edhrecRank: Int? = nil,
         prices: CardPrices? = nil,
@@ -61,7 +61,6 @@ struct CardTests {
         relatedPrintingsURI: String? = nil
     ) -> Card {
         Card(
-            id: id,
             scryfallID: scryfallID,
             name: name,
             manaCost: manaCost,
@@ -74,6 +73,7 @@ struct CardTests {
             releasedAt: releasedAt,
             borderColor: borderColor,
             frame: frame,
+            frameEffects: frameEffects,
             illustrationID: illustrationID,
             edhrecRank: edhrecRank,
             prices: prices ?? makePrices(),
@@ -87,7 +87,6 @@ struct CardTests {
 
     @Test("Card initializes with all properties")
     func initialization() {
-        let id = UUID()
         let setInfo = CardTests.makeSetInfo()
         let prices = CardTests.makePrices()
         let legalities = FormatLegality([
@@ -97,7 +96,6 @@ struct CardTests {
         ])
 
         let card = Card(
-            id: id,
             scryfallID: "abc-123",
             name: "Lightning Bolt",
             manaCost: "{R}",
@@ -110,6 +108,7 @@ struct CardTests {
             releasedAt: nil,
             borderColor: nil,
             frame: nil,
+            frameEffects: [],
             illustrationID: nil,
             edhrecRank: nil,
             prices: prices,
@@ -118,7 +117,7 @@ struct CardTests {
             relatedPrintingsURI: "/prints/bolt"
         )
 
-        #expect(card.id == id)
+        #expect(card.id == "abc-123")
         #expect(card.scryfallID == "abc-123")
         #expect(card.name == "Lightning Bolt")
         #expect(card.manaCost == "{R}")
@@ -147,19 +146,20 @@ struct CardTests {
 
     // MARK: - Equality
 
-    @Test("Cards with same id are equal")
-    func equalityById() {
-        let id = UUID()
-        let card1 = CardTests.makeCard(id: id, name: "Lightning Bolt")
-        let card2 = CardTests.makeCard(id: id, name: "Lightning Bolt")
+    @Test("Cards with same scryfallID are equal even if other fields differ")
+    func equalityByScryfallID() {
+        // Identity is the printing ID — two fetches of the same printing
+        // with stale price data should still compare equal.
+        let card1 = CardTests.makeCard(scryfallID: "abc-123", prices: CardTests.makePrices(usd: "1.00"))
+        let card2 = CardTests.makeCard(scryfallID: "abc-123", prices: CardTests.makePrices(usd: "9.99"))
 
         #expect(card1 == card2)
     }
 
-    @Test("Cards with different ids are not equal")
-    func inequalityByDifferentId() {
-        let card1 = CardTests.makeCard(id: UUID(), name: "Lightning Bolt")
-        let card2 = CardTests.makeCard(id: UUID(), name: "Lightning Bolt")
+    @Test("Cards with different scryfallIDs are not equal")
+    func inequalityByDifferentScryfallID() {
+        let card1 = CardTests.makeCard(scryfallID: "abc-123", name: "Lightning Bolt")
+        let card2 = CardTests.makeCard(scryfallID: "def-456", name: "Lightning Bolt")
 
         #expect(card1 != card2)
     }

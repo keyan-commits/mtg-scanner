@@ -1,5 +1,7 @@
 import Foundation
 import CoreGraphics
+import CoreImage
+import Vision
 
 // MARK: - Card Identification Pipeline
 //
@@ -60,15 +62,188 @@ protocol CardIdentificationPipelineProtocol: Sendable {
     func identify(cgImage: CGImage) async -> Card?
 
     /// Identifies a card from a pre-cropped CGImage (skips downsample + card detection).
-    func identifyCropped(cardImage: CGImage) async -> Card?
+    /// When `visualOnly` is true, only visual matching is tried — OCR fallback is skipped.
+    func identifyCropped(cardImage: CGImage, visualOnly: Bool) async -> Card?
 
     /// Identifies all cards visible in raw image data.
     /// Detects multiple card rectangles, identifies each independently.
     /// Falls back to single-card identification if multi-detect finds nothing.
     func identifyAll(imageData: Data) async -> [Card]
+
+    /// Clears the FeaturePrint cache (e.g., before batch identification of a new photo).
+    func clearFeaturePrintCache() async
 }
 
 // MARK: - Implementation
+
+// MARK: - Printing Scorer (Testable)
+
+/// Input signals extracted from OCR passes, fed into the scoring function.
+struct PrintingScorerInput {
+    /// Bottom-bar OCR results (set code + collector number).
+    var bottomBarResults: [(setCode: String, collectorNumber: String?, setTotal: Int?, confidence: Double)]
+    /// Collector info from full-card OCR.
+    var fullCollectorCandidates: [(collectorNumber: String, setCode: String?)]
+    /// Artist name extracted from full-card OCR.
+    var artistName: String?
+    /// Copyright year extracted from full-card OCR.
+    var copyrightYear: Int?
+    /// Illustration ID from the visual match.
+    var illustrationID: String?
+    /// Scryfall ID of the printing that won the set-symbol visual comparison.
+    /// Nil when symbol comparison was skipped or failed.
+    var symbolMatchWinnerID: String?
+
+    init(
+        bottomBarResults: [(setCode: String, collectorNumber: String?, setTotal: Int?, confidence: Double)] = [],
+        fullCollectorCandidates: [(collectorNumber: String, setCode: String?)] = [],
+        artistName: String? = nil,
+        copyrightYear: Int? = nil,
+        illustrationID: String? = nil,
+        symbolMatchWinnerID: String? = nil
+    ) {
+        self.bottomBarResults = bottomBarResults
+        self.fullCollectorCandidates = fullCollectorCandidates
+        self.artistName = artistName
+        self.copyrightYear = copyrightYear
+        self.illustrationID = illustrationID
+        self.symbolMatchWinnerID = symbolMatchWinnerID
+    }
+}
+
+/// Pure scoring logic for printing resolution, extracted for testability.
+///
+/// Given a list of candidate printings and OCR-extracted signals, assigns
+/// scores to each printing and returns the winner. The logic mirrors what
+/// `resolveExactPrinting` does, minus the image/OCR infrastructure.
+enum PrintingScorer {
+
+    /// Scores all printings and returns the winner.
+    ///
+    /// Scoring weights:
+    /// - Bottom-bar set code match: +3 (scaled by confidence)
+    /// - Bottom-bar set code + collector# match: +7 additional (total 10)
+    /// - Cross-set collector# match: +2
+    /// - Set total consistency: +1 / impossible: -5
+    /// - Full-card collector info set code: +2, with collector# +3 additional
+    /// - Artist match: +4, unique to one set: +2 bonus
+    /// - Copyright year match: +1
+    /// - Illustration ID match: +2
+    /// - Symbol match winner: +1 (only when other signals > 0)
+    /// - Tiebreak: oldest release date, then lowest collector number
+    static func pickWinner(printings: [Card], input: PrintingScorerInput) -> Card? {
+        guard !printings.isEmpty else { return nil }
+        if printings.count == 1 { return printings[0] }
+
+        var scores: [String: Double] = [:]
+        for p in printings { scores[p.scryfallID] = 0 }
+
+        // Signal 1: Bottom-bar set code + collector number
+        for result in input.bottomBarResults {
+            let lowerCode = result.setCode.lowercased()
+            for p in printings where p.set.code == lowerCode {
+                scores[p.scryfallID, default: 0] += 3.0 * result.confidence
+                if let num = result.collectorNumber {
+                    let stripped = String(Int(num) ?? 0)
+                    let pStripped = String(Int(p.collectorNumber) ?? -1)
+                    if p.collectorNumber == num || pStripped == stripped {
+                        scores[p.scryfallID, default: 0] += 7.0
+                    }
+                }
+            }
+            if let num = result.collectorNumber {
+                let stripped = String(Int(num) ?? 0)
+                for p in printings {
+                    let pStripped = String(Int(p.collectorNumber) ?? -1)
+                    if p.collectorNumber == num || pStripped == stripped {
+                        scores[p.scryfallID, default: 0] += 2.0
+                    }
+                }
+            }
+            if let setTotal = result.setTotal, setTotal > 0 {
+                for p in printings {
+                    let pNum = Int(p.collectorNumber.filter(\.isNumber)) ?? 0
+                    if pNum > setTotal {
+                        scores[p.scryfallID, default: 0] -= 5.0
+                    } else if pNum > 0 {
+                        scores[p.scryfallID, default: 0] += 1.0
+                    }
+                }
+            }
+        }
+
+        // Signal 2: Full-card collector info
+        for candidate in input.fullCollectorCandidates {
+            if let setCode = candidate.setCode {
+                let lowerCode = setCode.lowercased()
+                for p in printings where p.set.code == lowerCode {
+                    scores[p.scryfallID, default: 0] += 2.0
+                    if !candidate.collectorNumber.isEmpty && p.collectorNumber == candidate.collectorNumber {
+                        scores[p.scryfallID, default: 0] += 3.0
+                    }
+                }
+            }
+        }
+
+        // Signal 3: Artist name
+        if let artist = input.artistName {
+            let ocrWords = Set(artist.lowercased().split(separator: " ").map(String.init).filter { $0.count >= 4 })
+            if !ocrWords.isEmpty {
+                var matchedSets: [String] = []
+                for p in printings {
+                    guard let pArtist = p.artist else { continue }
+                    let dbWords = Set(pArtist.lowercased().split(separator: " ").map(String.init).filter { $0.count >= 4 })
+                    if !ocrWords.intersection(dbWords).isEmpty {
+                        scores[p.scryfallID, default: 0] += 4.0
+                        matchedSets.append(p.set.code)
+                    }
+                }
+                if Set(matchedSets).count == 1 {
+                    let theSet = Set(matchedSets).first!
+                    for p in printings where p.set.code == theSet {
+                        scores[p.scryfallID, default: 0] += 2.0
+                    }
+                }
+            }
+        }
+
+        // Signal 4: Copyright year
+        if let year = input.copyrightYear {
+            let validYears = Set([String(year - 1), String(year), String(year + 1)])
+            for p in printings {
+                if let rel = p.releasedAt, rel.count >= 4, validYears.contains(String(rel.prefix(4))) {
+                    scores[p.scryfallID, default: 0] += 1.0
+                }
+            }
+        }
+
+        // Signal 5: Illustration ID from visual match
+        if let illID = input.illustrationID, !illID.isEmpty {
+            for p in printings where p.illustrationID == illID {
+                scores[p.scryfallID, default: 0] += 2.0
+            }
+        }
+
+        // Signal 6: Symbol match winner — only when other signals fired
+        let maxScoreBeforeSymbol = scores.values.max() ?? 0
+        if let winnerID = input.symbolMatchWinnerID, maxScoreBeforeSymbol > 0 {
+            scores[winnerID, default: 0] += 1.0
+        }
+
+        // Pick winner: highest score, tiebreak by oldest release, then lowest collector#
+        let sorted = printings.sorted { a, b in
+            let sa = scores[a.scryfallID] ?? 0
+            let sb = scores[b.scryfallID] ?? 0
+            if sa != sb { return sa > sb }
+            let da = a.releasedAt ?? "9999"
+            let db = b.releasedAt ?? "9999"
+            if da != db { return da < db }
+            return (Int(a.collectorNumber.filter(\.isNumber)) ?? 9999) < (Int(b.collectorNumber.filter(\.isNumber)) ?? 9999)
+        }
+
+        return sorted.first
+    }
+}
 
 /// The complete card identification engine.
 ///
@@ -104,6 +279,9 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
     /// VNFeaturePrint cache (grows as user scans cards — nil if not configured)
     private let featurePrintCache: FeaturePrintCache?
 
+    /// Persistent k-NN embedding store — learns from user corrections
+    private let embeddingStore: VisualEmbeddingStore?
+
     // MARK: - Initialization
 
     init(
@@ -111,6 +289,7 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         repository: CardRepositoryProtocol,
         visualSearchEngine: VisualSearchEngine? = nil,
         featurePrintCache: FeaturePrintCache? = nil,
+        embeddingStore: VisualEmbeddingStore? = nil,
         imageProcessor: ImageProcessor = ImageProcessor(),
         cardDetector: CardDetector = CardDetector(),
         nameExtractor: CardNameExtractor = CardNameExtractor(),
@@ -125,6 +304,7 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         self.repository = repository
         self.visualSearchEngine = visualSearchEngine
         self.featurePrintCache = featurePrintCache
+        self.embeddingStore = embeddingStore
         self.imageProcessor = imageProcessor
         self.cardDetector = cardDetector
         self.nameExtractor = nameExtractor
@@ -142,185 +322,54 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
     /// Skips downsampling and card detection — the image IS the card.
     /// Does NOT cache results — deck photo cells are too low-resolution for reliable caching.
     /// Only single-card scans and explicit user corrections feed the cache.
-    func identifyCropped(cardImage: CGImage) async -> Card? {
-        print("[MTGScanner] Identifying cropped image \(cardImage.width)x\(cardImage.height)")
+    /// When `visualOnly` is true, the pipeline won't fall back to OCR
+    /// if visual search fails — the blob is assumed to be a non-card
+    /// (playmat logo, shadow, etc.). Used by the deck photo scan where
+    /// color segmentation may produce blobs that aren't actual cards.
+    func identifyCropped(cardImage: CGImage, visualOnly: Bool = false) async -> Card? {
+        print("[MTGScanner] Identifying cropped image \(cardImage.width)x\(cardImage.height) visualOnly=\(visualOnly)")
 
-        // Grid cells are already properly cropped — skip card detection.
-        // detectAndCrop() applies perspective correction that shrinks the image
-        // (e.g., 1008x1512 → 702x566), breaking OCR.
         let finalImage = cardImage
 
-        // Strategy 0: Check FP cache first — corrections persist across scans
-        // If the cache has a match with full printing info, use it directly
-        if let cache = featurePrintCache,
-           let artImage = artVariantMatcher.extractArtRegion(from: finalImage),
-           let cacheHit = await cache.search(artImage: artImage),
-           let setCode = cacheHit.setCode, let collectorNum = cacheHit.collectorNumber {
-            // Quick OCR cross-validation: confirm the card name matches
-            if let scanResults = try? await recognizer.recognizeText(in: finalImage),
-               let firstName = nameExtractor.extractCardName(from: Array(scanResults.prefix(3))) {
-                let ocrWords = firstName.lowercased().split(separator: " ").filter { $0.count >= 4 }
-                let cacheWords = cacheHit.cardName.lowercased().split(separator: " ").filter { $0.count >= 4 }
-                let allMatch = cacheWords.allSatisfy { cw in
-                    ocrWords.contains { ow in
-                        if ow == cw { return true }
-                        let maxDist = ow.count >= 8 ? 2 : 1
-                        return levenshteinDistance(String(ow), String(cw)) <= maxDist
-                    }
-                }
-                if allMatch || ocrWords.isEmpty || cacheWords.isEmpty {
-                    if let printings = try? await repository.findAllPrintings(name: cacheHit.cardName),
-                       let exact = printings.first(where: { $0.set.code == setCode && $0.collectorNumber == collectorNum }) {
-                        print("[MTGScanner] \u{2713} Matched by cached printing (deck photo): \(exact.set.name) #\(exact.collectorNumber)")
-                        return exact
-                    }
-                }
+        // Strategy 0: FP cache — used for NAME hint only, never for printing.
+        // The cache may store a stale/wrong printing from a previous scan.
+        // Printing is always resolved fresh via metadata + image comparison.
+        // (Cache name is used inside resolveByVisualSearch for cross-validation.)
+
+        // Strategy 1: Visual search
+        if let match = await resolveByVisualSearch(cardImage: finalImage, wasCropped: false) {
+            // Auto-learn: save this identification as a training sample
+            if let store = embeddingStore {
+                await store.addSample(
+                    cardImage: finalImage,
+                    cardName: match.name,
+                    setCode: match.set.code,
+                    collectorNumber: match.collectorNumber
+                )
             }
+            return match
         }
 
-        // Strategy 1: DB-validated OCR — try every text line against the DB
-        // This handles misaligned grid cells where the card name isn't the topmost text
-        if let card = await identifyByDBValidatedOCR(cardImage: finalImage, wasCropped: false) {
-            return await resolveArtVariant(card: card, cardImage: finalImage)
-        }
+        // Strategy 2: OCR fallback
+        if visualOnly { return nil }
 
-        // Strategy 2: Fall back to the standard pipeline
         guard let identified = await resolvePrinting(cardImage: finalImage, wasCropped: false) else {
             return nil
         }
 
-        return await resolveArtVariant(card: identified, cardImage: finalImage)
-    }
+        let finalCard = await resolveArtVariant(card: identified, cardImage: finalImage)
 
-    /// Tries every OCR text line against the DB to find actual card names.
-    /// Much more robust for deck photo grid cells where the card name may not be the topmost text.
-    private func identifyByDBValidatedOCR(cardImage: CGImage, wasCropped: Bool) async -> Card? {
-        guard let scanResults = try? await recognizer.recognizeText(in: cardImage) else {
-            return nil
+        // Auto-learn: save this identification as a training sample
+        if let store = embeddingStore {
+            await store.addSample(
+                cardImage: finalImage,
+                cardName: finalCard.name,
+                setCode: finalCard.set.code,
+                collectorNumber: finalCard.collectorNumber
+            )
         }
 
-        // Try each text line as a potential card name — check against DB
-        for result in scanResults {
-            let text = nameExtractor.extractCardName(from: [result]) ?? result.recognizedText
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-
-            guard text.count >= 3, text.count <= 40 else { continue }
-
-            // Skip common non-name text
-            let lower = text.lowercased()
-            if lower.contains("summon") || lower.contains("instant") ||
-               lower.contains("sorcery") || lower.contains("protection") ||
-               lower.contains("damage") || lower.contains("creature or") ||
-               lower.contains("the ") && lower.count > 20 ||
-               lower.contains("illus") || lower.contains("wizard") {
-                continue
-            }
-
-            // Check if this text matches a card name in the DB
-            if let printings = try? await repository.findAllPrintings(name: text),
-               !printings.isEmpty {
-                print("[MTGScanner] DB-validated OCR: '\(text)' → \(printings.count) printings")
-
-                // Apply metadata filtering (checks FP cache for corrected printing first)
-                let signals = await extractOCRSignals(from: cardImage, wasCropped: wasCropped)
-                let correctedSignals = OCRSignals(
-                    scanResults: signals?.scanResults ?? scanResults,
-                    cardName: text,
-                    collectorCandidates: signals?.collectorCandidates ?? [],
-                    artistName: signals?.artistName,
-                    copyrightYear: signals?.copyrightYear,
-                    hasOldTypeLine: signals?.hasOldTypeLine ?? false,
-                    detectedBorder: signals?.detectedBorder
-                )
-                return await matchByMetadata(signals: correctedSignals, cardImage: cardImage)
-            }
-
-            // Also try fuzzy match for this line
-            let words = text.split(separator: " ").map(String.init)
-            for word in words where word.count >= 5 {
-                if let results = try? await repository.searchCards(query: word),
-                   !results.isEmpty {
-                    let uniqueNames = Array(Set(results.map(\.name)))
-                    let ocrLower = text.lowercased()
-
-                    for name in uniqueNames {
-                        let dist = levenshteinDistance(ocrLower, name.lowercased())
-                        if dist <= 2 {
-                            print("[MTGScanner] DB-validated fuzzy: '\(text)' → '\(name)' (distance: \(dist))")
-                            let signals = await extractOCRSignals(from: cardImage, wasCropped: wasCropped)
-                            let correctedSignals = OCRSignals(
-                                scanResults: signals?.scanResults ?? scanResults,
-                                cardName: name,
-                                collectorCandidates: signals?.collectorCandidates ?? [],
-                                artistName: signals?.artistName,
-                                copyrightYear: signals?.copyrightYear,
-                                hasOldTypeLine: signals?.hasOldTypeLine ?? false,
-                                detectedBorder: signals?.detectedBorder
-                            )
-                            return await matchByMetadata(signals: correctedSignals, cardImage: cardImage)
-                        }
-                    }
-                }
-            }
-
-            // Try splitting concatenated words (e.g., "Orderof" → "Order of")
-            // OCR sometimes merges adjacent words on old-frame cards
-            let nameWords = text.split(separator: " ").map(String.init)
-            for (wi, word) in nameWords.enumerated() where word.count >= 7 {
-                for splitPos in 2..<(word.count - 1) {
-                    let left = String(word.prefix(splitPos))
-                    let right = String(word.suffix(word.count - splitPos))
-                    var fixedWords = nameWords
-                    fixedWords[wi] = left
-                    fixedWords.insert(right, at: wi + 1)
-                    let fixedName = fixedWords.joined(separator: " ")
-
-                    // Try exact match first
-                    if let printings = try? await repository.findAllPrintings(name: fixedName),
-                       !printings.isEmpty {
-                        print("[MTGScanner] DB-validated split: '\(text)' → '\(fixedName)' (\(printings.count) printings)")
-                        let signals = await extractOCRSignals(from: cardImage, wasCropped: wasCropped)
-                        let correctedSignals = OCRSignals(
-                            scanResults: signals?.scanResults ?? scanResults,
-                            cardName: fixedName,
-                            collectorCandidates: signals?.collectorCandidates ?? [],
-                            artistName: signals?.artistName,
-                            copyrightYear: signals?.copyrightYear,
-                            hasOldTypeLine: signals?.hasOldTypeLine ?? false,
-                            detectedBorder: signals?.detectedBorder
-                        )
-                        return await matchByMetadata(signals: correctedSignals, cardImage: cardImage)
-                    }
-
-                    // Try fuzzy match on the split name
-                    if left.count >= 4,
-                       let results = try? await repository.searchCards(query: left),
-                       !results.isEmpty {
-                        let uniqueNames = Array(Set(results.map(\.name)))
-                        let fixedLower = fixedName.lowercased()
-                        for name in uniqueNames {
-                            let dist = levenshteinDistance(fixedLower, name.lowercased())
-                            if dist <= 2 {
-                                print("[MTGScanner] DB-validated split+fuzzy: '\(text)' → '\(fixedName)' → '\(name)' (distance: \(dist))")
-                                let signals = await extractOCRSignals(from: cardImage, wasCropped: wasCropped)
-                                let correctedSignals = OCRSignals(
-                                    scanResults: signals?.scanResults ?? scanResults,
-                                    cardName: name,
-                                    collectorCandidates: signals?.collectorCandidates ?? [],
-                                    artistName: signals?.artistName,
-                                    copyrightYear: signals?.copyrightYear,
-                                    hasOldTypeLine: signals?.hasOldTypeLine ?? false,
-                                    detectedBorder: signals?.detectedBorder
-                                )
-                                return await matchByMetadata(signals: correctedSignals, cardImage: cardImage)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return nil
+        return finalCard
     }
 
     /// Identifies a card from raw image data.
@@ -339,15 +388,24 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
 
         print("[MTGScanner] Card detection: \(wasCropped ? "✓ cropped" : "✗ using raw image")")
 
-        // Steps 1-3: Visual search → OCR fallback → Printing resolution
+        // OCR-based printing resolution (the original working flow)
         guard let identified = await resolvePrinting(cardImage: cardImage, wasCropped: wasCropped) else {
             return nil
         }
 
-        // Step 4: Art variant resolution
         let finalCard = await resolveArtVariant(card: identified, cardImage: cardImage)
 
-        // Step 5: Cache the result for future FeaturePrint lookups
+        // Auto-learn: save this identification as a training sample
+        if let store = embeddingStore {
+            await store.addSample(
+                cardImage: cardImage,
+                cardName: finalCard.name,
+                setCode: finalCard.set.code,
+                collectorNumber: finalCard.collectorNumber
+            )
+        }
+
+        // Cache the result for future FeaturePrint lookups
         if let cache = featurePrintCache,
            let artImage = artVariantMatcher.extractArtRegion(from: cardImage) {
             await cache.cache(
@@ -370,11 +428,22 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
 
         print("[MTGScanner] Card detection: \(wasCropped ? "✓ cropped" : "✗ using raw image")")
 
+        // OCR-based printing resolution (the original working flow)
         guard let identified = await resolvePrinting(cardImage: cardImage, wasCropped: wasCropped) else {
             return nil
         }
 
         let finalCard = await resolveArtVariant(card: identified, cardImage: cardImage)
+
+        // Auto-learn: save this identification as a training sample
+        if let store = embeddingStore {
+            await store.addSample(
+                cardImage: cardImage,
+                cardName: finalCard.name,
+                setCode: finalCard.set.code,
+                collectorNumber: finalCard.collectorNumber
+            )
+        }
 
         if let cache = featurePrintCache,
            let artImage = artVariantMatcher.extractArtRegion(from: cardImage) {
@@ -404,6 +473,10 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         }
 
         return []
+    }
+
+    func clearFeaturePrintCache() async {
+        await featurePrintCache?.clear()
     }
 
     // MARK: - Step 2: OCR Signal Extraction
@@ -455,39 +528,452 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         }
     }
 
+    /// Upscales a CGImage to the given dimensions using high-quality interpolation.
+    /// Verifies an identification using the local pHash visual index.
+    /// Computes pHash of the crop's art region and compares against the
+    /// identified card's illustration — no download needed.
+    /// If the art doesn't match, the identification is wrong (e.g., cache
+    /// Detects if the card contains CJK (Chinese/Japanese/Korean) text.
+    /// Runs a fast OCR pass with CJK languages enabled — necessary because
+    /// English-only OCR interprets CJK characters as garbled Latin text.
+    private func detectCJKText(in image: CGImage) async -> Bool {
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .fast
+        request.recognitionLanguages = ["zh-Hans", "zh-Hant", "en-US"]
+        request.minimumTextHeight = 0.02
+
+        let handler = VNImageRequestHandler(cgImage: image, options: [:])
+        do { try handler.perform([request]) } catch { return false }
+
+        for obs in (request.results ?? []) {
+            guard let text = obs.topCandidates(1).first?.string else { continue }
+            let hasCJK = text.unicodeScalars.contains { scalar in
+                (0x4E00...0x9FFF).contains(scalar.value) ||  // CJK Unified Ideographs
+                (0x3400...0x4DBF).contains(scalar.value) ||  // CJK Extension A
+                (0x3040...0x309F).contains(scalar.value) ||  // Hiragana
+                (0x30A0...0x30FF).contains(scalar.value) ||  // Katakana
+                (0xAC00...0xD7AF).contains(scalar.value)     // Hangul
+            }
+            if hasCJK { return true }
+        }
+        return false
+    }
+
+    private func upscaleImage(_ image: CGImage, width: Int, height: Int) -> CGImage? {
+        let colorSpace = image.colorSpace ?? CGColorSpaceCreateDeviceRGB()
+        guard let ctx = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+        ctx.interpolationQuality = .high
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        return ctx.makeImage()
+    }
+
+    /// Converts image to high-contrast grayscale for better OCR on small/glary text.
+    /// Applies: grayscale → contrast stretch → sharpen via Core Image.
+    private func enhanceForOCR(_ image: CGImage) -> CGImage? {
+        let ciImage = CIImage(cgImage: image)
+        let context = CIContext()
+
+        // Convert to grayscale and boost contrast
+        guard let colorControls = CIFilter(name: "CIColorControls") else { return nil }
+        colorControls.setValue(ciImage, forKey: kCIInputImageKey)
+        colorControls.setValue(0.0, forKey: kCIInputSaturationKey)  // Grayscale
+        colorControls.setValue(1.5, forKey: kCIInputContrastKey)    // Boost contrast
+        colorControls.setValue(0.1, forKey: kCIInputBrightnessKey)  // Slight brighten
+
+        guard let grayImage = colorControls.outputImage else { return nil }
+
+        // Sharpen
+        guard let sharpen = CIFilter(name: "CISharpenLuminance") else {
+            return context.createCGImage(grayImage, from: grayImage.extent)
+        }
+        sharpen.setValue(grayImage, forKey: kCIInputImageKey)
+        sharpen.setValue(1.0, forKey: kCIInputSharpnessKey)
+
+        guard let output = sharpen.outputImage else {
+            return context.createCGImage(grayImage, from: grayImage.extent)
+        }
+        return context.createCGImage(output, from: output.extent)
+    }
+
+    // MARK: - Exact Printing Resolution
+
+    /// Parsed info from the bottom bar: set code, optional collector number, set total, confidence.
+    private struct BottomBarResult: CustomStringConvertible {
+        let setCode: String
+        let collectorNumber: String?
+        let setTotal: Int?  // e.g., 38 from "014/038"
+        let confidence: Double
+        var description: String { "\(setCode)(\(collectorNumber ?? "?")/\(setTotal.map(String.init) ?? "?") conf:\(confidence))" }
+    }
+
+    /// Single, clean method to resolve the exact printing of a card.
+    /// Runs exactly 2 OCR passes and scores all candidate printings.
+    ///
+    /// Pass 1: Full-card OCR -> extracts artist, copyright year, collector info
+    /// Pass 2: Focused bottom-bar OCR (crop + upscale + enhance) -> set code + collector#
+    ///
+    /// Each printing gets scored based on all available signals:
+    /// - Set code + collector# exact match: +10 (definitive)
+    /// - Set code match: +3
+    /// - Collector# match (cross-set): +2
+    /// - Artist match: +4 (unique to one set: +2 bonus)
+    /// - Copyright year match: +1
+    /// - Illustration ID match: +2
+    /// - Set total consistency: +1 / impossible: -5
+    /// Tiebreak: oldest release date (original printing)
+    private func resolveExactPrinting(
+        cardImage: CGImage,
+        cardName: String,
+        printings: [Card],
+        illustrationID: String?
+    ) async -> Card? {
+        guard !printings.isEmpty else { return nil }
+        if printings.count == 1 { return printings[0] }
+
+        var scores: [String: Double] = [:]
+        for p in printings { scores[p.scryfallID] = 0 }
+
+        // === PASS 1: Full-card OCR ===
+        let fullOCRResults = try? await recognizer.recognizeText(in: cardImage)
+
+        // Extract artist name
+        let artistName: String?
+        if let results = fullOCRResults {
+            artistName = artistExtractor.extractArtist(from: results)
+        } else {
+            artistName = nil
+        }
+
+        // Extract copyright year
+        let copyrightYear: Int?
+        if let results = fullOCRResults {
+            copyrightYear = copyrightYearExtractor.extractCopyrightEndYear(from: results)
+        } else {
+            copyrightYear = nil
+        }
+
+        // Extract collector info from full card
+        let fullCollectorCandidates: [CollectorInfo]
+        if let results = fullOCRResults {
+            fullCollectorCandidates = collectorInfoExtractor.extractAllCandidates(from: results)
+        } else {
+            fullCollectorCandidates = []
+        }
+
+        // === PASS 2: Focused bottom-bar OCR (crop + upscale + enhance) ===
+        let knownSetCodes = Set(printings.map { $0.set.code.uppercased() })
+        let bottomBarResults = await runBottomBarOCR(cardImage: cardImage, knownSetCodes: knownSetCodes)
+
+        // === SCORING ===
+
+        // Signal 1: Bottom-bar set code + collector number
+        for result in bottomBarResults {
+            let lowerCode = result.setCode.lowercased()
+            for p in printings where p.set.code == lowerCode {
+                scores[p.scryfallID, default: 0] += 3.0 * result.confidence
+                // Set code + collector# exact match is definitive
+                if let num = result.collectorNumber {
+                    let stripped = String(Int(num) ?? 0)
+                    let pStripped = String(Int(p.collectorNumber) ?? -1)
+                    if p.collectorNumber == num || pStripped == stripped {
+                        scores[p.scryfallID, default: 0] += 7.0  // 3 + 7 = 10 total
+                    }
+                }
+            }
+            // Cross-set collector# match
+            if let num = result.collectorNumber {
+                let stripped = String(Int(num) ?? 0)
+                for p in printings {
+                    let pStripped = String(Int(p.collectorNumber) ?? -1)
+                    if p.collectorNumber == num || pStripped == stripped {
+                        scores[p.scryfallID, default: 0] += 2.0
+                    }
+                }
+            }
+            // Set total filter: "014/038" means set has 38 cards
+            if let setTotal = result.setTotal, setTotal > 0 {
+                for p in printings {
+                    let pNum = Int(p.collectorNumber.filter(\.isNumber)) ?? 0
+                    if pNum > setTotal {
+                        scores[p.scryfallID, default: 0] -= 5.0
+                    } else if pNum > 0 {
+                        scores[p.scryfallID, default: 0] += 1.0
+                    }
+                }
+            }
+        }
+
+        // Signal 2: Full-card collector info (set code + number from full OCR)
+        for candidate in fullCollectorCandidates {
+            if let setCode = candidate.setCode {
+                let lowerCode = setCode.lowercased()
+                for p in printings where p.set.code == lowerCode {
+                    scores[p.scryfallID, default: 0] += 2.0
+                    if !candidate.collectorNumber.isEmpty && p.collectorNumber == candidate.collectorNumber {
+                        scores[p.scryfallID, default: 0] += 3.0
+                    }
+                }
+            }
+        }
+
+        // Signal 3: Artist name
+        if let artist = artistName {
+            let ocrWords = Set(artist.lowercased().split(separator: " ").map(String.init).filter { $0.count >= 4 })
+            if !ocrWords.isEmpty {
+                var matchedSets: [String] = []
+                for p in printings {
+                    guard let pArtist = p.artist else { continue }
+                    let dbWords = Set(pArtist.lowercased().split(separator: " ").map(String.init).filter { $0.count >= 4 })
+                    if !ocrWords.intersection(dbWords).isEmpty {
+                        scores[p.scryfallID, default: 0] += 4.0
+                        matchedSets.append(p.set.code)
+                    }
+                }
+                // Unique artist bonus
+                if Set(matchedSets).count == 1 {
+                    let theSet = Set(matchedSets).first!
+                    for p in printings where p.set.code == theSet {
+                        scores[p.scryfallID, default: 0] += 2.0
+                    }
+                }
+            }
+        }
+
+        // Signal 4: Copyright year
+        if let year = copyrightYear {
+            let validYears = Set([String(year - 1), String(year), String(year + 1)])
+            for p in printings {
+                if let rel = p.releasedAt, rel.count >= 4, validYears.contains(String(rel.prefix(4))) {
+                    scores[p.scryfallID, default: 0] += 1.0
+                }
+            }
+        }
+
+        // Signal 5: Illustration ID from visual match
+        if let illID = illustrationID, !illID.isEmpty {
+            for p in printings where p.illustrationID == illID {
+                scores[p.scryfallID, default: 0] += 2.0
+            }
+        }
+
+        // Signal 6: Set symbol visual comparison
+        // Download reference images for top candidates and compare the set symbol
+        // region visually. Each set has a unique symbol — even at small sizes,
+        // shape differences are significant (sword vs tree vs skull).
+        //
+        // IMPORTANT: Only apply when at least one other signal fired. When all
+        // scores are 0 (e.g., deck photo with unreadable bottom bar), the symbol
+        // comparison is unreliable at small crop sizes (~30-50px) and can boost
+        // the wrong printing (e.g., Secret Lair Drop instead of M14). In that
+        // case, let the oldest-release tiebreak decide instead.
+        let currentScores = scores
+        let maxScoreBeforeSymbol = currentScores.values.max() ?? 0
+        let topCandidates = printings
+            .sorted { (currentScores[$0.scryfallID] ?? 0) > (currentScores[$1.scryfallID] ?? 0) }
+            .prefix(5)
+
+        if topCandidates.count > 1, maxScoreBeforeSymbol > 0 {
+            let symbolMatcher = SetSymbolMatcher()
+            var candidateImages: [(index: Int, image: CGImage)] = []
+
+            for (i, candidate) in topCandidates.enumerated() {
+                guard let urlString = candidate.imageURIs["normal"] ?? candidate.imageURIs["small"],
+                      let refImage = await imageMatcher.downloadImage(from: urlString) else { continue }
+                candidateImages.append((index: i, image: refImage))
+            }
+
+            if !candidateImages.isEmpty {
+                // Get OCR results for symbol extraction from user's photo
+                let symbolScanResults = (try? await recognizer.recognizeText(in: cardImage)) ?? []
+
+                let symDists = await symbolMatcher.symbolDistances(
+                    sourceImage: cardImage,
+                    candidateImages: candidateImages,
+                    scanResults: symbolScanResults
+                )
+
+                // Find the best (lowest distance) symbol match
+                var bestSymbolIdx: Int?
+                var bestSymbolDist: Float = .greatestFiniteMagnitude
+                for (i, dist) in symDists.enumerated() {
+                    guard let d = dist else { continue }
+                    if d < bestSymbolDist {
+                        bestSymbolDist = d
+                        bestSymbolIdx = i
+                    }
+                }
+
+                if let bestIdx = bestSymbolIdx {
+                    let topArray = Array(topCandidates)
+                    let bestCandidate = topArray[candidateImages[bestIdx].index]
+                    // Symbol matching is a tiebreaker (+1), not a primary signal.
+                    // At small crop sizes (~30-50px), VNFeaturePrint is noisy and
+                    // can incorrectly match wrong symbols (e.g., Secret Lair Drop
+                    // matching instead of Tempest). Keep weight low to avoid
+                    // overriding correct signals from OCR/artist/year.
+                    scores[bestCandidate.scryfallID, default: 0] += 1.0
+                    print("[MTGScanner] Symbol match: best=\(bestCandidate.set.code) (dist: \(bestSymbolDist))")
+                }
+            }
+        } else if topCandidates.count > 1, maxScoreBeforeSymbol == 0 {
+            print("[MTGScanner] Skipping symbol comparison — no OCR signals fired, relying on oldest-release tiebreak")
+        }
+
+        // === DIAGNOSTIC LOGGING ===
+        // Log OCR signals extracted for this card
+        print("[MTGScanner] resolveExactPrinting signals: artist=\(artistName ?? "nil") | copyrightYear=\(copyrightYear.map(String.init) ?? "nil") | illustrationID=\(illustrationID ?? "nil") | bottomBar=\(bottomBarResults.map { "\($0.setCode)#\($0.collectorNumber ?? "?")" }) | fullCollector=\(fullCollectorCandidates.map { "\($0.setCode ?? "?")#\($0.collectorNumber)" })")
+
+        // === PICK WINNER ===
+        let sorted = printings.sorted { a, b in
+            let sa = scores[a.scryfallID] ?? 0
+            let sb = scores[b.scryfallID] ?? 0
+            if sa != sb { return sa > sb }
+            // Tiebreak: oldest release (original printing)
+            let da = a.releasedAt ?? "9999"
+            let db = b.releasedAt ?? "9999"
+            if da != db { return da < db }
+            return (Int(a.collectorNumber.filter(\.isNumber)) ?? 9999) < (Int(b.collectorNumber.filter(\.isNumber)) ?? 9999)
+        }
+
+        if let best = sorted.first {
+            let bestScore = scores[best.scryfallID] ?? 0
+            print("[MTGScanner] resolveExactPrinting: winner=\(best.set.code) #\(best.collectorNumber) (\(best.set.name)) score=\(bestScore)")
+            // Log top 5 with score breakdown for debugging
+            for (i, p) in sorted.prefix(5).enumerated() {
+                let s = scores[p.scryfallID] ?? 0
+                print("[MTGScanner]   #\(i+1) \(p.set.code) #\(p.collectorNumber) (\(p.set.name)) released=\(p.releasedAt ?? "nil") artist=\(p.artist ?? "nil") illID=\(p.illustrationID ?? "nil") score=\(s)")
+            }
+            return best
+        }
+        return printings.first
+    }
+
+    /// Runs focused OCR on the bottom 15% of the card (cropped + upscaled + enhanced).
+    /// Returns parsed set codes with collector numbers and set totals.
+    private func runBottomBarOCR(cardImage: CGImage, knownSetCodes: Set<String>) async -> [BottomBarResult] {
+        let stripHeight = max(Int(Double(cardImage.height) * 0.15), 1)
+        let stripY = cardImage.height - stripHeight
+        let cropRect = CGRect(x: 0, y: stripY, width: cardImage.width, height: stripHeight)
+        guard let strip = cardImage.cropping(to: cropRect) else { return [] }
+
+        // Upscale + enhance
+        let targetHeight = max(strip.height, 200)
+        let scale = CGFloat(targetHeight) / CGFloat(strip.height)
+        let targetWidth = Int(CGFloat(strip.width) * scale)
+        let ocrImage: CGImage
+        if let upscaled = upscaleImage(strip, width: targetWidth, height: targetHeight),
+           let enhanced = enhanceForOCR(upscaled) {
+            ocrImage = enhanced
+        } else if let upscaled = upscaleImage(strip, width: targetWidth, height: targetHeight) {
+            ocrImage = upscaled
+        } else {
+            ocrImage = strip
+        }
+
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.recognitionLanguages = ["en-US"]
+        request.usesLanguageCorrection = false
+        request.minimumTextHeight = 0.0
+        request.customWords = Array(knownSetCodes) + [
+            // Standard expansions
+            "CLB", "MID", "VOW", "NEO", "SNC", "DMU", "BRO", "ONE",
+            "MOM", "WOE", "LCI", "MKM", "OTJ", "BLB", "DSK", "FDN",
+            "AFR", "STX", "KHM", "ZNR", "IKO", "THB", "ELD", "WAR",
+            "RNA", "GRN", "DOM", "RIX", "XLN", "AKH", "AER", "KLD",
+            "EMN", "SOI", "OGW", "BFZ", "ORI", "DTK", "FRF", "KTK",
+            // Masters / reprint / special
+            "2X2", "2XM", "TSR", "MH1", "MH2", "MH3", "UMA", "IMA",
+            "A25", "MM3", "MM2", "MMA", "40K", "WHO", "PIP", "ACR",
+            // Core sets
+            "M21", "M20", "M19", "M15", "M14", "M13", "M12", "M11", "M10",
+            // Commander products
+            "NEC", "NCC", "MIC", "AFC", "CMR", "MOC", "MKC", "VOC",
+            "C21", "C20", "C19", "C18", "C17", "C16", "OTC", "BLC",
+            "40K",  // Warhammer 40K (digit-first code)
+            // Older sets
+            "ICE", "ALL", "CSP", "5ED", "4ED", "3ED", "USG", "TMP",
+            "MMQ", "INV", "ODY", "ONS", "MRD", "CHK", "RAV", "TSP",
+            "LRW", "SHM", "ALA", "ZEN", "SOM", "ISD", "RTR", "THS",
+            // Rarity + language
+            "C", "U", "R", "M", "EN", "JP", "DE", "FR"
+        ]
+
+        let handler = VNImageRequestHandler(cgImage: ocrImage, options: [:])
+        do { try handler.perform([request]) } catch { return [] }
+        guard let results = request.results, !results.isEmpty else { return [] }
+
+        let combinedText = results.compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ")
+        print("[MTGScanner] Bottom-bar OCR: '\(combinedText)'")
+
+        var foundResults: [BottomBarResult] = []
+
+        // Structured: "014/038 R NEC"
+        let p1 = #"(\d{1,4})\s*[/:\-\.]\s*(\d{1,4})\s+[CURM]\s+([A-Z0-9]{2,5})"#
+        if let regex = try? NSRegularExpression(pattern: p1, options: .caseInsensitive) {
+            let nsText = combinedText as NSString
+            for m in regex.matches(in: combinedText, range: NSRange(location: 0, length: nsText.length)) where m.numberOfRanges > 3 {
+                let num = nsText.substring(with: m.range(at: 1))
+                let total = nsText.substring(with: m.range(at: 2))
+                let code = nsText.substring(with: m.range(at: 3)).uppercased()
+                if code.count >= 2, code.count <= 5, code.contains(where: \.isLetter) {
+                    foundResults.append(BottomBarResult(setCode: code, collectorNumber: num, setTotal: Int(total), confidence: 1.0))
+                }
+            }
+        }
+        // Standalone: "014 R NEC"
+        let p2 = #"(\d{1,4})\s+[CURM]\s+([A-Z0-9]{2,5})"#
+        if let regex = try? NSRegularExpression(pattern: p2, options: .caseInsensitive) {
+            let nsText = combinedText as NSString
+            for m in regex.matches(in: combinedText, range: NSRange(location: 0, length: nsText.length)) where m.numberOfRanges > 2 {
+                let num = nsText.substring(with: m.range(at: 1))
+                let code = nsText.substring(with: m.range(at: 2)).uppercased()
+                if code.count >= 2, code.count <= 5, code.contains(where: \.isLetter),
+                   !foundResults.contains(where: { $0.setCode == code }) {
+                    foundResults.append(BottomBarResult(setCode: code, collectorNumber: num, setTotal: nil, confidence: 1.0))
+                }
+            }
+        }
+        // Token match
+        let tokens = combinedText.uppercased()
+            .replacingOccurrences(of: "\u{2022}", with: " ").replacingOccurrences(of: "\u{00B7}", with: " ")
+            .replacingOccurrences(of: "\u{00A9}", with: " ").replacingOccurrences(of: "\u{2122}", with: " ")
+            .split(separator: " ").map(String.init)
+        for token in tokens where token.count >= 2 && token.count <= 5 && token.contains(where: \.isLetter) {
+            if !foundResults.contains(where: { $0.setCode == token }) {
+                foundResults.append(BottomBarResult(setCode: token, collectorNumber: nil, setTotal: nil, confidence: 0.5))
+            }
+        }
+
+        return foundResults
+    }
+
     // MARK: - Step 3: Printing Resolution
 
     private func resolvePrinting(cardImage: CGImage, wasCropped: Bool) async -> Card? {
-
-        // Step 1: Visual search (primary identification)
-        if let match = await resolveByVisualSearch(cardImage: cardImage, wasCropped: wasCropped) {
-            return match
-        }
-
-        // Step 2+: OCR fallback (when visual search unavailable or fails)
+        // Full OCR to get card name
         guard let signals = await extractOCRSignals(from: cardImage, wasCropped: wasCropped) else {
             return nil
         }
 
-        // Step 3a: Collector number + set code (most precise)
+        // Collector number + metadata matching
         if let match = await matchByCollectorNumber(signals: signals) {
             return match
         }
-
-        // Step 3b-e: Metadata filtering + image comparison
         if let match = await matchByMetadata(signals: signals, cardImage: cardImage) {
             return match
         }
-
-        // Step 3f: Try common first-character OCR corrections
-        // Old-frame fonts cause b→H, l→L, f→F etc. substitutions
         if let match = await matchByFirstCharCorrection(signals: signals, cardImage: cardImage) {
             return match
         }
-
-        // Step 3g: Fallback — try alternative names from rules text
-        // Old-frame cards have stylized title fonts that OCR mangles,
-        // but rules text uses a clean font and often contains the card's own name
         return await matchByAlternativeNames(signals: signals, cardImage: cardImage)
     }
 
@@ -502,17 +988,42 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
             return nil
         }
 
-        // Try FeaturePrint cache first (grows as user scans cards)
+        // Embedding store (persistent k-NN from corrections) — highest priority.
+        // Trained from explicit user corrections, so it's the most reliable source.
+        if let store = embeddingStore,
+           let embeddingMatch = await store.findMatch(for: cardImage) {
+            print("[MTGScanner] Embedding store match: '\(embeddingMatch.cardName)' (distance: \(String(format: "%.2f", embeddingMatch.distance)))")
+            if let printings = try? await repository.findAllPrintings(name: embeddingMatch.cardName),
+               !printings.isEmpty {
+                if let match = await resolveExactPrinting(
+                    cardImage: cardImage,
+                    cardName: embeddingMatch.cardName,
+                    printings: printings,
+                    illustrationID: nil
+                ) {
+                    return match
+                }
+            }
+        }
+
+        // FeaturePrint cache — used for NAME cross-validation only.
+        // NEVER trust the cache for printing (set/collector). Printing is
+        // always resolved fresh via metadata + frame-masked image comparison.
+        // Detect CJK early — used by both cache and pHash paths
+        let isCJKCard = await detectCJKText(in: cardImage)
+
+        var cacheHintName: String?
         if let cache = featurePrintCache,
            let cacheHit = await cache.search(artImage: artImage) {
             print("[MTGScanner] FeaturePrint cache candidate: '\(cacheHit.cardName)'")
 
-            // Cross-validate with OCR — reject if OCR reads a different card
-            if let signals = await extractOCRSignals(from: cardImage, wasCropped: wasCropped) {
+            if isCJKCard {
+                // Foreign-language card — trust cache name (art is the same)
+                cacheHintName = cacheHit.cardName
+                print("[MTGScanner] CJK card detected, trusting cache name: '\(cacheHintName!)'")
+            } else if let signals = await extractOCRSignals(from: cardImage, wasCropped: wasCropped) {
                 let ocrWords = signals.cardName.lowercased().split(separator: " ").filter { $0.count >= 4 }
                 let cacheWords = cacheHit.cardName.lowercased().split(separator: " ").filter { $0.count >= 4 }
-                // ALL cache words must be found in OCR (with fuzzy tolerance)
-                // e.g., cache "White Knight" requires BOTH "White" AND "Knight" in OCR
                 let allCacheWordsFound = cacheWords.allSatisfy { cw in
                     ocrWords.contains { ow in
                         if ow == cw { return true }
@@ -521,63 +1032,55 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
                     }
                 }
                 if !allCacheWordsFound && !ocrWords.isEmpty && !cacheWords.isEmpty {
-                    print("[MTGScanner] FeaturePrint cache rejected: OCR '\(signals.cardName)' ≠ cache '\(cacheHit.cardName)'")
-                    // Don't return nil — fall through to OCR pipeline
+                    // OCR disagrees with cache. Check if OCR name is a real card —
+                    // if it is, OCR is probably right and cache is stale.
+                    // If OCR name is NOT a real card, it's likely garbled foreign
+                    // text → trust the cache (matched by art, more reliable).
+                    let ocrNameExists = (try? await repository.findAllPrintings(name: signals.cardName))?.isEmpty == false
+                    if ocrNameExists {
+                        print("[MTGScanner] FeaturePrint cache rejected: OCR '\(signals.cardName)' is a real card ≠ cache '\(cacheHit.cardName)'")
+                        // Don't trust cache — OCR found a valid different card name
+                    } else {
+                        // OCR name is garbage (foreign card or garbled text) — trust cache
+                        cacheHintName = cacheHit.cardName
+                        print("[MTGScanner] FeaturePrint cache: OCR '\(signals.cardName)' not in DB — trusting cache '\(cacheHit.cardName)' (likely foreign card)")
+                    }
                 } else {
-                    // Cache + OCR words overlap. Use the cache name ONLY if it's actually
-                    // the same card (case-insensitive). Otherwise trust the OCR name —
-                    // the cache might match a visually similar but different card.
                     let namesMatch = cacheHit.cardName.lowercased() == signals.cardName.lowercased()
                         || levenshteinDistance(cacheHit.cardName.lowercased(), signals.cardName.lowercased()) <= 2
-
-                    let resolvedName = namesMatch ? cacheHit.cardName : signals.cardName
-                    print("[MTGScanner] FeaturePrint cache confirmed: cache '\(cacheHit.cardName)', OCR '\(signals.cardName)' → using '\(resolvedName)'")
-
-                    // If names match AND cache has full printing identity, use it directly
-                    if namesMatch,
-                       let setCode = cacheHit.setCode, let collectorNum = cacheHit.collectorNumber,
-                       let printings = try? await repository.findAllPrintings(name: resolvedName),
-                       let exact = printings.first(where: { $0.set.code == setCode && $0.collectorNumber == collectorNum }) {
-                        print("[MTGScanner] \u{2713} Matched by cached printing: \(exact.set.name) #\(exact.collectorNumber)")
-                        return exact
-                    }
-
-                    // Resolve via metadata with the best name
-                    let correctedSignals = OCRSignals(
-                        scanResults: signals.scanResults,
-                        cardName: resolvedName,
-                        collectorCandidates: signals.collectorCandidates,
-                        artistName: signals.artistName,
-                        copyrightYear: signals.copyrightYear,
-                        hasOldTypeLine: signals.hasOldTypeLine,
-                        detectedBorder: signals.detectedBorder
-                    )
-                    if let match = await matchByMetadata(signals: correctedSignals, cardImage: cardImage) {
-                        return match
-                    }
+                    cacheHintName = namesMatch ? cacheHit.cardName : signals.cardName
+                    print("[MTGScanner] FeaturePrint cache confirmed name: '\(cacheHintName!)' — resolving printing fresh")
                 }
             } else {
-                // OCR failed — try exact printing from cache, then fall back to first printing
-                print("[MTGScanner] FeaturePrint cache confirmed name (no OCR): '\(cacheHit.cardName)' — resolving printing")
-                if let printings = try? await repository.findAllPrintings(name: cacheHit.cardName) {
-                    if let setCode = cacheHit.setCode, let collectorNum = cacheHit.collectorNumber,
-                       let exact = printings.first(where: { $0.set.code == setCode && $0.collectorNumber == collectorNum }) {
-                        print("[MTGScanner] \u{2713} Matched by cached printing: \(exact.set.name) #\(exact.collectorNumber)")
-                        return exact
-                    }
-                    if let first = printings.first {
-                        return first
-                    }
-                }
+                // OCR failed — still use cache name as hint, but NOT printing
+                cacheHintName = cacheHit.cardName
+                print("[MTGScanner] FeaturePrint cache name hint (no OCR): '\(cacheHintName!)'")
+            }
+        }
+
+        // If we have a card name (from cache or will get from pHash), use
+        if let hintName = cacheHintName,
+           let printings = try? await repository.findAllPrintings(name: hintName),
+           !printings.isEmpty {
+            if let match = await resolveExactPrinting(
+                cardImage: cardImage,
+                cardName: hintName,
+                printings: printings,
+                illustrationID: nil
+            ) {
+                return match
             }
         }
 
         // Fall back to legacy pHash visual search engine
         guard let visualEngine = visualSearchEngine else { return nil }
 
-        // Use strict threshold (8) for confident visual matches
-        guard let match = visualEngine.bestMatch(for: artImage, maxDistance: 8) else {
-            print("[MTGScanner] Visual search: no match within threshold")
+        // Foreign-language (CJK) cards need a relaxed pHash threshold because
+        // the art crop may differ slightly from the English reference.
+        let pHashThreshold = isCJKCard ? 14 : 8
+
+        guard let match = visualEngine.bestMatch(for: artImage, maxDistance: pHashThreshold) else {
+            print("[MTGScanner] Visual search: no match within threshold \(pHashThreshold)\(isCJKCard ? " (foreign card)" : "")")
             return nil
         }
 
@@ -590,11 +1093,14 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         // Run OCR to get signals for cross-validation and printing refinement
         let signals = await extractOCRSignals(from: cardImage, wasCropped: wasCropped)
 
-        // Cross-validate: if OCR found a card name, check it's compatible with visual match
-        if let signals {
+        // Cross-validate: if OCR found a card name, check it's compatible with visual match.
+        // Exception: foreign-language cards (CJK text) — trust the visual match since
+        // art and illustration_id are identical across all languages.
+        if isCJKCard {
+            print("[MTGScanner] Foreign-language card detected, trusting visual match '\(match.cardName)'")
+        } else if let signals {
             let ocrName = signals.cardName.lowercased()
             let visualName = match.cardName.lowercased()
-            // Check if any significant word from OCR name appears in visual name or vice versa
             let ocrWords = ocrName.split(separator: " ").filter { $0.count >= 4 }
             let visualWords = visualName.split(separator: " ").filter { $0.count >= 4 }
             let hasCommonWord = ocrWords.contains { ow in
@@ -615,103 +1121,13 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
             return nil
         }
 
-        // Refine to exact printing using OCR signals
-        if let signals {
-            // Use collector number if available (most precise)
-            for candidate in signals.collectorCandidates {
-                if let setCode = candidate.setCode, !candidate.collectorNumber.isEmpty {
-                    let lowerCode = setCode.lowercased()
-                    let num = candidate.collectorNumber
-                    if let exact = printings.first(where: { $0.set.code == lowerCode && $0.collectorNumber == num }) {
-                        print("[MTGScanner] \u{2713} Visual + set+number: \(exact.set.name) #\(exact.collectorNumber)")
-                        return exact
-                    }
-                }
-            }
-
-            for candidate in signals.collectorCandidates {
-                if !candidate.collectorNumber.isEmpty {
-                    let num = candidate.collectorNumber
-                    if let exact = printings.first(where: { $0.collectorNumber == num }) {
-                        print("[MTGScanner] \u{2713} Visual + number: \(exact.set.name) #\(exact.collectorNumber)")
-                        return exact
-                    }
-                }
-            }
-
-            // Apply metadata filters to narrow printing
-            var narrowed = printings
-
-            if let artistName = signals.artistName {
-                let ocrWords = Set(artistName.lowercased().split(separator: " ").map(String.init))
-                let filtered = narrowed.filter { card in
-                    guard let a = card.artist else { return false }
-                    let dbWords = Set(a.lowercased().split(separator: " ").map(String.init))
-                    for ocrWord in ocrWords where ocrWord.count >= 4 {
-                        for dbWord in dbWords where dbWord.count >= 4 {
-                            if ocrWord == dbWord { return true }
-                            if ocrWord.count == dbWord.count && levenshteinClose(ocrWord, dbWord) {
-                                return true
-                            }
-                        }
-                    }
-                    return false
-                }
-                if !filtered.isEmpty { narrowed = filtered }
-            }
-
-            if let year = signals.copyrightYear {
-                // Allow ±1 year tolerance: copyright year (printed on card) may differ
-                // from Scryfall's released_at (e.g., PELP copyright ©1999, released 2000)
-                let validYears = Set([String(year - 1), String(year), String(year + 1)])
-                print("[MTGScanner] Year filter: checking \(narrowed.count) cards for years \(validYears)")
-                let filtered = narrowed.filter { card in
-                    guard let rel = card.releasedAt, rel.count >= 4 else { return false }
-                    return validYears.contains(String(rel.prefix(4)))
-                }
-                print("[MTGScanner] Year filter: \(filtered.count) matched out of \(narrowed.count)")
-                if !filtered.isEmpty {
-                    narrowed = filtered
-                    print("[MTGScanner] After year filter (\(year)±1): \(narrowed.count)")
-                }
-            } else {
-                print("[MTGScanner] Year filter: copyright year is nil, skipping")
-            }
-
-            if signals.hasOldTypeLine {
-                let oldFrames: Set<String> = ["1993", "1997"]
-                let filtered = narrowed.filter { card in
-                    guard let f = card.frame else { return false }
-                    return oldFrames.contains(f)
-                }
-                if !filtered.isEmpty { narrowed = filtered }
-            }
-
-            if let border = signals.detectedBorder, border == .black || border == .white {
-                let filtered = narrowed.filter { $0.borderColor == border.rawValue }
-                if !filtered.isEmpty { narrowed = filtered }
-            }
-
-            // Prefer the printing whose illustration_id matches the visual match
-            if let artMatch = narrowed.first(where: { $0.illustrationID == match.illustrationID }) {
-                print("[MTGScanner] \u{2713} Visual + metadata: \(artMatch.set.name) #\(artMatch.collectorNumber)")
-                return artMatch
-            }
-
-            if narrowed.count == 1, let single = narrowed.first {
-                print("[MTGScanner] \u{2713} Visual + metadata (unique): \(single.set.name) #\(single.collectorNumber)")
-                return single
-            }
-        }
-
-        // No OCR refinement — return printing with matching illustration_id, or first printing
-        if let artMatch = printings.first(where: { $0.illustrationID == match.illustrationID }) {
-            print("[MTGScanner] \u{2713} Visual match (illustration_id): \(artMatch.set.name) #\(artMatch.collectorNumber)")
-            return artMatch
-        }
-
-        print("[MTGScanner] \u{2713} Visual match (first printing): \(printings[0].set.name) #\(printings[0].collectorNumber)")
-        return printings.first
+        // Resolve exact printing using multi-signal scoring
+        return await resolveExactPrinting(
+            cardImage: cardImage,
+            cardName: match.cardName,
+            printings: printings,
+            illustrationID: match.illustrationID
+        )
     }
 
     /// Tries common first-character OCR substitutions on the card name.
@@ -767,7 +1183,9 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         // Collect potential card names from OCR text lines
         // Only check lines that look like they contain a card name (capitalize pattern, reasonable length)
         var attempts = 0
-        let maxAttempts = 20
+        // Reduced from 20 → 10 — more attempts = more chances for
+        // false positives from rules text or flavor text fragments.
+        let maxAttempts = 10
 
         for result in signals.scanResults {
             guard attempts < maxAttempts else { break }
@@ -872,7 +1290,9 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
                 for name in uniqueNames {
                     let nameLower = name.lowercased()
                     let dist = levenshteinDistance(ocrLower, nameLower)
-                    guard dist <= 4 else { continue }
+                    // Tightened from ≤4 → ≤3 to reduce false positives
+                    // from rules text fragments matching unrelated cards.
+                    guard dist <= 3 else { continue }
 
                     // Score: prefer names where OCR looks like a truncated/mangled version
                     // Bonus if OCR is a prefix of the candidate (common truncation pattern)
@@ -944,6 +1364,16 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         return nil
     }
 
+    /// Strips leading zeros from a collector number so "015" matches "15".
+    /// Preserves letter suffixes: "080a" → "80a".
+    private func normalizeCollectorNumber(_ s: String) -> String {
+        var result = s
+        while result.count > 1 && result.hasPrefix("0") {
+            result = String(result.dropFirst())
+        }
+        return result
+    }
+
     /// Step 3a: Match by collector number (+ optional set code).
     private func matchByCollectorNumber(signals: OCRSignals) async -> Card? {
         guard !signals.collectorCandidates.isEmpty else { return nil }
@@ -951,25 +1381,29 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         let printings = try? await repository.findAllPrintings(name: signals.cardName)
         guard let printings, !printings.isEmpty else { return nil }
 
-        // Try set code + collector number first
+        print("[MTGScanner] Collector candidates: \(signals.collectorCandidates.map { "set=\($0.setCode ?? "nil") num=\($0.collectorNumber)" })")
+
+        // Try set code + collector number first (normalized for leading zeros)
         for candidate in signals.collectorCandidates {
             guard let setCode = candidate.setCode, !candidate.collectorNumber.isEmpty else { continue }
             let lowerCode = setCode.lowercased()
-            let num = candidate.collectorNumber
-            let match = printings.first { (c: Card) in c.set.code == lowerCode && c.collectorNumber == num }
+            let num = normalizeCollectorNumber(candidate.collectorNumber)
+            let match = printings.first { (c: Card) in
+                c.set.code == lowerCode && normalizeCollectorNumber(c.collectorNumber) == num
+            }
             if let match {
                 print("[MTGScanner] ✓ Matched by set+number: \(match.set.name) #\(match.collectorNumber)")
                 return match
             }
         }
 
-        // Try collector number only
+        // Try collector number only (normalized)
         for candidate in signals.collectorCandidates {
             guard !candidate.collectorNumber.isEmpty else { continue }
-            let num = candidate.collectorNumber
-            let match = printings.first { $0.collectorNumber == num }
+            let num = normalizeCollectorNumber(candidate.collectorNumber)
+            let match = printings.first { normalizeCollectorNumber($0.collectorNumber) == num }
             if let match {
-                print("[MTGScanner] ✓ Matched by number: \(match.set.name) #\(match.collectorNumber)")
+                print("[MTGScanner] ✓ Matched by number only: \(match.set.name) #\(match.collectorNumber)")
                 return match
             }
         }
@@ -984,16 +1418,9 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
 
         print("[MTGScanner] All printings for '\(signals.cardName)': \(printings.count)")
 
-        // Check if the FP cache has a corrected printing for this card name
-        if let cache = featurePrintCache {
-            let cached = await cache.findByName(signals.cardName)
-            if let entry = cached.first,
-               let setCode = entry.setCode, let collectorNum = entry.collectorNumber,
-               let exact = printings.first(where: { $0.set.code == setCode && $0.collectorNumber == collectorNum }) {
-                print("[MTGScanner] \u{2713} Matched by cached printing: \(exact.set.name) #\(exact.collectorNumber)")
-                return exact
-            }
-        }
+        // NOTE: FP cache intentionally NOT used for printing resolution.
+        // The cache may store a stale/wrong printing. Always resolve fresh
+        // via metadata filtering + frame-masked image comparison.
 
         // Filter by artist (fuzzy — match any word with ≤1 char difference)
         if let artistName = signals.artistName {
@@ -1054,20 +1481,44 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
             }
         }
 
-        // Sort by printing preference
-        printings.sort { a, b in printingPriority(a) < printingPriority(b) }
+        // Sort by printing preference. Four-tier stable sort:
+        // 1. Set type priority (expansion > core > masters > ...)
+        // 2. Release date DESCENDING (newest first — users are more
+        //    likely to own recent printings in current circulation
+        //    than decade-old ones. "Oldest first" was actively wrong
+        //    for cards like Thermo-Alchemist where Eldritch Moon 2016
+        //    was picked over the user's actual Midnight Hunt 2021.)
+        // 3. Collector number ascending (within the same set, the
+        //    regular version has a low number like #51, while
+        //    borderless/showcase/extended-art variants have high
+        //    numbers like #350.)
+        // 4. Set name alphabetical (final tiebreak for determinism)
+        printings.sort { a, b in
+            let pa = printingPriority(a)
+            let pb = printingPriority(b)
+            if pa != pb { return pa < pb }
+            // Newest first: "9999" default → sorts last (unknown date)
+            let da = a.releasedAt ?? "0000"
+            let db = b.releasedAt ?? "0000"
+            if da != db { return da > db }
+            // Within the same set+date: lower collector number = regular version
+            let na = Int(a.collectorNumber.filter(\.isNumber)) ?? 9999
+            let nb = Int(b.collectorNumber.filter(\.isNumber)) ?? 9999
+            if na != nb { return na < nb }
+            return a.set.name < b.set.name
+        }
 
         if printings.count == 1, let match = printings.first {
             print("[MTGScanner] ✓ Matched by metadata (unique): \(match.set.name) #\(match.collectorNumber)")
             return match
         }
 
-        // Multiple candidates — compare full card images (limit to top 8 to prevent OOM)
+        // Multiple candidates — use frame-masked comparison (art masked out)
         if printings.count > 1 {
             printings = Array(printings.prefix(8))
-            print("[MTGScanner] \(printings.count) candidates remain, comparing card images...")
-            if let match = await resolveByImageComparison(source: cardImage, candidates: printings) {
-                print("[MTGScanner] ✓ Matched by image: \(match.set.name) #\(match.collectorNumber)")
+            print("[MTGScanner] \(printings.count) candidates remain, comparing frames...")
+            if let match = await resolveByFrameComparison(source: cardImage, printings: printings) {
+                print("[MTGScanner] ✓ Matched by frame: \(match.set.name) #\(match.collectorNumber)")
                 return match
             }
             if let match = printings.first {
@@ -1093,8 +1544,30 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
             let variants = try await repository.findVariants(name: card.name, setCode: card.set.code)
             guard variants.count > 1 else { return card }
 
-            print("[MTGScanner] Found \(variants.count) art variants in \(card.set.name), comparing art...")
+            // Only compare variants with genuinely different art (different illustrationID).
+            // Variants that share the same illustration but differ in frame treatment
+            // (regular vs extended-art vs borderless vs showcase) must NOT override
+            // the printing already resolved by resolveExactPrinting, because the
+            // extended-art/borderless art_crop is larger and wins VNFeaturePrint
+            // comparison even though the user holds the regular version.
+            let distinctIllustrations = Set(variants.compactMap(\.illustrationID))
+            guard distinctIllustrations.count > 1 else {
+                print("[MTGScanner] Art variants in \(card.set.name) share same illustration — keeping resolved #\(card.collectorNumber)")
+                return card
+            }
+
+            // Multiple distinct illustrations exist — compare art to pick the right one.
+            // But preserve the exact printing (frame treatment) within that illustration:
+            // first find which illustrationID matches, then keep the already-resolved
+            // printing if it has that illustrationID.
+            print("[MTGScanner] Found \(variants.count) art variants (\(distinctIllustrations.count) distinct illustrations) in \(card.set.name), comparing art...")
             if let match = await artVariantMatcher.matchVariant(cardImage: cardImage, variants: variants) {
+                // If the matched variant has the same illustrationID as our already-resolved
+                // card, keep the original (its collector# was chosen by OCR signals).
+                if match.illustrationID == card.illustrationID {
+                    print("[MTGScanner] ✓ Art variant confirms illustration, keeping #\(card.collectorNumber)")
+                    return card
+                }
                 print("[MTGScanner] ✓ Art variant matched: #\(match.collectorNumber)")
                 return match
             }
@@ -1104,14 +1577,21 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         return card
     }
 
-    // MARK: - Image Comparison
+    // MARK: - Frame-Masked Comparison
 
-    /// Downloads reference images and uses VNFeaturePrint to find the best match.
-    /// Images are downloaded in memory and released after comparison.
-    private func resolveByImageComparison(source: CGImage, candidates: [Card]) async -> Card? {
+    /// Resolves the correct printing by comparing frame chrome only.
+    ///
+    /// Downloads reference images for each candidate, masks the art region
+    /// (identical across printings) on both source and reference, then uses
+    /// VNFeaturePrint to compare. Optionally combines with set-symbol-region
+    /// distance (40% weight) for stronger discrimination.
+    ///
+    /// This is the primary printing-resolution method — it replaces full-card
+    /// image comparison which was dominated by art similarity.
+    private func resolveByFrameComparison(source: CGImage, printings: [Card]) async -> Card? {
         var candidateImages: [(index: Int, image: CGImage)] = []
 
-        for (index, card) in candidates.enumerated() {
+        for (index, card) in printings.enumerated() {
             guard let urlString = card.imageURIs["normal"] ?? card.imageURIs["small"] else { continue }
             if let image = await imageMatcher.downloadImage(from: urlString) {
                 candidateImages.append((index, image))
@@ -1120,13 +1600,28 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
 
         guard !candidateImages.isEmpty else { return nil }
 
+        // Compute symbol distances for weighted comparison
+        let scanResults = (try? await recognizer.recognizeText(in: source)) ?? []
+        let symbolMatcher = SetSymbolMatcher()
+        let symDists = await symbolMatcher.symbolDistances(
+            sourceImage: source,
+            candidateImages: candidateImages,
+            scanResults: scanResults
+        )
+
         let images = candidateImages.map(\.image)
-        guard let bestIdx = await imageMatcher.findBestMatch(for: source, among: images) else {
+        guard let bestIdx = await imageMatcher.findBestMatchByFrame(
+            for: source,
+            among: images,
+            symbolDistances: symDists
+        ) else {
             return nil
         }
 
         let originalIndex = candidateImages[bestIdx].index
-        return candidates[originalIndex]
+        let result = printings[originalIndex]
+        print("[MTGScanner] Frame comparison selected: \(result.set.name) #\(result.collectorNumber)")
+        return result
     }
 
     // MARK: - Printing Priority
@@ -1135,8 +1630,23 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
     /// Regular expansions/core sets preferred over foreign variants and promos.
     private func printingPriority(_ card: Card) -> Int {
         let setName = card.set.name.lowercased()
+        let setCode = card.set.code.lowercased()
+
+        // Explicit deprioritization of known supplemental-reprint
+        // products that commonly win ties against the original
+        // expansion printing when metadata is weak.
         if setName.contains("foreign") || setName.contains("fbb") {
             return 9
+        }
+        // "The List" / "The List" promo sheets (Scryfall code "plst")
+        if setCode == "plst" || setName.contains("the list") {
+            return 8
+        }
+        // Universes Beyond crossover sets (Fallout, LotR, Warhammer, etc.)
+        // are commonly misidentified for non-crossover cards.
+        let crossoverSets = ["pip", "ltr", "ltc", "40k", "who", "acr"]
+        if crossoverSets.contains(setCode) {
+            return 7
         }
 
         switch card.set.setType {
@@ -1154,6 +1664,18 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
     }
 
     /// Checks if two strings of equal length differ by at most 1 character.
+    /// True if every printing of this card is a token (no mana cost,
+    /// "Token" in type line). Used to skip type-line fragments like
+    /// "Human Cleric" that match real token cards in the DB but are
+    /// actually the subtype text from a creature (Dawnbringer Cleric).
+    private func isTokenOnly(_ printings: [Card]) -> Bool {
+        printings.allSatisfy { card in
+            let tl = card.typeLine.lowercased()
+            let noMana = card.manaCost == nil || card.manaCost?.isEmpty == true
+            return tl.contains("token") || noMana
+        }
+    }
+
     private func levenshteinClose(_ a: String, _ b: String) -> Bool {
         guard a.count == b.count else { return false }
         var diffs = 0
