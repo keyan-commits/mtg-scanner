@@ -183,6 +183,7 @@
 		E8EED731F7C61FF1A8209312 /* LatestTopFinishesCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69BFC134783609D55B801606 /* LatestTopFinishesCache.swift */; };
 		E93F0D62D3AB75D903510FD1 /* FeaturePrintCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6E4B9316C204EFE3C573CD /* FeaturePrintCache.swift */; };
 		E93F0D62D3AB75D903510FD2 /* VisualEmbeddingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6E4B9316C204EFE3C574 /* VisualEmbeddingStore.swift */; };
+		E93F0D62D3AB75D903510FD3 /* EmbeddingDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6E4B9316C204EFE3C575 /* EmbeddingDownloader.swift */; };
 		EA972ABE7B267C2D9627E552 /* CardScannerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86689942D94ACB052854F23E /* CardScannerViewModel.swift */; };
 		EE8118A9FA5C65C0CBA78B1C /* ScryfallCardRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A92D5221A071F97A64E4FEF /* ScryfallCardRepository.swift */; };
 		EF29C3E3396CF82F5270EC14 /* CardDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D3DE5961526665CF7B62C16 /* CardDetector.swift */; };
@@ -399,6 +400,7 @@
 		F9DC23CBC42A3962BA36BCAC /* CardTextRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardTextRecognizer.swift; sourceTree = "<group>"; };
 		FA6E4B9316C204EFE3C573CD /* FeaturePrintCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeaturePrintCache.swift; sourceTree = "<group>"; };
 		FA6E4B9316C204EFE3C574 /* VisualEmbeddingStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEmbeddingStore.swift; sourceTree = "<group>"; };
+		FA6E4B9316C204EFE3C575 /* EmbeddingDownloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddingDownloader.swift; sourceTree = "<group>"; };
 		FC3CD4D36FEC5623515FEAA8 /* SetupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupScreen.swift; sourceTree = "<group>"; };
 		FED8B2BEDEF495AD8311F1D5 /* CardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardTests.swift; sourceTree = "<group>"; };
 		D3E4F5A6B7C80920E1F2A3B4 /* PrintingResolutionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintingResolutionTests.swift; sourceTree = "<group>"; };
@@ -510,6 +512,7 @@
 				1D8CF55E71A7E20780ACAB35 /* CameraManager.swift */,
 				1D3DE5961526665CF7B62C16 /* CardDetector.swift */,
 				E23BC4B6964F6D705CD71D61 /* ColorSegmentationCardDetector.swift */,
+				FA6E4B9316C204EFE3C575 /* EmbeddingDownloader.swift */,
 				FA6E4B9316C204EFE3C573CD /* FeaturePrintCache.swift */,
 				FA6E4B9316C204EFE3C574 /* VisualEmbeddingStore.swift */,
 				7C298A51F47FEA3016F0AC80 /* ImageMatcher.swift */,
@@ -1056,6 +1059,7 @@
 				E8092F55E35EBB27B39DD4B6 /* EditOrderItemSheet.swift in Sources */,
 				B90E5A7DFE496E1AA8FB8B0F /* EditOrderSheet.swift in Sources */,
 				E93F0D62D3AB75D903510FD1 /* FeaturePrintCache.swift in Sources */,
+				E93F0D62D3AB75D903510FD3 /* EmbeddingDownloader.swift in Sources */,
 				E93F0D62D3AB75D903510FD2 /* VisualEmbeddingStore.swift in Sources */,
 				756A0FAB29F6D3B3298CFC1B /* FormatsScreen.swift in Sources */,
 				2C2EA070C12148C438122E7C /* Formatters.swift in Sources */,

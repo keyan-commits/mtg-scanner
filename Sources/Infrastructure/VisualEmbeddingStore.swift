@@ -233,10 +233,15 @@ actor VisualEmbeddingStore {
     /// Base embeddings provide out-of-the-box visual matching without requiring user corrections.
     /// User corrections take priority over base embeddings for the same card.
     private func loadBaseEmbeddings() {
-        guard let url = Bundle.main.url(forResource: "base_embeddings", withExtension: "json"),
+        // Try bundle first (development builds with file included)
+        let bundleURL = Bundle.main.url(forResource: "base_embeddings", withExtension: "json")
+        // Try Documents/ (downloaded on first launch via EmbeddingDownloader)
+        let docsURL = EmbeddingDownloader.embeddingsDocumentsURL
+
+        guard let url = bundleURL ?? (FileManager.default.fileExists(atPath: docsURL.path) ? docsURL : nil),
               let data = try? Data(contentsOf: url),
               let base = try? JSONDecoder().decode([Embedding].self, from: data) else {
-            print("[VisualEmbeddingStore] No base embeddings found in bundle")
+            print("[VisualEmbeddingStore] No base embeddings found in bundle or Documents")
             return
         }
 

@@ -13,12 +13,19 @@ struct MLCardDetector: Sendable {
     private let visionModel: VNCoreMLModel?
 
     init() {
-        // Try to load a model named "MTGCardDetector" from the bundle
+        // Try bundle first (compiled .mlmodelc from Xcode build)
         if let modelURL = Bundle.main.url(forResource: "MTGCardDetector", withExtension: "mlmodelc"),
            let mlModel = try? MLModel(contentsOf: modelURL),
            let vnModel = try? VNCoreMLModel(for: mlModel) {
             self.visionModel = vnModel
-            print("[MLCardDetector] Model loaded successfully")
+            print("[MLCardDetector] Model loaded from bundle")
+        }
+        // Try Documents/ (downloaded on first launch via EmbeddingDownloader)
+        else if FileManager.default.fileExists(atPath: EmbeddingDownloader.modelDocumentsURL.path),
+                let mlModel = try? MLModel(contentsOf: EmbeddingDownloader.modelDocumentsURL),
+                let vnModel = try? VNCoreMLModel(for: mlModel) {
+            self.visionModel = vnModel
+            print("[MLCardDetector] Model loaded from Documents")
         } else {
             self.visionModel = nil
             print("[MLCardDetector] No trained model found — ML detection disabled")

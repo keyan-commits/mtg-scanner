@@ -4,6 +4,7 @@ import SwiftUI
 
 enum SetupState: Equatable {
     case checking
+    case downloadingAssets(progress: Double, label: String)
     case downloading
     case importing(progress: Double)
     case ready
@@ -50,6 +51,19 @@ struct SetupScreen: View {
                     .tint(MD3Theme.primary)
                 Text("Checking card database...")
                     .font(MD3Typography.bodyMedium)
+                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+            }
+
+        case .downloadingAssets(let progress, let label):
+            VStack(spacing: 12) {
+                ProgressView(value: progress)
+                    .tint(MD3Theme.primary)
+                    .padding(.horizontal, 48)
+                Text("Downloading \(label)...")
+                    .font(MD3Typography.bodyMedium)
+                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+                Text("\(Int(progress * 100))%")
+                    .font(MD3Typography.labelMedium)
                     .foregroundStyle(MD3Theme.onSurfaceVariant)
             }
 

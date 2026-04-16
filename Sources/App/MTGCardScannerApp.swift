@@ -51,6 +51,22 @@ struct MTGCardScannerApp: App {
 
     @MainActor
     private func setupDatabase() async {
+        // Download ML assets from GitHub Releases if not bundled or already downloaded
+        let assetDownloader = EmbeddingDownloader.shared
+        if await !assetDownloader.allAssetsReady {
+            setupState = .downloadingAssets(progress: 0, label: "ML assets")
+            await assetDownloader.downloadIfNeeded(onProgress: { progress, label in
+                Task { @MainActor in
+                    self.setupState = .downloadingAssets(progress: progress, label: label)
+                }
+            })
+            let finalState = await assetDownloader.currentState
+            if case .failed(let msg) = finalState {
+                setupState = .error(msg)
+                return
+            }
+        }
+
         guard let databaseManager else {
             setupState = .error("Failed to initialize database.")
             return

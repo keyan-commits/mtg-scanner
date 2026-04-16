@@ -169,7 +169,12 @@
       "Bash(find Tests/ -name \"*.swift\" -exec wc -l {} +)",
       "Bash(git count-objects:*)",
       "Bash(git lfs:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(git reset:*)",
+      "Bash(gh release:*)",
+      "Bash(export PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\")",
+      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
+      "Bash(gh auth:*)"
     ]
   }
 }
