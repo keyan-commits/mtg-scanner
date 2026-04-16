@@ -254,11 +254,14 @@ struct ImportDecklistSheet: View {
             if trimmed.isEmpty { continue }
             if trimmed.hasPrefix("//") { continue }
             let lower = trimmed.lowercased()
-            if lower == "sideboard" || lower == "sideboard:" {
+            // Detect zone headers (flexible matching)
+            let sideboardHeaders = ["sideboard", "sideboard:", "sb:", "sb", "side", "side:"]
+            let mainboardHeaders = ["mainboard", "mainboard:", "mb:", "mb", "main", "main:", "maindeck", "maindeck:"]
+            if sideboardHeaders.contains(lower) {
                 currentZone = "sideboard"
                 continue
             }
-            if lower == "mainboard" || lower == "mainboard:" {
+            if mainboardHeaders.contains(lower) {
                 currentZone = "mainboard"
                 continue
             }
