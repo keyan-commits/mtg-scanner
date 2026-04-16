@@ -85,6 +85,7 @@ struct HomeView: View {
         .navigationBarTitleDisplayMode(.inline)
         .searchable(
             text: $searchText,
+            isPresented: $isSearchingActive,
             placement: .navigationBarDrawer(displayMode: .always),
             prompt: searchScope == .cards ? "Search cards" : "Search decks (e.g. Affinity)"
         )
@@ -101,8 +102,12 @@ struct HomeView: View {
             // results section reflects the current query.
             await performSearch()
         }
-        .onChange(of: searchText) { _, newValue in
-            isSearchingActive = !newValue.trimmingCharacters(in: .whitespaces).isEmpty
+        .onChange(of: isSearchingActive) { _, isActive in
+            if !isActive {
+                searchText = ""
+                searchResults = []
+                archetypeResults = []
+            }
         }
         .onAppear {
             reload()
