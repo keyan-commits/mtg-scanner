@@ -10,7 +10,16 @@ struct ImportDecklistSheet: View {
     let deck: DeckList
     let deckRepository: DeckListRepository
     let cardRepository: CardRepositoryProtocol
+    let defaultZone: String
     let onDone: () -> Void
+
+    init(deck: DeckList, deckRepository: DeckListRepository, cardRepository: CardRepositoryProtocol, defaultZone: String = "mainboard", onDone: @escaping () -> Void) {
+        self.deck = deck
+        self.deckRepository = deckRepository
+        self.cardRepository = cardRepository
+        self.defaultZone = defaultZone
+        self.onDone = onDone
+    }
 
     /// A wrong-set line that the user can resolve by picking a printing.
     struct WrongSetEntry: Identifiable {
@@ -238,7 +247,7 @@ struct ImportDecklistSheet: View {
         var added = 0
         var notFound: [String] = []
         var wrongSet: [WrongSetEntry] = []
-        var currentZone = "mainboard"
+        var currentZone = defaultZone
 
         for raw in lines {
             let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)

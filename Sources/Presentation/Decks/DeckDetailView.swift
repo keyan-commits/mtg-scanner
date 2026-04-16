@@ -12,6 +12,7 @@ struct DeckDetailView: View {
     @State private var items: [PurchaseItem] = []
     @State private var markOrderedItem: PurchaseItem?
     @State private var showImportSheet: Bool = false
+    @State private var showImportSideboardSheet: Bool = false
     @State private var showAddCardSheet: Bool = false
     @State private var showBulkOrderSheet: Bool = false
     @State private var changePrintingItem: PurchaseItem?
@@ -146,6 +147,12 @@ struct DeckDetailView: View {
                     if cardRepository != nil {
                         Menu {
                             Button {
+                                showImportSideboardSheet = true
+                            } label: {
+                                Label("Import Sideboard", systemImage: "square.and.arrow.down")
+                            }
+
+                            Button {
                                 suggestSideboard()
                             } label: {
                                 Label("Suggest Sideboard", systemImage: "arrow.right.square")
@@ -206,6 +213,17 @@ struct DeckDetailView: View {
                     deck: deck,
                     deckRepository: repository,
                     cardRepository: cardRepository,
+                    onDone: { reload() }
+                )
+            }
+        }
+        .sheet(isPresented: $showImportSideboardSheet) {
+            if let cardRepository {
+                ImportDecklistSheet(
+                    deck: deck,
+                    deckRepository: repository,
+                    cardRepository: cardRepository,
+                    defaultZone: "sideboard",
                     onDone: { reload() }
                 )
             }
