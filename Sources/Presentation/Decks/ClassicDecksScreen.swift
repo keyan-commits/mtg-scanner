@@ -12,7 +12,7 @@ struct ClassicDecksScreen: View {
     @State private var searchText: String = ""
     @State private var formatFilter: String? = nil
     @State private var sortMode: SortMode = .era
-    @State private var ownedCardNames: [String] = []
+    @State private var ownedQuantities: [String: Int] = [:]
     @State private var matchScores: [String: Double] = [:] // archetype.id → 0..1
     @State private var didLoadCollection: Bool = false
 
@@ -240,30 +240,25 @@ struct ClassicDecksScreen: View {
         }
     }
 
-    /// Loads the user's owned cards from every deck (any status, including
-    /// `.needed` since adding to a wishlist counts as "owning the card name
-    /// for matching purposes") and computes match scores against every
-    /// archetype.
+    /// Loads the user's collection via `ownedQuantitiesByName()` and computes
+    /// match scores against every archetype (sum-of-mins similarity).
     private func loadCollectionScores() async {
-        guard let allItems = try? deckRepository.fetchAllItems() else {
-            ownedCardNames = []
-            return
+        let quantities = (try? deckRepository.ownedQuantitiesByName()) ?? [:]
+        ownedQuantities = quantities
+
+        // Build a lowercased lookup for case-insensitive matching
+        var lowered: [String: Int] = [:]
+        for (name, qty) in quantities {
+            lowered[name.lowercased(), default: 0] += qty
         }
-        let names = allItems.map { $0.cardName }
-        ownedCardNames = names
+
         var scores: [String: Double] = [:]
         for archetype in ClassicArchetypes.all {
-            // Reuse the same sum-of-mins similarity from ArchetypeMatcher
-            // but score every archetype, not just the best.
-            var counts: [String: Int] = [:]
-            for name in names {
-                counts[name.lowercased(), default: 0] += 1
-            }
             var matched = 0
             var total = 0
             for (cardName, qty) in archetype.mainboard {
                 total += qty
-                let userQty = counts[cardName.lowercased(), default: 0]
+                let userQty = lowered[cardName.lowercased(), default: 0]
                 matched += min(userQty, qty)
             }
             scores[archetype.id] = total > 0 ? Double(matched) / Double(total) : 0

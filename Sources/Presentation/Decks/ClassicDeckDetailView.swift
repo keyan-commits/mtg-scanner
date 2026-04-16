@@ -22,6 +22,7 @@ struct ClassicDeckDetailView: View {
     @State private var savedDeckID: UUID?
     @State private var saveError: String?
     @State private var viewMode: ViewMode = .list
+    @State private var ownedQuantities: [String: Int] = [:]
     @Bindable private var currencyService = CurrencyService.shared
 
     private enum ViewMode: String, CaseIterable, Hashable {
@@ -97,6 +98,7 @@ struct ClassicDeckDetailView: View {
             }
         }
         .task {
+            ownedQuantities = (try? deckRepository.ownedQuantitiesByName()) ?? [:]
             await resolveCards()
         }
     }
@@ -119,6 +121,12 @@ struct ClassicDeckDetailView: View {
                 headerCard
                     .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
                     .listRowBackground(Color.clear)
+            }
+
+            if !ownedQuantities.isEmpty {
+                Section {
+                    collectionSummary
+                }
             }
 
             if isLoading {
@@ -173,6 +181,11 @@ struct ClassicDeckDetailView: View {
                 headerCard
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
+
+                if !ownedQuantities.isEmpty {
+                    collectionSummary
+                        .padding(.horizontal, 16)
+                }
 
                 if isLoading {
                     HStack {
@@ -329,6 +342,30 @@ struct ClassicDeckDetailView: View {
         }
     }
 
+    // MARK: - Collection summary
+
+    private var collectionSummary: some View {
+        let totalNeeded = archetype.mainboard.values.reduce(0, +)
+        let totalOwned = archetype.mainboard.reduce(0) { sum, entry in
+            sum + min(entry.value, ownedQuantities[entry.key] ?? 0)
+        }
+        let percentage = totalNeeded > 0 ? Double(totalOwned) / Double(totalNeeded) * 100 : 0
+
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Image(systemName: "rectangle.stack")
+                    .foregroundStyle(MD3Theme.primary)
+                Text("You own \(totalOwned)/\(totalNeeded) mainboard cards (\(Int(round(percentage)))%)")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(MD3Theme.onSurface)
+                Spacer()
+            }
+            ProgressView(value: percentage, total: 100)
+                .tint(percentage >= 70 ? .green : percentage >= 40 ? .orange : .gray)
+        }
+        .padding(.vertical, 4)
+    }
+
     // MARK: - Card sections
 
     @ViewBuilder
@@ -393,6 +430,16 @@ struct ClassicDeckDetailView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(MD3Theme.primary)
                     .monospacedDigit()
+            }
+            let owned = ownedQuantities[item.card.name] ?? 0
+            if owned >= item.quantity {
+                Text("✓ \(owned)")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.green)
+            } else if owned > 0 {
+                Text("\(owned)/\(item.quantity)")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.orange)
             }
         }
         .padding(.vertical, 4)
