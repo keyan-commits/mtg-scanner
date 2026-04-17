@@ -329,7 +329,13 @@ final class ImageSplitterViewModel {
             }
             log += "CJK: \(hasCJK)\(hasCJK ? " [\(cjkSample)]" : "")\n"
 
-            let card = await pipeline.identify(cgImage: cardImage)
+            // Try proven OCR flow first (works for high-quality single card photos)
+            var card = await pipeline.identify(cgImage: cardImage)
+            // Fall back to visual search (works for binder pages, sleeves, low-res crops)
+            if card == nil {
+                log += "OCR flow: nil, trying visual search...\n"
+                card = await pipeline.identifyCropped(cardImage: cardImage, visualOnly: false)
+            }
             if let card {
                 identifiedCards[index] = card
                 log += "Result: \(card.name) [\(card.set.code)] #\(card.collectorNumber)"

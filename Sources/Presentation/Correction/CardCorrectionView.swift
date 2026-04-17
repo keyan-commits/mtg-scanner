@@ -24,6 +24,7 @@ struct CardCorrectionView: View {
     @State private var isSearching = false
     @State private var searchTask: Task<Void, Never>?
     @State private var didAutoLoad = false
+    @State private var setFilterText = ""
 
     var body: some View {
         NavigationStack {
@@ -193,12 +194,22 @@ struct CardCorrectionView: View {
 
     // MARK: - Printings List
 
+    private var filteredPrintings: [Card] {
+        guard !setFilterText.isEmpty else { return printings }
+        let query = setFilterText.lowercased()
+        return printings.filter { card in
+            card.set.name.lowercased().contains(query) ||
+            card.set.code.lowercased().contains(query)
+        }
+    }
+
     private func printingsList(for cardName: String) -> some View {
         VStack(spacing: 0) {
             // Back button
             Button {
                 selectedCardName = nil
                 printings = []
+                setFilterText = ""
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "chevron.left")
@@ -216,20 +227,55 @@ struct CardCorrectionView: View {
             Divider()
                 .padding(.leading, 16)
 
-            Text(cardName)
-                .font(MD3Typography.titleMedium)
-                .foregroundStyle(MD3Theme.onSurface)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack {
+                Text(cardName)
+                    .font(MD3Typography.titleMedium)
+                    .foregroundStyle(MD3Theme.onSurface)
+                Spacer()
+                Text("\(filteredPrintings.count) printings")
+                    .font(MD3Typography.labelSmall)
+                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+
+            // Set filter field
+            if printings.count > 10 {
+                HStack(spacing: 8) {
+                    Image(systemName: "line.3.horizontal.decrease")
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                        .font(.caption)
+                    TextField("Filter by set name or code...", text: $setFilterText)
+                        .font(MD3Typography.bodySmall)
+                        .foregroundStyle(MD3Theme.onSurface)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                    if !setFilterText.isEmpty {
+                        Button {
+                            setFilterText = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(MD3Theme.onSurfaceVariant)
+                                .font(.caption)
+                        }
+                    }
+                }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
+                .background(MD3Theme.surfaceVariant.opacity(0.5))
+
+                Divider()
+                    .padding(.leading, 16)
+            }
 
             if printings.isEmpty {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
+                let displayed = filteredPrintings
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(printings) { card in
+                        ForEach(displayed) { card in
                             Button {
                                 onCorrection(card)
                                 dismiss()
@@ -269,13 +315,18 @@ struct CardCorrectionView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(card.set.name)
-                    .font(MD3Typography.bodyMedium)
+                    .font(MD3Typography.titleSmall)
                     .foregroundStyle(MD3Theme.onSurface)
                     .lineLimit(1)
 
-                Text("#\(card.collectorNumber)")
-                    .font(MD3Typography.bodySmall)
-                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+                HStack(spacing: 6) {
+                    Text(card.set.code.uppercased())
+                        .font(MD3Typography.labelSmall)
+                        .foregroundStyle(MD3Theme.primary)
+                    Text("#\(card.collectorNumber)")
+                        .font(MD3Typography.bodySmall)
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                }
             }
 
             Spacer()
