@@ -14,6 +14,19 @@ struct LandCategory: Identifiable, Sendable {
     /// Every card name in this category. Names must match the local
     /// Scryfall DB (English canonical names).
     let cardNames: [String]
+    /// When non-empty, only show printings from these Scryfall set codes.
+    /// Used by collectible land categories (Guru, APAC, Euro, etc.) so
+    /// "Plains" resolves to the correct premium printing, not a generic one.
+    let setCodes: [String]
+
+    init(id: String, name: String, iconName: String, description: String, cardNames: [String], setCodes: [String] = []) {
+        self.id = id
+        self.name = name
+        self.iconName = iconName
+        self.description = description
+        self.cardNames = cardNames
+        self.setCodes = setCodes
+    }
 }
 
 // MARK: - All land categories

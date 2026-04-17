@@ -96,8 +96,11 @@ struct LandCategoryDetailView: View {
     @State private var viewMode: ViewMode = .list
     @State private var resolvedCards: [String: Card] = [:]
     @State private var sortByPrice: Bool = false
-    /// Owned quantities from the user's collection, keyed by card name.
-    @State private var ownedQuantities: [String: Int] = [:]
+    /// Owned quantities from the user's collection, keyed by card name (any printing).
+    @State private var ownedByName: [String: Int] = [:]
+    /// Per-printing ownership data: [cardName: [(setCode, quantity)]].
+    /// Used when the category has setCodes to distinguish exact vs different-expansion ownership.
+    @State private var ownedDetails: [String: [(setCode: String, quantity: Int)]] = [:]
 
     private enum ViewMode: String, CaseIterable, Hashable {
         case list, grid
@@ -146,7 +149,10 @@ struct LandCategoryDetailView: View {
             }
         }
         .onAppear {
-            ownedQuantities = (try? deckRepository.ownedQuantitiesByName()) ?? [:]
+            ownedByName = (try? deckRepository.ownedQuantitiesByName()) ?? [:]
+            if !category.setCodes.isEmpty {
+                ownedDetails = (try? deckRepository.ownedDetailsByName()) ?? [:]
+            }
         }
     }
 
@@ -183,18 +189,51 @@ struct LandCategoryDetailView: View {
         .listStyle(.insetGrouped)
     }
 
+    /// Ownership status for a card in a set-aware category.
+    private enum OwnershipStatus {
+        case exactMatch(Int)       // Owns this exact printing
+        case differentSet(Int)     // Owns the card but in a different set
+        case notOwned
+    }
+
+    /// Determines ownership status for a card name, considering set codes if available.
+    private func ownershipStatus(for name: String) -> OwnershipStatus {
+        if category.setCodes.isEmpty {
+            // No set filtering — any printing counts (legacy behavior)
+            let owned = ownedByName[name] ?? 0
+            return owned > 0 ? .exactMatch(owned) : .notOwned
+        }
+        // Set-aware: check if user owns a printing from the category's set codes
+        let details = ownedDetails[name] ?? []
+        let exactQty = details
+            .filter { category.setCodes.contains($0.setCode) }
+            .reduce(0) { $0 + $1.quantity }
+        if exactQty > 0 { return .exactMatch(exactQty) }
+        let anyQty = ownedByName[name] ?? 0
+        if anyQty > 0 { return .differentSet(anyQty) }
+        return .notOwned
+    }
+
     private func listRow(name: String, card: Card?) -> some View {
-        HStack(spacing: 12) {
+        let status = ownershipStatus(for: name)
+        return HStack(spacing: 12) {
             // Owned quantity badge
-            let owned = ownedQuantities[name] ?? 0
-            if owned > 0 {
-                Text("\(owned)")
+            switch status {
+            case .exactMatch(let qty):
+                Text("\(qty)")
                     .font(.system(size: 11, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .frame(width: 22, height: 22)
                     .background(.green)
                     .clipShape(Circle())
-            } else {
+            case .differentSet(let qty):
+                Text("\(qty)")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .frame(width: 22, height: 22)
+                    .background(.orange)
+                    .clipShape(Circle())
+            case .notOwned:
                 Circle()
                     .stroke(MD3Theme.outlineVariant, lineWidth: 1)
                     .frame(width: 22, height: 22)
@@ -214,10 +253,17 @@ struct LandCategoryDetailView: View {
                         ManaCostView(cost: manaCost, size: 12)
                     }
                 }
-                if let card {
-                    Text(card.setNameWithYear)
-                        .font(.caption2)
-                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                HStack(spacing: 4) {
+                    if let card {
+                        Text(card.setNameWithYear)
+                            .font(.caption2)
+                            .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    }
+                    if case .differentSet = status {
+                        Text("(owned in different set)")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.orange)
+                    }
                 }
             }
             Spacer(minLength: 8)
@@ -289,7 +335,7 @@ struct LandCategoryDetailView: View {
     }
 
     private func gridCardLabel(name: String, card: Card?) -> some View {
-        let owned = ownedQuantities[name] ?? 0
+        let status = ownershipStatus(for: name)
         return VStack(spacing: 4) {
             ZStack(alignment: .topTrailing) {
                 if let card,
@@ -311,14 +357,25 @@ struct LandCategoryDetailView: View {
                     gridPlaceholder(name)
                 }
                 // Owned badge
-                if owned > 0 {
-                    Text("\(owned)")
+                switch status {
+                case .exactMatch(let qty):
+                    Text("\(qty)")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(.white)
                         .padding(4)
                         .background(.green)
                         .clipShape(Circle())
                         .offset(x: 4, y: -4)
+                case .differentSet(let qty):
+                    Text("\(qty)")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(4)
+                        .background(.orange)
+                        .clipShape(Circle())
+                        .offset(x: 4, y: -4)
+                case .notOwned:
+                    EmptyView()
                 }
             }
             Text(name)
@@ -346,6 +403,19 @@ struct LandCategoryDetailView: View {
 
     private func resolve(name: String) async {
         guard resolvedCards[name] == nil else { return }
+
+        // When the category specifies set codes, find a printing from those sets
+        if !category.setCodes.isEmpty {
+            if let printings = try? await cardRepository.findAllPrintings(name: name) {
+                let filtered = printings.filter { category.setCodes.contains($0.set.code) }
+                if let card = filtered.first {
+                    resolvedCards[name] = card
+                    return
+                }
+            }
+        }
+
+        // Fallback: standard resolution via CardResolver
         let resolver = CardResolver(cardRepository: cardRepository)
         if let card = await resolver.resolve(name: name) {
             resolvedCards[name] = card

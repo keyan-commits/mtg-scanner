@@ -40,7 +40,8 @@ enum CollectibleLands {
             "Swamp",
             "Mountain",
             "Forest",
-        ]
+        ],
+        setCodes: ["pgru"]
     )
 
     // MARK: - APAC Lands
@@ -56,7 +57,8 @@ enum CollectibleLands {
             "Swamp",
             "Mountain",
             "Forest",
-        ]
+        ],
+        setCodes: ["palp"]
     )
 
     // MARK: - Euro Lands
@@ -72,7 +74,8 @@ enum CollectibleLands {
             "Swamp",
             "Mountain",
             "Forest",
-        ]
+        ],
+        setCodes: ["pelp"]
     )
 
     // MARK: - Arena Promo Lands
@@ -88,7 +91,8 @@ enum CollectibleLands {
             "Swamp",
             "Mountain",
             "Forest",
-        ]
+        ],
+        setCodes: ["pal99", "pal00", "pal01", "pal02", "pal03", "pal04", "pal05", "pal06", "parl"]
     )
 
     // MARK: - Un-Set Full-Art Lands
@@ -104,7 +108,8 @@ enum CollectibleLands {
             "Swamp",
             "Mountain",
             "Forest",
-        ]
+        ],
+        setCodes: ["ugl", "unh", "ust"]
     )
 
     // MARK: - Zendikar Full-Art Lands
@@ -120,7 +125,8 @@ enum CollectibleLands {
             "Swamp",
             "Mountain",
             "Forest",
-        ]
+        ],
+        setCodes: ["zen"]
     )
 
     // MARK: - Snow-Covered Lands
@@ -176,7 +182,8 @@ enum CollectibleLands {
             "Swamp",
             "Mountain",
             "Forest",
-        ]
+        ],
+        setCodes: ["lea", "leb"]
     )
 
     // MARK: - Zendikar Expeditions (BFZ)
@@ -212,7 +219,8 @@ enum CollectibleLands {
             "Verdant Catacombs",
             "Arid Mesa",
             "Misty Rainforest",
-        ]
+        ],
+        setCodes: ["exp"]
     )
 
     // MARK: - Zendikar Expeditions (OGW)
@@ -243,7 +251,8 @@ enum CollectibleLands {
             "Twilight Mire",
             "Wasteland",
             "Wooded Bastion",
-        ]
+        ],
+        setCodes: ["exp"]
     )
 
     // MARK: - Zendikar Rising Expeditions
@@ -284,7 +293,8 @@ enum CollectibleLands {
             "Sejiri Steppe",
             "Jwari Ruins",
             "Emeria, the Sky Ruin",
-        ]
+        ],
+        setCodes: ["zne"]
     )
 
     // MARK: - Secret Lair Lands
@@ -300,7 +310,8 @@ enum CollectibleLands {
             "Swamp",
             "Mountain",
             "Forest",
-        ]
+        ],
+        setCodes: ["sld", "slu", "slc"]
     )
 
     // MARK: - Judge Promo Lands
@@ -316,7 +327,8 @@ enum CollectibleLands {
             "Swamp",
             "Mountain",
             "Forest",
-        ]
+        ],
+        setCodes: ["jgp", "g99", "g00", "g01", "g02", "g03", "g04", "g05", "g06", "g07", "g08", "g09", "g10", "g11", "j12", "j13", "j14", "j15", "j16", "j17", "j18", "j19", "j20", "pj21", "p22", "p23"]
     )
 
     // MARK: - Iconic Reserved List Lands
