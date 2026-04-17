@@ -14,6 +14,7 @@ struct CardDetailView: View {
 
     @State private var showCorrection = false
     @State private var otherPrintings: [Card] = []
+    @State private var isFirstPrint: Bool = false
     @State private var showAllPrintings = false
     @State private var showAddToDeck = false
     @State private var showAddToCollection = false
@@ -232,6 +233,16 @@ struct CardDetailView: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
                         .background(MD3Theme.tertiaryContainer)
+                        .clipShape(Capsule())
+                }
+
+                if isFirstPrint {
+                    Text("First Print")
+                        .font(MD3Typography.labelMedium)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(Color.blue)
                         .clipShape(Capsule())
                 }
             }
@@ -802,6 +813,12 @@ struct CardDetailView: View {
             // is the Scryfall printing ID, so this is now stable across
             // separate fetches.
             otherPrintings = all.filter { $0 != viewModel.card }
+
+            // Determine if this is the first print (earliest release date)
+            let earliest = all.min { a, b in
+                (a.releasedAt ?? "9999") < (b.releasedAt ?? "9999")
+            }
+            isFirstPrint = earliest?.scryfallID == viewModel.card.scryfallID
         } catch {
             otherPrintings = []
         }
