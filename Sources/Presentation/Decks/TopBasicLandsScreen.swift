@@ -9,7 +9,7 @@ struct TopBasicLandsScreen: View {
     @State private var topCards: [Card] = []
     @State private var isLoading = true
     @State private var viewMode: ViewMode = .list
-    @State private var ownedQuantities: [String: Int] = [:]
+    @State private var ownedByScryfallID: [String: Int] = [:]
 
     private enum ViewMode: String, CaseIterable, Hashable {
         case list, grid
@@ -87,7 +87,7 @@ struct TopBasicLandsScreen: View {
                 .background(rankColor(rank))
                 .clipShape(Circle())
 
-            let owned = ownedQuantities[card.name] ?? 0
+            let owned = ownedByScryfallID[card.scryfallID] ?? 0
             if owned > 0 {
                 Text("\(owned)")
                     .font(.system(size: 10, weight: .bold, design: .rounded))
@@ -153,7 +153,7 @@ struct TopBasicLandsScreen: View {
     }
 
     private func gridCard(rank: Int, card: Card) -> some View {
-        let owned = ownedQuantities[card.name] ?? 0
+        let owned = ownedByScryfallID[card.scryfallID] ?? 0
         return VStack(spacing: 4) {
             ZStack(alignment: .topLeading) {
                 if let urlString = card.imageURIs["normal"]
@@ -229,7 +229,7 @@ struct TopBasicLandsScreen: View {
             }
             .prefix(100)
             .map { $0 }
-        ownedQuantities = (try? deckRepository.ownedQuantitiesByName()) ?? [:]
+        ownedByScryfallID = (try? deckRepository.ownedQuantitiesByScryfallID()) ?? [:]
         isLoading = false
     }
 }
