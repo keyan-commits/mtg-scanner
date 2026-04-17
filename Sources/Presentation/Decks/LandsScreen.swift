@@ -49,6 +49,11 @@ struct LandsScreen: View {
                     categoryRow(category, in: SecretLairLands.all)
                 }
             }
+            Section("Reserved List") {
+                ForEach(ReservedList.all) { category in
+                    categoryRow(category, in: ReservedList.all)
+                }
+            }
             Section("cEDH Staples") {
                 ForEach(CEDHStaples.all) { category in
                     categoryRow(category, in: CEDHStaples.all)

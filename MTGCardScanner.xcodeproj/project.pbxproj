@@ -86,6 +86,7 @@
 		F8B2C3D4E5F6A7B8C9D0E1F2 /* MTGCardDetector.mlmodel in Resources */ = {isa = PBXBuildFile; fileRef = E7A1B2C3D4E5F6A7B8C9D0E1 /* MTGCardDetector.mlmodel */; };
 		5F8277E3A61FDE805C7322DB /* CEDHStaples.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB4EAD2959D53FFF4EC2D7D9 /* CEDHStaples.swift */; };
 		SEC1A1RLAND5BU11DF11E001 /* SecretLairLands.swift in Sources */ = {isa = PBXBuildFile; fileRef = SEC1A1RLAND5F11EREF00001 /* SecretLairLands.swift */; };
+		RE5ERVEDL15TBUILD000001 /* ReservedList.swift in Sources */ = {isa = PBXBuildFile; fileRef = RE5ERVEDL15TF1LEREF0001 /* ReservedList.swift */; };
 		60D4482EF0D3D486972AE0AD /* OrderPasteParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B788E1E30E440FE89F04FF36 /* OrderPasteParser.swift */; };
 		643DDF5C1576B3E3F4C696FB /* DeckGridOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C775E7AACC0161BF1488ECD0 /* DeckGridOverlayView.swift */; };
 		648DD482C451B4DE5E5DBA80 /* CardPrice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C4BF2A8C53CC29CF57DDF17 /* CardPrice.swift */; };
@@ -366,6 +367,7 @@
 		CB28C4F3FB99DC762E4E5AEC /* ArchetypeDecksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchetypeDecksView.swift; sourceTree = "<group>"; };
 		CB4EAD2959D53FFF4EC2D7D9 /* CEDHStaples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CEDHStaples.swift; sourceTree = "<group>"; };
 		SEC1A1RLAND5F11EREF00001 /* SecretLairLands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecretLairLands.swift; sourceTree = "<group>"; };
+		RE5ERVEDL15TF1LEREF0001 /* ReservedList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReservedList.swift; sourceTree = "<group>"; };
 		CD9ED87F3DB0E99B27C7BA5E /* LocalCardRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalCardRepositoryTests.swift; sourceTree = "<group>"; };
 		CDA7ED65F448985D0D0A6A41 /* AppIconManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconManager.swift; sourceTree = "<group>"; };
 		CE4224778C2E7462B40F6D98 /* AppIcon-U@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-U@2x.png"; sourceTree = "<group>"; };
@@ -474,6 +476,7 @@
 				C0LLEC71B1E5000000000002 /* CollectibleLands.swift */,
 				4A9AC5520A03343B21F97ECF /* LandLists.swift */,
 				E14F96F1F692C3A787E1C3D2 /* MajorArchetypes.swift */,
+				RE5ERVEDL15TF1LEREF0001 /* ReservedList.swift */,
 				SEC1A1RLAND5F11EREF00001 /* SecretLairLands.swift */,
 				5B0A1234SIDEBOARD000002 /* SideboardGuide.swift */,
 			);
@@ -1012,6 +1015,7 @@
 				D45133C3373E37CD5435D45A /* BulkDataDownloader.swift in Sources */,
 				5F8277E3A61FDE805C7322DB /* CEDHStaples.swift in Sources */,
 				SEC1A1RLAND5BU11DF11E001 /* SecretLairLands.swift in Sources */,
+				RE5ERVEDL15TBUILD000001 /* ReservedList.swift in Sources */,
 				5B0A1234SIDEBOARD000001 /* SideboardGuide.swift in Sources */,
 				3663DA845B59B3F754973C3E /* CameraManager.swift in Sources */,
 				F80154E1D152299F367ACC4B /* CameraPreviewView.swift in Sources */,
