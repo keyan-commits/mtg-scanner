@@ -564,12 +564,12 @@ final class DeckListRepository {
     /// Returns per-printing ownership data grouped by card name.
     /// Each entry maps a card name to an array of (setCode, quantity) pairs.
     /// Used by collectible land lists that need set-aware collection matching.
-    func ownedDetailsByName() throws -> [String: [(setCode: String, quantity: Int)]] {
+    func ownedDetailsByName() throws -> [String: [(setCode: String, setName: String, quantity: Int)]] {
         let descriptor = FetchDescriptor<CollectionItem>()
         let items = try context.fetch(descriptor)
-        var result: [String: [(setCode: String, quantity: Int)]] = [:]
+        var result: [String: [(setCode: String, setName: String, quantity: Int)]] = [:]
         for item in items {
-            result[item.cardName, default: []].append((setCode: item.setCode, quantity: item.quantity))
+            result[item.cardName, default: []].append((setCode: item.setCode, setName: item.setName, quantity: item.quantity))
         }
         return result
     }

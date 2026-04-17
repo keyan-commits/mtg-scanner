@@ -98,9 +98,8 @@ struct LandCategoryDetailView: View {
     @State private var sortByPrice: Bool = false
     /// Owned quantities from the user's collection, keyed by card name (any printing).
     @State private var ownedByName: [String: Int] = [:]
-    /// Per-printing ownership data: [cardName: [(setCode, quantity)]].
-    /// Used when the category has setCodes to distinguish exact vs different-expansion ownership.
-    @State private var ownedDetails: [String: [(setCode: String, quantity: Int)]] = [:]
+    /// Per-printing ownership data: [cardName: [(setCode, setName, quantity)]].
+    @State private var ownedDetails: [String: [(setCode: String, setName: String, quantity: Int)]] = [:]
 
     private enum ViewMode: String, CaseIterable, Hashable {
         case list, grid
@@ -150,9 +149,7 @@ struct LandCategoryDetailView: View {
         }
         .onAppear {
             ownedByName = (try? deckRepository.ownedQuantitiesByName()) ?? [:]
-            if !category.setCodes.isEmpty {
-                ownedDetails = (try? deckRepository.ownedDetailsByName()) ?? [:]
-            }
+            ownedDetails = (try? deckRepository.ownedDetailsByName()) ?? [:]
         }
     }
 
@@ -189,33 +186,47 @@ struct LandCategoryDetailView: View {
         .listStyle(.insetGrouped)
     }
 
-    /// Ownership status for a card in a set-aware category.
+    /// Ownership status for a card in a category.
     private enum OwnershipStatus {
-        case exactMatch(Int)       // Owns this exact printing
-        case differentSet(Int)     // Owns the card but in a different set
+        case exactMatch(Int)       // Owns this exact printing (or any printing for normal lists)
+        case differentSet([(setName: String, quantity: Int)])  // Normal lists: owns in other expansion(s)
         case notOwned
     }
 
     /// Determines ownership status for a card name, considering set codes if available.
-    private func ownershipStatus(for name: String) -> OwnershipStatus {
-        if category.setCodes.isEmpty {
-            // No set filtering — any printing counts (legacy behavior)
-            let owned = ownedByName[name] ?? 0
-            return owned > 0 ? .exactMatch(owned) : .notOwned
-        }
-        // Set-aware: check if user owns a printing from the category's set codes
+    private func ownershipStatus(for name: String, resolvedCard: Card? = nil) -> OwnershipStatus {
         let details = ownedDetails[name] ?? []
-        let exactQty = details
-            .filter { category.setCodes.contains($0.setCode) }
-            .reduce(0) { $0 + $1.quantity }
-        if exactQty > 0 { return .exactMatch(exactQty) }
-        let anyQty = ownedByName[name] ?? 0
-        if anyQty > 0 { return .differentSet(anyQty) }
-        return .notOwned
+
+        if !category.setCodes.isEmpty {
+            // Collectible lands: ONLY count exact set match
+            let exactQty = details
+                .filter { category.setCodes.contains($0.setCode) }
+                .reduce(0) { $0 + $1.quantity }
+            return exactQty > 0 ? .exactMatch(exactQty) : .notOwned
+        }
+
+        // Normal lists: check if owned in the resolved card's set
+        let totalOwned = ownedByName[name] ?? 0
+        guard totalOwned > 0 else { return .notOwned }
+
+        if let card = resolvedCard {
+            // Check if any owned copy matches the resolved card's set
+            let matchingQty = details
+                .filter { $0.setCode == card.set.code }
+                .reduce(0) { $0 + $1.quantity }
+            if matchingQty > 0 { return .exactMatch(matchingQty) }
+
+            // Owned but in different set(s) — return which ones
+            let setDetails = details.map { (setName: $0.setName, quantity: $0.quantity) }
+            return .differentSet(setDetails)
+        }
+
+        // No resolved card yet — show total
+        return .exactMatch(totalOwned)
     }
 
     private func listRow(name: String, card: Card?) -> some View {
-        let status = ownershipStatus(for: name)
+        let status = ownershipStatus(for: name, resolvedCard: card)
         return HStack(spacing: 12) {
             // Owned quantity badge
             switch status {
@@ -226,9 +237,9 @@ struct LandCategoryDetailView: View {
                     .frame(width: 22, height: 22)
                     .background(.green)
                     .clipShape(Circle())
-            case .differentSet(let qty):
-                Text("\(qty)")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+            case .differentSet:
+                Image(systemName: "arrow.triangle.swap")
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(.white)
                     .frame(width: 22, height: 22)
                     .background(.orange)
@@ -253,17 +264,17 @@ struct LandCategoryDetailView: View {
                         ManaCostView(cost: manaCost, size: 12)
                     }
                 }
-                HStack(spacing: 4) {
-                    if let card {
-                        Text(card.setNameWithYear)
-                            .font(.caption2)
-                            .foregroundStyle(MD3Theme.onSurfaceVariant)
-                    }
-                    if case .differentSet = status {
-                        Text("(owned in different set)")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.orange)
-                    }
+                if let card {
+                    Text(card.setNameWithYear)
+                        .font(.caption2)
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                }
+                if case .differentSet(let sets) = status {
+                    let summary = sets.map { "\($0.quantity)x \($0.setName)" }.joined(separator: ", ")
+                    Text("Owned: \(summary)")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.orange)
+                        .lineLimit(2)
                 }
             }
             Spacer(minLength: 8)
@@ -335,7 +346,7 @@ struct LandCategoryDetailView: View {
     }
 
     private func gridCardLabel(name: String, card: Card?) -> some View {
-        let status = ownershipStatus(for: name)
+        let status = ownershipStatus(for: name, resolvedCard: card)
         return VStack(spacing: 4) {
             ZStack(alignment: .topTrailing) {
                 if let card,
@@ -366,11 +377,11 @@ struct LandCategoryDetailView: View {
                         .background(.green)
                         .clipShape(Circle())
                         .offset(x: 4, y: -4)
-                case .differentSet(let qty):
-                    Text("\(qty)")
-                        .font(.system(size: 10, weight: .bold))
+                case .differentSet:
+                    Image(systemName: "arrow.triangle.swap")
+                        .font(.system(size: 8, weight: .bold))
                         .foregroundStyle(.white)
-                        .padding(4)
+                        .frame(width: 20, height: 20)
                         .background(.orange)
                         .clipShape(Circle())
                         .offset(x: 4, y: -4)
