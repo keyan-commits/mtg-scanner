@@ -342,8 +342,9 @@ final class ImageSplitterViewModel {
         }
 
         // Cross-match: compare unidentified cards against identified ones.
-        // If a card wasn't identified (e.g., foreign language) but its art
-        // matches an already-identified card, it's the same card.
+        // Only matches cards that are TRULY the same (e.g., foreign language version).
+        // OCR cross-validation prevents mismatches (e.g., "Swamp" labeled as "Bayou"
+        // because old-frame cards look similar via VNFeaturePrint).
         let unidentifiedIndices = indices.filter { identifiedCards[$0] == nil }
         if !unidentifiedIndices.isEmpty && !identifiedCards.isEmpty {
             let matcher = ImageMatcher()
@@ -351,11 +352,24 @@ final class ImageSplitterViewModel {
                 guard unidIndex < detectedCards.count else { continue }
                 let unidImage = detectedCards[unidIndex].image
 
+                // Quick OCR check: try to read the card name from the unidentified crop
+                let ocrName = await quickOCRCardName(from: unidImage)
+
                 var bestMatch: Card?
                 var bestDist: Float = .greatestFiniteMagnitude
 
                 for (idIndex, card) in identifiedCards {
                     guard idIndex < detectedCards.count else { continue }
+
+                    // If OCR read a name and it doesn't match the candidate, skip
+                    if let name = ocrName, !name.isEmpty {
+                        let ocrLower = name.lowercased()
+                        let cardLower = card.name.lowercased()
+                        if !cardLower.contains(ocrLower) && !ocrLower.contains(cardLower) {
+                            continue
+                        }
+                    }
+
                     let idImage = detectedCards[idIndex].image
                     guard let dist = await matcher.distance(between: unidImage, and: idImage) else { continue }
                     if dist < bestDist {
@@ -364,11 +378,10 @@ final class ImageSplitterViewModel {
                     }
                 }
 
-                // If an unidentified card visually matches an identified one (dist < 8),
-                // it's the same card (likely different language version).
-                // Threshold 8 is strict: identical art in different languages scores < 5,
-                // while different cards with similar style (e.g., two Slivers) score 10-15.
-                if let match = bestMatch, bestDist < 8.0 {
+                // Threshold 5.0: very strict. Only truly identical cards match.
+                // Old-frame cards from the same set can score 6-10 despite being
+                // completely different cards (same frame, border, layout).
+                if let match = bestMatch, bestDist < 5.0 {
                     identifiedCards[unidIndex] = match
                     debugLogs[unidIndex] = (debugLogs[unidIndex] ?? "") + "\nCross-match: \(match.name) (dist: \(String(format: "%.1f", bestDist)))"
                     print("[ImageSplitter] Cross-matched unidentified card \(unidIndex) → \(match.name) (dist: \(bestDist))")
@@ -390,6 +403,38 @@ final class ImageSplitterViewModel {
 
         isIdentifying = false
         identifyingProgress = nil
+    }
+
+    // MARK: - Quick OCR
+
+    /// Fast OCR pass to read the card name from a crop image.
+    /// Used by cross-match to prevent mismatches (e.g., "Swamp" → "Bayou").
+    private func quickOCRCardName(from image: CGImage) async -> String? {
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .fast
+        request.recognitionLanguages = ["en-US"]
+        request.minimumTextHeight = 0.02
+
+        let handler = VNImageRequestHandler(cgImage: image, options: [:])
+        do { try handler.perform([request]) } catch { return nil }
+
+        // The card name is typically the TOPMOST text line
+        guard let results = request.results, !results.isEmpty else { return nil }
+
+        // Sort by Y position (Vision coords: y=0 bottom, y=1 top) — highest Y = topmost
+        let sorted = results.compactMap { obs -> (String, CGFloat)? in
+            guard let text = obs.topCandidates(1).first?.string else { return nil }
+            return (text, obs.boundingBox.maxY)
+        }.sorted { $0.1 > $1.1 }
+
+        // Return the topmost text that looks like a card name (2+ chars, not just numbers)
+        for (text, _) in sorted {
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.count >= 2 && trimmed.contains(where: \.isLetter) {
+                return trimmed
+            }
+        }
+        return nil
     }
 
     // MARK: - Price
