@@ -62,7 +62,7 @@ final class PriceRefreshService {
             let context = ModelContext(databaseManager.modelContainer)
 
             // Build price lookup from downloaded data: scryfallID → prices
-            var priceLookup: [String: (usd: String?, usdFoil: String?, eur: String?, eurFoil: String?, tix: String?)] = [:]
+            var priceLookup: [String: (usd: String?, usdFoil: String?, eur: String?, eurFoil: String?, tix: String?, reserved: Bool)] = [:]
             for json in jsonArray {
                 guard let id = json["id"] as? String,
                       let prices = json["prices"] as? [String: Any?] else { continue }
@@ -71,7 +71,8 @@ final class PriceRefreshService {
                     usdFoil: prices["usd_foil"] as? String,
                     eur: prices["eur"] as? String,
                     eurFoil: prices["eur_foil"] as? String,
-                    tix: prices["tix"] as? String
+                    tix: prices["tix"] as? String,
+                    reserved: json["reserved"] as? Bool ?? false
                 )
             }
             progress = 0.6
@@ -89,6 +90,7 @@ final class PriceRefreshService {
                     record.priceEUR = prices.eur
                     record.priceEURFoil = prices.eurFoil
                     record.priceTix = prices.tix
+                    record.isReserved = prices.reserved
                     updated += 1
                 }
 

@@ -357,6 +357,30 @@ final class DatabaseManager: Sendable {
         return try context.fetch(descriptor)
     }
 
+    // MARK: - Reserved List
+
+    /// Returns all cards on the Reserved List.
+    func fetchReservedCards() async throws -> [CardRecord] {
+        let context = ModelContext(modelContainer)
+        let descriptor = FetchDescriptor<CardRecord>(
+            predicate: #Predicate<CardRecord> { $0.isReserved }
+        )
+        return try context.fetch(descriptor)
+    }
+
+    // MARK: - Secret Lair Basics
+
+    /// Returns all basic lands in the Secret Lair Drop (sld) set.
+    func fetchSecretLairBasics() async throws -> [CardRecord] {
+        let context = ModelContext(modelContainer)
+        let descriptor = FetchDescriptor<CardRecord>(
+            predicate: #Predicate<CardRecord> { record in
+                record.setCode == "sld" && record.typeLine.contains("Basic")
+            }
+        )
+        return try context.fetch(descriptor)
+    }
+
     /// Returns all cards in a given set.
     func fetchCards(setCode code: String) async throws -> [CardRecord] {
         let context = ModelContext(modelContainer)

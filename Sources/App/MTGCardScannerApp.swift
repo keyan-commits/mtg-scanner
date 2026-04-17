@@ -43,10 +43,13 @@ struct MTGCardScannerApp: App {
                 await setupDatabase()
                 // Daily price refresh — runs in background after app is ready
                 if let databaseManager {
+                    DynamicListService.shared.configure(databaseManager: databaseManager)
                     let service = PriceRefreshService(downloader: downloader, databaseManager: databaseManager)
                     PriceRefreshService.shared = service
                     priceRefreshService = service
                     await service.refreshIfStale()
+                    // Invalidate cached lists after price/data refresh
+                    DynamicListService.shared.invalidateCache()
                 }
             }
             .task {

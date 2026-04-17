@@ -29,6 +29,8 @@ final class CardRecord {
     var legalitiesJSON: String
     var imageURIsJSON: String
     var printsSearchURI: String?
+    /// Whether this card is on the Reserved List (Scryfall `reserved` field).
+    var isReserved: Bool = false
 
     init(
         scryfallID: String,
@@ -256,6 +258,7 @@ extension CardRecord {
         let frame = json["frame"] as? String
         let illustrationID = json["illustration_id"] as? String
         let edhrecRank = json["edhrec_rank"] as? Int
+        let isReserved = json["reserved"] as? Bool ?? false
 
         // Prices
         let prices = json["prices"] as? [String: Any] ?? [:]
@@ -305,7 +308,7 @@ extension CardRecord {
             imageURIsJSON = "{}"
         }
 
-        return CardRecord(
+        let record = CardRecord(
             scryfallID: scryfallID,
             name: name,
             manaCost: manaCost,
@@ -331,5 +334,7 @@ extension CardRecord {
             imageURIsJSON: imageURIsJSON,
             printsSearchURI: printsSearchURI
         )
+        record.isReserved = isReserved
+        return record
     }
 }

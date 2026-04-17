@@ -8,6 +8,9 @@ struct LandsScreen: View {
     let cardRepository: CardRepositoryProtocol
     let deckRepository: DeckListRepository
 
+    @State private var dynamicReservedList: [LandCategory] = []
+    @State private var dynamicSecretLair: [LandCategory] = []
+
     var body: some View {
         List {
             Section("Price Lists") {
@@ -44,14 +47,18 @@ struct LandsScreen: View {
                     categoryRow(category, in: CollectibleLands.all)
                 }
             }
-            Section("Secret Lair Lands") {
-                ForEach(SecretLairLands.all) { category in
-                    categoryRow(category, in: SecretLairLands.all)
+            if !dynamicSecretLair.isEmpty {
+                Section("Secret Lair Lands") {
+                    ForEach(dynamicSecretLair) { category in
+                        categoryRow(category, in: dynamicSecretLair)
+                    }
                 }
             }
-            Section("Reserved List") {
-                ForEach(ReservedList.all) { category in
-                    categoryRow(category, in: ReservedList.all)
+            if !dynamicReservedList.isEmpty {
+                Section("Reserved List") {
+                    ForEach(dynamicReservedList) { category in
+                        categoryRow(category, in: dynamicReservedList)
+                    }
                 }
             }
             Section("cEDH Staples") {
@@ -63,6 +70,11 @@ struct LandsScreen: View {
         .listStyle(.insetGrouped)
         .navigationTitle("Lists")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            let service = DynamicListService.shared
+            dynamicReservedList = await service.reservedList()
+            dynamicSecretLair = await service.secretLairDrops()
+        }
     }
 
     private func categoryRow(_ category: LandCategory, in categories: [LandCategory]) -> some View {
