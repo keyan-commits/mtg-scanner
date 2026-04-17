@@ -472,16 +472,23 @@ struct ImageSplitterScreen: View {
                 .foregroundStyle(MD3Theme.onSurface)
                 .padding(.horizontal, 16)
 
+            let identifiedPairs: [(index: Int, card: Card)] = viewModel.selectedIndices.sorted().compactMap { idx in
+                guard let c = viewModel.identifiedCards[idx] else { return nil }
+                return (index: idx, card: c)
+            }
+            let pagerCards = identifiedPairs.map(\.card)
+
             ForEach(viewModel.selectedIndices.sorted(), id: \.self) { index in
                 if let card = viewModel.identifiedCards[index] {
                     HStack(spacing: 0) {
                         NavigationLink {
                             if let repo = cardRepository, let deckRepo = deckRepository {
-                                CardDetailView(
-                                    card: card,
-                                    repository: repo,
-                                    deckRepository: deckRepo,
-                                    onScanAnother: {}
+                                let pos = identifiedPairs.firstIndex(where: { $0.index == index }) ?? 0
+                                CardListPagerView(
+                                    cards: pagerCards,
+                                    initialIndex: pos,
+                                    cardRepository: repo,
+                                    deckRepository: deckRepo
                                 )
                             }
                         } label: {

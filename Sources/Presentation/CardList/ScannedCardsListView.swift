@@ -73,7 +73,23 @@ struct ScannedCardsListView: View {
             LazyVStack(spacing: 12) {
                 ForEach(Array(cards.enumerated()), id: \.element.id) { index, card in
                     ZStack(alignment: .topTrailing) {
-                        NavigationLink(value: card) {
+                        NavigationLink {
+                            if let repo = repository, let deckRepo = deckRepository {
+                                CardListPagerView(
+                                    cards: cards,
+                                    initialIndex: index,
+                                    cardRepository: repo,
+                                    deckRepository: deckRepo
+                                )
+                            } else {
+                                CardDetailView(
+                                    card: card,
+                                    repository: repository,
+                                    deckRepository: deckRepository,
+                                    onScanAnother: {}
+                                )
+                            }
+                        } label: {
                             CardRowView(
                                 card: card,
                                 onWrongCard: repository != nil ? {
@@ -105,18 +121,6 @@ struct ScannedCardsListView: View {
                 }
             }
             .padding(16)
-        }
-        .navigationDestination(for: Card.self) { card in
-            CardDetailView(
-                card: card,
-                repository: repository,
-                deckRepository: deckRepository,
-                onCorrection: { correctedCard in
-                    if let index = cards.firstIndex(where: { $0.id == card.id }) {
-                        onCorrection?(index, correctedCard)
-                    }
-                }
-            ) {}
         }
         .sheet(item: $collectionSheetCard) { card in
             if let deckRepository {

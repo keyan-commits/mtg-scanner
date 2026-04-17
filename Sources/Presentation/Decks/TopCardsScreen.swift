@@ -201,11 +201,11 @@ struct TopCardsDetailView: View {
             Section("\(topCards.count) cards") {
                 ForEach(Array(topCards.enumerated()), id: \.element.id) { index, card in
                     NavigationLink {
-                        CardDetailView(
-                            card: card,
-                            repository: cardRepository,
-                            deckRepository: deckRepository,
-                            onScanAnother: {}
+                        CardListPagerView(
+                            cards: topCards,
+                            initialIndex: index,
+                            cardRepository: cardRepository,
+                            deckRepository: deckRepository
                         )
                     } label: {
                         listRow(rank: index + 1, card: card)
@@ -277,11 +277,11 @@ struct TopCardsDetailView: View {
             ) {
                 ForEach(Array(topCards.enumerated()), id: \.element.id) { index, card in
                     NavigationLink {
-                        CardDetailView(
-                            card: card,
-                            repository: cardRepository,
-                            deckRepository: deckRepository,
-                            onScanAnother: {}
+                        CardListPagerView(
+                            cards: topCards,
+                            initialIndex: index,
+                            cardRepository: cardRepository,
+                            deckRepository: deckRepository
                         )
                     } label: {
                         gridCard(rank: index + 1, card: card)

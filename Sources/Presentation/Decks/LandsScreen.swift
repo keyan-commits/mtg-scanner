@@ -277,7 +277,7 @@ struct LandCategoryDetailView: View {
                 let cards = sortedCards
                 ForEach(Array(cards.enumerated()), id: \.element.scryfallID) { index, card in
                     NavigationLink {
-                        LandCardPagerView(
+                        CardListPagerView(
                             cards: cards,
                             initialIndex: index,
                             cardRepository: cardRepository,
@@ -384,7 +384,7 @@ struct LandCategoryDetailView: View {
                 ) {
                     ForEach(Array(cards.enumerated()), id: \.element.scryfallID) { index, card in
                         NavigationLink {
-                            LandCardPagerView(
+                            CardListPagerView(
                                 cards: cards,
                                 initialIndex: index,
                                 cardRepository: cardRepository,
@@ -482,7 +482,7 @@ struct LandCategoryDetailView: View {
 
 /// Horizontal paging view that wraps `CardDetailView` instances,
 /// letting the user swipe left/right to browse cards in a land category.
-struct LandCardPagerView: View {
+struct CardListPagerView: View {
 
     let cards: [Card]
     let initialIndex: Int
