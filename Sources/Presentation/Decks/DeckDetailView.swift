@@ -759,13 +759,22 @@ struct DeckDetailView: View {
                 }
                 ForEach(zoneSection.sections, id: \.category) { section in
                     Section {
+                        let allZoneGroups = zoneSection.sections.flatMap(\.groups)
+                        let pagerEntries = allZoneGroups.map {
+                            CardCopiesPagerView.Entry(
+                                id: $0.id,
+                                cardName: $0.representative.cardName,
+                                setCode: $0.representative.setCode,
+                                collectorNumber: $0.representative.collectorNumber
+                            )
+                        }
                         ForEach(section.groups) { group in
                             NavigationLink {
                                 if let cardRepository {
-                                    CardCopiesDetailView(
-                                        cardName: group.representative.cardName,
-                                        setCode: group.representative.setCode,
-                                        collectorNumber: group.representative.collectorNumber,
+                                    let idx = allZoneGroups.firstIndex(where: { $0.id == group.id }) ?? 0
+                                    CardCopiesPagerView(
+                                        entries: pagerEntries,
+                                        initialIndex: idx,
                                         deckRepository: repository,
                                         cardRepository: cardRepository,
                                         deckID: deck.id
@@ -844,7 +853,7 @@ struct DeckDetailView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 10) {
                     ForEach(section.groups) { group in
-                        gridCard(group)
+                        gridCard(group, section: section)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -853,16 +862,25 @@ struct DeckDetailView: View {
     }
 
     @ViewBuilder
-    private func gridCard(_ group: CardGroup) -> some View {
+    private func gridCard(_ group: CardGroup, section: CategorySection? = nil) -> some View {
         let item = group.representative
         let card = resolvedCards[item.scryfallID]
         let arrived = group.items.filter { $0.status == .arrived }.count
+        let sectionGroups = section?.groups ?? [group]
+        let pagerEntries = sectionGroups.map {
+            CardCopiesPagerView.Entry(
+                id: $0.id,
+                cardName: $0.representative.cardName,
+                setCode: $0.representative.setCode,
+                collectorNumber: $0.representative.collectorNumber
+            )
+        }
+        let idx = sectionGroups.firstIndex(where: { $0.id == group.id }) ?? 0
         NavigationLink {
             if let cardRepository {
-                CardCopiesDetailView(
-                    cardName: item.cardName,
-                    setCode: item.setCode,
-                    collectorNumber: item.collectorNumber,
+                CardCopiesPagerView(
+                    entries: pagerEntries,
+                    initialIndex: idx,
                     deckRepository: repository,
                     cardRepository: cardRepository,
                     deckID: deck.id
@@ -1644,5 +1662,48 @@ struct SideboardGuideSheet: View {
         if lower.contains("prison") { return .gray }
         if lower.contains("artifact") { return .brown }
         return .secondary
+    }
+}
+
+// MARK: - Card Copies Pager View
+
+/// Horizontal paging view that wraps `CardCopiesDetailView` instances,
+/// letting the user swipe left/right to browse cards in a deck.
+struct CardCopiesPagerView: View {
+
+    struct Entry: Identifiable {
+        let id: String
+        let cardName: String
+        let setCode: String
+        let collectorNumber: String
+    }
+
+    let entries: [Entry]
+    let initialIndex: Int
+    let deckRepository: DeckListRepository
+    let cardRepository: CardRepositoryProtocol
+    let deckID: UUID
+
+    @State private var currentIndex: Int = 0
+
+    var body: some View {
+        TabView(selection: $currentIndex) {
+            ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                CardCopiesDetailView(
+                    cardName: entry.cardName,
+                    setCode: entry.setCode,
+                    collectorNumber: entry.collectorNumber,
+                    deckRepository: deckRepository,
+                    cardRepository: cardRepository,
+                    deckID: deckID
+                )
+                .tag(index)
+            }
+        }
+        .tabViewStyle(.page(indexDisplayMode: .automatic))
+        .indexViewStyle(.page(backgroundDisplayMode: .always))
+        .onAppear { currentIndex = initialIndex }
+        .navigationTitle(entries.indices.contains(currentIndex) ? entries[currentIndex].cardName : "")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }

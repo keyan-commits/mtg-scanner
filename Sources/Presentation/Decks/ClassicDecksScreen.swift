@@ -184,9 +184,11 @@ struct ClassicDecksScreen: View {
 
     @ViewBuilder
     private func navigationRow(_ archetype: ClassicArchetype) -> some View {
+        let idx = filteredAndSorted.firstIndex(where: { $0.id == archetype.id }) ?? 0
         NavigationLink {
-            ClassicDeckDetailView(
-                archetype: archetype,
+            ClassicDeckPagerView(
+                archetypes: filteredAndSorted,
+                initialIndex: idx,
                 deckRepository: deckRepository,
                 cardRepository: cardRepository
             )
@@ -264,5 +266,39 @@ struct ClassicDecksScreen: View {
             scores[archetype.id] = total > 0 ? Double(matched) / Double(total) : 0
         }
         matchScores = scores
+    }
+}
+
+// MARK: - Classic Deck Pager View
+
+/// Horizontal paging view that wraps `ClassicDeckDetailView` instances,
+/// letting the user swipe left/right to browse classic deck archetypes.
+struct ClassicDeckPagerView: View {
+
+    let archetypes: [ClassicArchetype]
+    let initialIndex: Int
+    let deckRepository: DeckListRepository
+    let cardRepository: CardRepositoryProtocol?
+
+    @State private var currentIndex: Int = 0
+
+    var body: some View {
+        TabView(selection: $currentIndex) {
+            ForEach(Array(archetypes.enumerated()), id: \.element.id) { index, archetype in
+                if let cardRepository {
+                    ClassicDeckDetailView(
+                        archetype: archetype,
+                        deckRepository: deckRepository,
+                        cardRepository: cardRepository
+                    )
+                    .tag(index)
+                }
+            }
+        }
+        .tabViewStyle(.page(indexDisplayMode: .automatic))
+        .indexViewStyle(.page(backgroundDisplayMode: .always))
+        .onAppear { currentIndex = initialIndex }
+        .navigationTitle(archetypes.indices.contains(currentIndex) ? archetypes[currentIndex].name : "")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
