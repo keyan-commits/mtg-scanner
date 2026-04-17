@@ -154,7 +154,8 @@ enum CollectibleLands {
         description: "The original creature land from Antiquities (1994). Four seasonal art variants (Spring, Summer, Autumn, Winter) make it a popular collectible.",
         cardNames: [
             "Mishra's Factory",
-        ]
+        ],
+        setCodes: ["atq"]
     )
 
     // MARK: - Strip Mine
@@ -166,7 +167,8 @@ enum CollectibleLands {
         description: "Iconic land destruction from Antiquities. Four art variants depicting different stages of mining. Banned or restricted in most formats.",
         cardNames: [
             "Strip Mine",
-        ]
+        ],
+        setCodes: ["atq"]
     )
 
     // MARK: - Alpha/Beta Basic Lands
