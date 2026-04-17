@@ -59,6 +59,7 @@
 		322B275AEBAD8CF0821DE8CC /* AppIcon-G@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 3DB5EECAC7E024134BED47CE /* AppIcon-G@2x.png */; };
 		3663DA845B59B3F754973C3E /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D8CF55E71A7E20780ACAB35 /* CameraManager.swift */; };
 		37A76A1309703806B3DCDD33 /* LandLists.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A9AC5520A03343B21F97ECF /* LandLists.swift */; };
+		C0LLEC71B1E5000000000001 /* CollectibleLands.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0LLEC71B1E5000000000002 /* CollectibleLands.swift */; };
 		39152866116E8F6DCBE24317 /* MTGTop8ServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7208A16B52F6A13776F2914A /* MTGTop8ServiceTests.swift */; };
 		391A682E5177026AD58D78DA /* ManaSymbolView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C73599E08CE47CBE391CE4F /* ManaSymbolView.swift */; };
 		3B11051E29D10D0BDDB66453 /* AddCardToDeckSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8ADB800C25183CB08831A06 /* AddCardToDeckSheet.swift */; };
@@ -267,6 +268,7 @@
 		48C8C27A8709852CE48E11B0 /* MarkOrderedSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkOrderedSheet.swift; sourceTree = "<group>"; };
 		4A076C806EB4B6A1847CFEFC /* MTGCardScanner.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MTGCardScanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4A9AC5520A03343B21F97ECF /* LandLists.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LandLists.swift; sourceTree = "<group>"; };
+		C0LLEC71B1E5000000000002 /* CollectibleLands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectibleLands.swift; sourceTree = "<group>"; };
 		4FA6DE08398E18F5FFD27422 /* HareruyaPriceServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HareruyaPriceServiceTests.swift; sourceTree = "<group>"; };
 		5A92D5221A071F97A64E4FEF /* ScryfallCardRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScryfallCardRepository.swift; sourceTree = "<group>"; };
 		5B0A1234SIDEBOARD000002 /* SideboardGuide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideboardGuide.swift; sourceTree = "<group>"; };
@@ -465,6 +467,7 @@
 				73490A3AA99A5F1629CC8A54 /* ArchetypeGrouper.swift */,
 				CB4EAD2959D53FFF4EC2D7D9 /* CEDHStaples.swift */,
 				22338BC52E022A617DCE51C7 /* ClassicArchetypes.swift */,
+				C0LLEC71B1E5000000000002 /* CollectibleLands.swift */,
 				4A9AC5520A03343B21F97ECF /* LandLists.swift */,
 				E14F96F1F692C3A787E1C3D2 /* MajorArchetypes.swift */,
 				5B0A1234SIDEBOARD000002 /* SideboardGuide.swift */,
@@ -1072,6 +1075,7 @@
 				BB322D0AEAF6D6E2129AD7EA /* ImageMatcher.swift in Sources */,
 				B280CDFBA25CD95E87B13DBB /* ImageProcessor.swift in Sources */,
 				84648A41011F10B6D94A8E70 /* ImportDecklistSheet.swift in Sources */,
+				C0LLEC71B1E5000000000001 /* CollectibleLands.swift in Sources */,
 				37A76A1309703806B3DCDD33 /* LandLists.swift in Sources */,
 				D9C3E4F50617283A4B5C2D3E /* ImageSplitterScreen.swift in Sources */,
 				E0D4F5061728394B5C6D3E4F /* ImageSplitterViewModel.swift in Sources */,

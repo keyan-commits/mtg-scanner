@@ -39,6 +39,11 @@ struct LandsScreen: View {
                     categoryRow(category)
                 }
             }
+            Section("Collectible Lands") {
+                ForEach(CollectibleLands.all) { category in
+                    categoryRow(category)
+                }
+            }
             Section("cEDH Staples") {
                 ForEach(CEDHStaples.all) { category in
                     categoryRow(category)
