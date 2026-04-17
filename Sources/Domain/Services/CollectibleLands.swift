@@ -33,7 +33,7 @@ enum CollectibleLands {
         id: "guru-lands",
         name: "Guru Lands",
         iconName: "star.circle.fill",
-        description: "Extremely rare promo basics from the 1999 Guru program. Among the most valuable basic lands ever printed, featuring art by Terese Nielsen.",
+        description: "Extremely rare promo basics from the Guru program (1999-2001). Players earned points by teaching Magic to new players and received one random Guru land per 10 points. All five illustrated by Terese Nielsen depicting stages of a \"double eclipse.\" Among the most valuable basic lands ever printed — Island alone commands ~$1,200.",
         cardNames: [
             "Plains",
             "Island",
@@ -50,7 +50,7 @@ enum CollectibleLands {
         id: "apac-lands",
         name: "APAC Lands",
         iconName: "globe.asia.australia.fill",
-        description: "Asia-Pacific promo basic lands (2000). Three series of 5 basics each featuring locations from the Asia-Pacific region. Scarce and collectible.",
+        description: "Asia-Pacific promo basic lands (1998), distributed with Tempest booster box purchases in the Asia-Pacific region. Three sealed packs (Red, Blue, Clear) of 5 basics each, 15 total. Each card depicts a real-world location: Mt. Fuji, Great Wall of China, Banaue Rice Terraces (Philippines), Uluru (Australia), Hong Kong, Singapore's Merlion, and more.",
         cardNames: [
             "Plains",
             "Island",
@@ -67,7 +67,7 @@ enum CollectibleLands {
         id: "euro-lands",
         name: "Euro Lands",
         iconName: "globe.europe.africa.fill",
-        description: "European promo basic lands (2000). Three series featuring iconic European locations. Highly collectible alongside their APAC counterparts.",
+        description: "European promo basic lands (2000), obtained by mailing booster box barcodes from Nemesis, Prophecy, and Invasion to regional distributors. Three series (Blue, Red, Purple packs) of 5 basics each, 15 total. Art by Scott Bailey, Kev Walker, Mike Ploog, Ben Thompson, and Eric Peterson depicting iconic European landmarks. The mail-in requirement made them scarcer than typical promos.",
         cardNames: [
             "Plains",
             "Island",
@@ -84,7 +84,7 @@ enum CollectibleLands {
         id: "arena-promo-lands",
         name: "Arena Promo Lands",
         iconName: "trophy.fill",
-        description: "Arena League promo basic lands distributed at in-store Arena League events in the early 2000s. Feature unique art not found in regular sets.",
+        description: "Promo basics from the Arena League organized play program (1996-2006). The 1996 Tony Roberts cycle forms a panorama. Later years featured foil versions (1999-2002) and panoramic art by Rob Alexander (2003) and John Avon (2004, 2006). Earned by top-ranked players at weekly in-store events.",
         cardNames: [
             "Plains",
             "Island",
@@ -101,7 +101,7 @@ enum CollectibleLands {
         id: "unset-full-art-lands",
         name: "Un-Set Full-Art Lands",
         iconName: "paintbrush.fill",
-        description: "Full-art basics from Unglued, Unhinged, and Unstable. The original full-art lands -- Unhinged basics by John Avon remain among the most popular lands ever.",
+        description: "The original full-art lands. Unglued (1998) by Christopher Rush introduced full-art cards to Magic with distinctive oval frames. Unhinged (2004) by John Avon set the gold standard with border-hugging panoramic art. Unstable (2017), also by John Avon, pioneered truly borderless printing. All were black-bordered and tournament-legal despite being in silver-bordered joke sets.",
         cardNames: [
             "Plains",
             "Island",
@@ -118,7 +118,7 @@ enum CollectibleLands {
         id: "zendikar-full-art-lands",
         name: "Zendikar Full-Art Lands",
         iconName: "photo.artframe",
-        description: "Full-art basics from original Zendikar (2009). The first full-art basics in a tournament-legal set. Widely used and beloved for their striking landscapes.",
+        description: "Full-art basics from original Zendikar (2009) — the first full-art lands in a Standard-legal set. 20 unique arts (4 per basic type) by artists including John Avon, Jung Park, Vincent Proce, and Rob Alexander. Appeared randomly in booster packs as part of the set's \"lands matter\" theme. The set that brought full-art lands to the masses.",
         cardNames: [
             "Plains",
             "Island",
@@ -135,7 +135,7 @@ enum CollectibleLands {
         id: "snow-covered-lands",
         name: "Snow-Covered Lands",
         iconName: "snowflake",
-        description: "Snow basic lands from Ice Age, Coldsnap, and Modern Horizons. Required for snow synergies and mechanically distinct from regular basics.",
+        description: "Snow-supertype basics that produce snow mana — mechanically distinct from regular basics. First appeared in Ice Age (1995), returned in Coldsnap (2006) which formalized the Snow supertype, then Modern Horizons (2019) with full-art versions, and Kaldheim (2021) which brought them back to Standard. Required for snow synergies like Arcum's Astrolabe and Ice-Fang Coatl.",
         cardNames: [
             "Snow-Covered Plains",
             "Snow-Covered Island",
@@ -151,7 +151,7 @@ enum CollectibleLands {
         id: "mishras-factory",
         name: "Mishra's Factory",
         iconName: "gearshape.2.fill",
-        description: "The original creature land from Antiquities (1994). Four seasonal art variants (Spring, Summer, Autumn, Winter) make it a popular collectible.",
+        description: "The first-ever \"man-land\" from Antiquities (1994), with four seasonal art variants by Kaja and Phil Foglio. Spring is common-rarity; Summer, Autumn, and Winter are uncommon. Winter is typically most valuable as its art was never reprinted. Collecting all four seasons is a classic MTG goal.",
         cardNames: [
             "Mishra's Factory",
         ],
@@ -164,7 +164,7 @@ enum CollectibleLands {
         id: "strip-mine",
         name: "Strip Mine",
         iconName: "hammer.fill",
-        description: "Iconic land destruction from Antiquities. Four art variants depicting different stages of mining. Banned or restricted in most formats.",
+        description: "Iconic land destruction from Antiquities (1994), with four art variants by Daniel Gelon depicting stages of strip mining. One common, three uncommon. The \"tower\" variant (Version C) is typically most sought after. Banned in Legacy, restricted in Vintage — one of the most powerful lands ever printed.",
         cardNames: [
             "Strip Mine",
         ],
@@ -177,7 +177,7 @@ enum CollectibleLands {
         id: "alpha-beta-basics",
         name: "Alpha/Beta Basic Lands",
         iconName: "a.circle.fill",
-        description: "The original basic lands from Magic's first print runs (1993). Alpha cards are identifiable by their rounded corners. Graded copies command premium prices.",
+        description: "The very first basic lands ever printed (1993). Alpha (~2.6M cards total) has 2 arts per type with distinctively rounded corners. Beta (~7.8M cards) added a 3rd art per type that was accidentally omitted from Alpha. Both black-bordered; art by the original 25-artist pool including Mark Poole, Jesper Myrfors, and Rob Alexander. Near-mint copies are exceptionally rare.",
         cardNames: [
             "Plains",
             "Island",
@@ -194,7 +194,7 @@ enum CollectibleLands {
         id: "expeditions-bfz",
         name: "Zendikar Expeditions (BFZ)",
         iconName: "sparkles",
-        description: "Masterpiece Series from Battle for Zendikar. 25 premium full-art foil lands with the Zendikar Expeditions frame. Extremely rare booster pulls.",
+        description: "Masterpiece Series from Battle for Zendikar (2015) — the first-ever Masterpiece cards. 25 premium full-art foils with hedron-themed frames, found at ~1 in 144 boosters. Includes all 10 fetchlands, 10 shocklands, and 5 BFZ tangolands. English only. Retroactively classified as the original Masterpiece Series.",
         cardNames: [
             "Prairie Stream",
             "Sunken Hollow",
@@ -231,7 +231,7 @@ enum CollectibleLands {
         id: "expeditions-ogw",
         name: "Zendikar Expeditions (OGW)",
         iconName: "sparkles",
-        description: "Masterpiece Series from Oath of the Gatewatch. 20 premium full-art foil lands continuing the Expeditions series with utility and filter lands.",
+        description: "Masterpiece Series from Oath of the Gatewatch (2016), completing the 45-card Expeditions set. 20 premium full-art foils at ~1 in 144 boosters. Features 10 Shadowmoor/Eventide filter lands plus iconic utility lands including Ancient Tomb, Wasteland, Strip Mine, Eye of Ugin, and Horizon Canopy.",
         cardNames: [
             "Ancient Tomb",
             "Cascade Bluffs",
@@ -263,7 +263,7 @@ enum CollectibleLands {
         id: "znr-expeditions",
         name: "Zendikar Rising Expeditions",
         iconName: "star.fill",
-        description: "30 premium box-topper lands from Zendikar Rising. Full-art treatments of fetch lands, pathway lands, and other staples with the hedron frame.",
+        description: "30 premium lands from Zendikar Rising (2020). Unlike 2015 Expeditions, these were guaranteed box toppers (1 per Draft/Set box, 2 per Collector box). Foil versions exclusive to Collector Boosters (~1 in 6 packs). Includes all 10 fetchlands, 5 Battlebond lands, and utility staples like Cavern of Souls, Ancient Tomb, and Prismatic Vista.",
         cardNames: [
             "Arid Mesa",
             "Marsh Flats",
@@ -305,7 +305,7 @@ enum CollectibleLands {
         id: "secret-lair-lands",
         name: "Secret Lair Lands",
         iconName: "lock.open.fill",
-        description: "Premium basic lands from various Secret Lair drops. Feature unique art styles from guest artists and special collaborations.",
+        description: "Premium basics from Secret Lair direct-to-consumer drops (2019-present). Hundreds of unique printings across 70+ drops featuring guest artists and IP crossovers. Notable drops include The Tokyo Lands (~$75/card), Godzilla Lands (Japanese-only foils), Full-Text Lands, and Artist Series by John Avon, Seb McKinnon, and others. Available in foil and non-foil.",
         cardNames: [
             "Plains",
             "Island",
@@ -322,7 +322,7 @@ enum CollectibleLands {
         id: "judge-promo-lands",
         name: "Judge Promo Lands",
         iconName: "person.badge.shield.checkmark.fill",
-        description: "Full-art foil basic lands given to certified judges. Limited distribution makes them sought-after collectibles.",
+        description: "Full-art foil panorama basics by Terese Nielsen, sent to all certified judges prior to July 2014 as a sealed 5-card set. The five cards form a continuous panorama. Among the most expensive basic lands — Island commands ~$150+. Nielsen also sold 250 limited-edition canvas prints of the full panorama. Part of the broader Judge Gift program (1998-present).",
         cardNames: [
             "Plains",
             "Island",
@@ -339,7 +339,7 @@ enum CollectibleLands {
         id: "reserved-list-lands",
         name: "Iconic Reserved List Lands",
         iconName: "lock.fill",
-        description: "Collectible lands on the Reserved List that will never be reprinted. Includes original duals, the Cradle cycle, and other scarce early-era lands.",
+        description: "Lands on the Reserved List — Wizards' 1996 promise to never reprint these cards. Includes all 10 original dual lands (Revised, ~$200-$800 each), the Urza's Saga \"Cradle cycle\" (Gaea's Cradle ~$1,200), and other scarce early-era lands. Prices can only increase as supply dwindles through attrition.",
         cardNames: [
             "Tundra",
             "Underground Sea",
@@ -371,7 +371,7 @@ enum CollectibleLands {
         id: "other-iconic-lands",
         name: "Other Iconic Collectible Lands",
         iconName: "star.square.fill",
-        description: "Highly sought-after lands not on the Reserved List. Format staples, iconic designs, and premium printings that hold significant collector value.",
+        description: "Format staples and iconic lands not on the Reserved List but still commanding premium prices. Includes Legacy/Vintage pillars (Wasteland, Karakas, The Tabernacle at Pendrell Vale), Modern staples (Cavern of Souls, Urza's Saga), and the Power Nine-adjacent trio from Arabian Nights (Bazaar of Baghdad, Library of Alexandria, Mishra's Workshop).",
         cardNames: [
             "Cavern of Souls",
             "Ancient Tomb",
