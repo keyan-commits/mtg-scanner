@@ -93,7 +93,7 @@ struct LandCategoryDetailView: View {
     let cardRepository: CardRepositoryProtocol
     let deckRepository: DeckListRepository
 
-    @State private var viewMode: ViewMode = .list
+    @State private var viewMode: ViewMode = .grid
     @State private var resolvedCards: [String: Card] = [:]
     @State private var sortByPrice: Bool = false
     /// Owned quantities from the user's collection, keyed by card name (any printing).
@@ -164,14 +164,15 @@ struct LandCategoryDetailView: View {
                     .listRowBackground(Color.clear)
             }
             Section("\(category.cardNames.count) cards") {
-                ForEach(sortedCardNames, id: \.self) { name in
+                ForEach(Array(sortedCardNames.enumerated()), id: \.element) { index, name in
                     if let card = resolvedCards[name] {
                         NavigationLink {
-                            CardDetailView(
-                                card: card,
-                                repository: cardRepository,
-                                deckRepository: deckRepository,
-                                onScanAnother: {}
+                            LandCardPagerView(
+                                cardNames: sortedCardNames,
+                                resolvedCards: resolvedCards,
+                                initialIndex: index,
+                                cardRepository: cardRepository,
+                                deckRepository: deckRepository
                             )
                         } label: {
                             listRow(name: name, card: card)
@@ -325,14 +326,16 @@ struct LandCategoryDetailView: View {
     @ViewBuilder
     private func gridCard(name: String) -> some View {
         let card = resolvedCards[name]
+        let index = sortedCardNames.firstIndex(of: name) ?? 0
         Group {
             if let card {
                 NavigationLink {
-                    CardDetailView(
-                        card: card,
-                        repository: cardRepository,
-                        deckRepository: deckRepository,
-                        onScanAnother: {}
+                    LandCardPagerView(
+                        cardNames: sortedCardNames,
+                        resolvedCards: resolvedCards,
+                        initialIndex: index,
+                        cardRepository: cardRepository,
+                        deckRepository: deckRepository
                     )
                 } label: {
                     gridCardLabel(name: name, card: card)
@@ -431,5 +434,50 @@ struct LandCategoryDetailView: View {
         if let card = await resolver.resolve(name: name) {
             resolvedCards[name] = card
         }
+    }
+}
+
+// MARK: - Card Pager View
+
+/// Horizontal paging view that wraps `CardDetailView` instances,
+/// letting the user swipe left/right to browse cards in a land category.
+struct LandCardPagerView: View {
+
+    let cardNames: [String]
+    let resolvedCards: [String: Card]
+    let initialIndex: Int
+    let cardRepository: CardRepositoryProtocol
+    let deckRepository: DeckListRepository
+
+    @State private var currentIndex: Int = 0
+
+    var body: some View {
+        TabView(selection: $currentIndex) {
+            ForEach(Array(cardNames.enumerated()), id: \.offset) { index, name in
+                if let card = resolvedCards[name] {
+                    CardDetailView(
+                        card: card,
+                        repository: cardRepository,
+                        deckRepository: deckRepository,
+                        onScanAnother: {}
+                    )
+                    .tag(index)
+                } else {
+                    VStack {
+                        ProgressView()
+                        Text(name)
+                            .font(MD3Typography.bodyMedium)
+                            .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .tag(index)
+                }
+            }
+        }
+        .tabViewStyle(.page(indexDisplayMode: .automatic))
+        .indexViewStyle(.page(backgroundDisplayMode: .always))
+        .onAppear { currentIndex = initialIndex }
+        .navigationTitle(cardNames.indices.contains(currentIndex) ? cardNames[currentIndex] : "")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
