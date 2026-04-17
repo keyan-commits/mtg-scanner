@@ -1114,6 +1114,12 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
                 print("[MTGScanner] Visual match rejected: OCR '\(signals.cardName)' ≠ visual '\(match.cardName)'")
                 return nil
             }
+        } else if distance > 4 {
+            // OCR couldn't read the card at all (glare, angle, sleeve).
+            // Without OCR validation, require a very strict pHash match
+            // to avoid false positives (e.g., Steam Vents → Game Trail).
+            print("[MTGScanner] Visual match rejected: no OCR to validate, distance \(distance) > 4 (strict mode)")
+            return nil
         }
 
         // Look up all printings for the matched card name

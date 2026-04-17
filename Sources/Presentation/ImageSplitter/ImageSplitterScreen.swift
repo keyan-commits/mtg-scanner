@@ -18,6 +18,8 @@ struct ImageSplitterScreen: View {
     /// Which corner/edge is being dragged
     @State private var dragEdge: DragEdge = .none
     @State private var dragStart: CGPoint = .zero
+    /// Index of the card whose crop box is being adjusted in a sheet
+    @State private var adjustingCropIndex: Int?
 
     private enum DragEdge { case none, topLeft, topRight, bottomLeft, bottomRight, move }
 
@@ -620,10 +622,33 @@ struct ImageSplitterScreen: View {
                         if isSelected { viewModel.selectedIndices.remove(index) }
                         else { viewModel.selectedIndices.insert(index) }
                     }
+                    .onLongPressGesture {
+                        adjustingCropIndex = index
+                    }
+
+                    Text("Hold to adjust")
+                        .font(.system(size: 7))
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
                 }
             }
         }
         .padding(.horizontal, 16)
+        .sheet(isPresented: Binding(
+            get: { adjustingCropIndex != nil },
+            set: { if !$0 { adjustingCropIndex = nil } }
+        )) {
+            if let index = adjustingCropIndex, let sourceImage = viewModel.sourceImage,
+               index < viewModel.detectedCards.count {
+                CropAdjustmentSheet(
+                    sourceImage: sourceImage,
+                    cardRect: viewModel.detectedCards[index].rect,
+                    onUpdate: { newRect in
+                        viewModel.updateRegion(at: index, newRect: newRect)
+                    },
+                    onDismiss: { adjustingCropIndex = nil }
+                )
+            }
+        }
     }
 
     // MARK: - Action Buttons
@@ -715,4 +740,136 @@ struct ImageSplitterScreen: View {
         viewModel.setImage(cgImage)
         await viewModel.detect()
     }
+}
+
+// MARK: - Crop Adjustment Sheet
+
+/// Full-screen sheet showing the source image zoomed to a card's region
+/// with draggable corner handles for adjusting the crop box.
+struct CropAdjustmentSheet: View {
+
+    let sourceImage: CGImage
+    let cardRect: CGRect
+    let onUpdate: (CGRect) -> Void
+    let onDismiss: () -> Void
+
+    @State private var currentRect: CGRect
+    @State private var dragStartRect: CGRect?
+    @Environment(\.dismiss) private var dismiss
+
+    init(sourceImage: CGImage, cardRect: CGRect, onUpdate: @escaping (CGRect) -> Void, onDismiss: @escaping () -> Void) {
+        self.sourceImage = sourceImage
+        self.cardRect = cardRect
+        self.onUpdate = onUpdate
+        self.onDismiss = onDismiss
+        self._currentRect = State(initialValue: cardRect)
+    }
+
+    var body: some View {
+        NavigationStack {
+            GeometryReader { geometry in
+                let uiImage = UIImage(cgImage: sourceImage)
+                let displayW = geometry.size.width
+                let imgDisplayH = displayW * uiImage.size.height / uiImage.size.width
+
+                ScrollViewReader { proxy in
+                    ScrollView([.vertical, .horizontal]) {
+                        ZStack(alignment: .topLeading) {
+                            Image(uiImage: uiImage)
+                                .resizable()
+                                .frame(width: displayW * 2, height: imgDisplayH * 2)
+
+                            let scaleX = displayW * 2 / uiImage.size.width
+                            let scaleY = imgDisplayH * 2 / uiImage.size.height
+                            let x = currentRect.origin.x * scaleX
+                            let y = currentRect.origin.y * scaleY
+                            let w = currentRect.width * scaleX
+                            let h = currentRect.height * scaleY
+
+                            // Crop box
+                            Rectangle()
+                                .stroke(Color.green, lineWidth: 3)
+                                .background(Color.green.opacity(0.1))
+                                .frame(width: w, height: h)
+                                .position(x: x + w / 2, y: y + h / 2)
+
+                            // Corner handles
+                            cropHandle(scaleX: scaleX, scaleY: scaleY, corner: .topLeft,
+                                      handleX: x, handleY: y, imageSize: uiImage.size)
+                            cropHandle(scaleX: scaleX, scaleY: scaleY, corner: .topRight,
+                                      handleX: x + w, handleY: y, imageSize: uiImage.size)
+                            cropHandle(scaleX: scaleX, scaleY: scaleY, corner: .bottomLeft,
+                                      handleX: x, handleY: y + h, imageSize: uiImage.size)
+                            cropHandle(scaleX: scaleX, scaleY: scaleY, corner: .bottomRight,
+                                      handleX: x + w, handleY: y + h, imageSize: uiImage.size)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Adjust Crop")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                        onDismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        onUpdate(currentRect)
+                        dismiss()
+                        onDismiss()
+                    }
+                }
+                ToolbarItem(placement: .bottomBar) {
+                    Button("Reset") {
+                        currentRect = cardRect
+                    }
+                }
+            }
+        }
+    }
+
+    private func cropHandle(scaleX: CGFloat, scaleY: CGFloat, corner: Corner,
+                           handleX: CGFloat, handleY: CGFloat, imageSize: CGSize) -> some View {
+        Circle()
+            .fill(Color.green)
+            .frame(width: 28, height: 28)
+            .overlay(Circle().stroke(.white, lineWidth: 2))
+            .position(x: handleX, y: handleY)
+            .gesture(
+                DragGesture()
+                    .onChanged { value in
+                        if dragStartRect == nil { dragStartRect = currentRect }
+                        guard let start = dragStartRect else { return }
+                        let dx = value.translation.width / scaleX
+                        let dy = value.translation.height / scaleY
+
+                        var newRect = start
+                        switch corner {
+                        case .topLeft:
+                            newRect.origin.x = max(0, start.origin.x + dx)
+                            newRect.origin.y = max(0, start.origin.y + dy)
+                            newRect.size.width = max(20, start.width - dx)
+                            newRect.size.height = max(20, start.height - dy)
+                        case .topRight:
+                            newRect.origin.y = max(0, start.origin.y + dy)
+                            newRect.size.width = min(imageSize.width - start.origin.x, max(20, start.width + dx))
+                            newRect.size.height = max(20, start.height - dy)
+                        case .bottomLeft:
+                            newRect.origin.x = max(0, start.origin.x + dx)
+                            newRect.size.width = max(20, start.width - dx)
+                            newRect.size.height = min(imageSize.height - start.origin.y, max(20, start.height + dy))
+                        case .bottomRight:
+                            newRect.size.width = min(imageSize.width - start.origin.x, max(20, start.width + dx))
+                            newRect.size.height = min(imageSize.height - start.origin.y, max(20, start.height + dy))
+                        }
+                        currentRect = newRect
+                    }
+                    .onEnded { _ in dragStartRect = nil }
+            )
+    }
+
+    private enum Corner { case topLeft, topRight, bottomLeft, bottomRight }
 }
