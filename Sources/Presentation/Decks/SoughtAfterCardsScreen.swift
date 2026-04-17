@@ -113,7 +113,7 @@ struct SoughtAfterCardsScreen: View {
             } else {
                 LazyVStack(spacing: 0) {
                     ForEach(Array(section.cards.enumerated()), id: \.element.id) { idx, card in
-                        cardRow(rank: idx + 1, card: card)
+                        cardRow(rank: idx + 1, card: card, sectionCards: section.cards)
                         if idx < section.cards.count - 1 {
                             Divider().padding(.leading, 56)
                         }
@@ -126,15 +126,26 @@ struct SoughtAfterCardsScreen: View {
     }
 
     @ViewBuilder
-    private func cardRow(rank: Int, card: SoughtAfterCard) -> some View {
+    private func cardRow(rank: Int, card: SoughtAfterCard, sectionCards: [SoughtAfterCard] = []) -> some View {
         if let resolvedCard = resolved[card.cardName] {
             NavigationLink {
-                CardDetailView(
-                    card: resolvedCard,
-                    repository: cardRepository,
-                    deckRepository: deckRepository,
-                    onScanAnother: {}
-                )
+                let allResolved = sectionCards.compactMap { resolved[$0.cardName] }
+                if allResolved.count > 1,
+                   let pos = allResolved.firstIndex(where: { $0.scryfallID == resolvedCard.scryfallID }) {
+                    CardListPagerView(
+                        cards: allResolved,
+                        initialIndex: pos,
+                        cardRepository: cardRepository,
+                        deckRepository: deckRepository
+                    )
+                } else {
+                    CardDetailView(
+                        card: resolvedCard,
+                        repository: cardRepository,
+                        deckRepository: deckRepository,
+                        onScanAnother: {}
+                    )
+                }
             } label: {
                 cardRowContent(rank: rank, card: card, resolved: resolvedCard)
             }

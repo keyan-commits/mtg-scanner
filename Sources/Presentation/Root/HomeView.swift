@@ -248,11 +248,11 @@ struct HomeView: View {
             VStack(spacing: 0) {
                 ForEach(Array(searchResults.enumerated()), id: \.element.id) { idx, card in
                     NavigationLink {
-                        CardDetailView(
-                            card: card,
-                            repository: cardRepository,
-                            deckRepository: deckRepository,
-                            onScanAnother: {}
+                        CardListPagerView(
+                            cards: searchResults,
+                            initialIndex: idx,
+                            cardRepository: cardRepository,
+                            deckRepository: deckRepository
                         )
                     } label: {
                         searchResultRow(card)
@@ -563,8 +563,8 @@ struct HomeView: View {
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(alignment: .top, spacing: 10) {
-                        ForEach(soughtAfterCards) { entry in
-                            soughtAfterCardView(entry)
+                        ForEach(Array(soughtAfterCards.enumerated()), id: \.element.id) { idx, entry in
+                            soughtAfterCardView(entry, index: idx)
                         }
                     }
                 }
@@ -604,17 +604,28 @@ struct HomeView: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
-    private func soughtAfterCardView(_ entry: SoughtAfterCard) -> some View {
+    private func soughtAfterCardView(_ entry: SoughtAfterCard, index: Int) -> some View {
         let resolved = soughtAfterResolved[entry.cardName]
+        let allResolved = soughtAfterCards.compactMap { soughtAfterResolved[$0.cardName] }
         return Group {
             if let resolved {
                 NavigationLink {
-                    CardDetailView(
-                        card: resolved,
-                        repository: cardRepository,
-                        deckRepository: deckRepository,
-                        onScanAnother: {}
-                    )
+                    if allResolved.count > 1,
+                       let pos = allResolved.firstIndex(where: { $0.scryfallID == resolved.scryfallID }) {
+                        CardListPagerView(
+                            cards: allResolved,
+                            initialIndex: pos,
+                            cardRepository: cardRepository,
+                            deckRepository: deckRepository
+                        )
+                    } else {
+                        CardDetailView(
+                            card: resolved,
+                            repository: cardRepository,
+                            deckRepository: deckRepository,
+                            onScanAnother: {}
+                        )
+                    }
                 } label: {
                     soughtAfterCardLabel(entry: entry, card: resolved)
                 }

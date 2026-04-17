@@ -485,7 +485,7 @@ struct CollectionScreen: View {
                 Section(section.title) {
                     ForEach(section.items) { item in
                         NavigationLink {
-                            cardDetailDestination(for: item)
+                            cardDetailDestination(for: item, in: section.items)
                         } label: {
                             row(item)
                         }
@@ -529,7 +529,7 @@ struct CollectionScreen: View {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(alignment: .top, spacing: 10) {
                                 ForEach(section.items) { item in
-                                    gridCard(item)
+                                    gridCard(item, in: section.items)
                                 }
                             }
                             .padding(.horizontal, 16)
@@ -542,9 +542,9 @@ struct CollectionScreen: View {
         .background(MD3Theme.background)
     }
 
-    private func gridCard(_ item: CollectionItem) -> some View {
+    private func gridCard(_ item: CollectionItem, in items: [CollectionItem] = []) -> some View {
         NavigationLink {
-            cardDetailDestination(for: item)
+            cardDetailDestination(for: item, in: items)
         } label: {
             VStack(spacing: 4) {
                 ZStack(alignment: .topLeading) {
@@ -608,14 +608,25 @@ struct CollectionScreen: View {
     /// Uses the local DB via set+collectorNumber for an exact printing
     /// match (not fuzzy — the collection item already has printing info).
     @ViewBuilder
-    private func cardDetailDestination(for item: CollectionItem) -> some View {
+    private func cardDetailDestination(for item: CollectionItem, in items: [CollectionItem] = []) -> some View {
         if let card = resolvedCards[item.scryfallID] {
-            CardDetailView(
-                card: card,
-                repository: cardRepository,
-                deckRepository: deckRepository,
-                onScanAnother: {}
-            )
+            let sectionCards = items.compactMap { resolvedCards[$0.scryfallID] }
+            if sectionCards.count > 1,
+               let idx = sectionCards.firstIndex(where: { $0.scryfallID == card.scryfallID }) {
+                CardListPagerView(
+                    cards: sectionCards,
+                    initialIndex: idx,
+                    cardRepository: cardRepository,
+                    deckRepository: deckRepository
+                )
+            } else {
+                CardDetailView(
+                    card: card,
+                    repository: cardRepository,
+                    deckRepository: deckRepository,
+                    onScanAnother: {}
+                )
+            }
         } else {
             ProgressView("Loading card…")
                 .task { await resolveCard(item) }

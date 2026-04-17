@@ -271,7 +271,7 @@ struct MajorArchetypeDetailView: View {
     private func commonCardsList(_ cards: [CommonCardEntry]) -> some View {
         LazyVStack(spacing: 0) {
             ForEach(Array(cards.enumerated()), id: \.element.id) { idx, card in
-                cardRowDestination(cardName: card.cardName) {
+                cardRowDestination(cardName: card.cardName, allCardNames: cards.map(\.cardName)) {
                     HStack(spacing: 10) {
                         Text("\(card.deckCount)×")
                             .font(.system(.caption, design: .monospaced))
@@ -313,16 +313,28 @@ struct MajorArchetypeDetailView: View {
     @ViewBuilder
     private func cardRowDestination<Label: View>(
         cardName: String,
+        allCardNames: [String] = [],
         @ViewBuilder label: () -> Label
     ) -> some View {
         if let resolved = resolvedCards[cardName] {
             NavigationLink {
-                CardDetailView(
-                    card: resolved,
-                    repository: cardRepository,
-                    deckRepository: deckRepository,
-                    onScanAnother: {}
-                )
+                let allResolved = allCardNames.compactMap { resolvedCards[$0] }
+                if allResolved.count > 1,
+                   let pos = allResolved.firstIndex(where: { $0.scryfallID == resolved.scryfallID }) {
+                    CardListPagerView(
+                        cards: allResolved,
+                        initialIndex: pos,
+                        cardRepository: cardRepository,
+                        deckRepository: deckRepository
+                    )
+                } else {
+                    CardDetailView(
+                        card: resolved,
+                        repository: cardRepository,
+                        deckRepository: deckRepository,
+                        onScanAnother: {}
+                    )
+                }
             } label: {
                 label()
             }
