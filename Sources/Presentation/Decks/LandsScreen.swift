@@ -70,14 +70,9 @@ struct LandsScreen: View {
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(MD3Theme.primary)
                     .frame(width: 32)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(category.name)
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
-                        .foregroundStyle(MD3Theme.onSurface)
-                    Text("\(category.cardNames.count) cards")
-                        .font(.caption2)
-                        .foregroundStyle(MD3Theme.onSurfaceVariant)
-                }
+                Text(category.name)
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(MD3Theme.onSurface)
             }
             .padding(.vertical, 4)
         }
@@ -161,6 +156,8 @@ struct LandCategoryDetailView: View {
     @State private var resolvedCards: [String: [Card]] = [:]
     @State private var ownedByName: [String: Int] = [:]
     @State private var ownedDetails: [String: [(setCode: String, setName: String, quantity: Int)]] = [:]
+    /// Per-printing ownership for accurate badges on multi-variant categories.
+    @State private var ownedByScryfallID: [String: Int] = [:]
 
     /// All resolved cards flattened in display order.
     private var sortedCards: [Card] {
@@ -191,6 +188,7 @@ struct LandCategoryDetailView: View {
         .task {
             ownedByName = (try? deckRepository.ownedQuantitiesByName()) ?? [:]
             ownedDetails = (try? deckRepository.ownedDetailsByName()) ?? [:]
+            ownedByScryfallID = (try? deckRepository.ownedQuantitiesByScryfallID()) ?? [:]
             await resolveAll()
         }
     }
@@ -232,10 +230,8 @@ struct LandCategoryDetailView: View {
         let details = ownedDetails[name] ?? []
 
         if !category.setCodes.isEmpty {
-            // Collectible lands: check exact set+collector match
-            let exactQty = details
-                .filter { $0.setCode == card.set.code }
-                .reduce(0) { $0 + $1.quantity }
+            // Collectible lands: check this exact printing by scryfallID
+            let exactQty = ownedByScryfallID[card.scryfallID] ?? 0
             return exactQty > 0 ? .exactMatch(exactQty) : .notOwned
         }
 
@@ -252,15 +248,22 @@ struct LandCategoryDetailView: View {
         return .differentSet(setDetails)
     }
 
+    private static let attributionText = "Sources: MTG Wiki (mtg.fandom.com), Scryfall, Card Kingdom Blog, MTGGoldfish, Draftsim, CoolStuffInc, ManaGathering, Magic Librarities, Wikipedia."
+
     // MARK: - List
 
     private var listBody: some View {
         List {
             Section {
-                Text(category.description)
-                    .font(.caption)
-                    .foregroundStyle(MD3Theme.onSurfaceVariant)
-                    .listRowBackground(Color.clear)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(category.description)
+                        .font(.caption)
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    Text(Self.attributionText)
+                        .font(.system(size: 8))
+                        .foregroundStyle(MD3Theme.onSurfaceVariant.opacity(0.6))
+                }
+                .listRowBackground(Color.clear)
             }
             Section("\(sortedCards.count) cards") {
                 let cards = sortedCards
@@ -355,11 +358,16 @@ struct LandCategoryDetailView: View {
     private var gridBody: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text(category.description)
-                    .font(.caption)
-                    .foregroundStyle(MD3Theme.onSurfaceVariant)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(category.description)
+                        .font(.caption)
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    Text(Self.attributionText)
+                        .font(.system(size: 8))
+                        .foregroundStyle(MD3Theme.onSurfaceVariant.opacity(0.6))
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
 
                 let cards = sortedCards
                 LazyVGrid(
