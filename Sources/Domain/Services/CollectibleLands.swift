@@ -21,7 +21,6 @@ enum CollectibleLands {
         zendikarExpeditionsBFZ,
         zendikarExpeditionsOGW,
         zendikarRisingExpeditions,
-        secretLairLands,
         judgePromoLands,
         iconicReservedListLands,
         otherIconicCollectibleLands,
@@ -297,23 +296,6 @@ enum CollectibleLands {
             "Emeria, the Sky Ruin",
         ],
         setCodes: ["zne"]
-    )
-
-    // MARK: - Secret Lair Lands
-
-    static let secretLairLands = LandCategory(
-        id: "secret-lair-lands",
-        name: "Secret Lair Lands",
-        iconName: "lock.open.fill",
-        description: "Premium basics from Secret Lair direct-to-consumer drops (2019-present). Hundreds of unique printings across 70+ drops featuring guest artists and IP crossovers. Notable drops include The Tokyo Lands (~$75/card), Godzilla Lands (Japanese-only foils), Full-Text Lands, and Artist Series by John Avon, Seb McKinnon, and others. Available in foil and non-foil.",
-        cardNames: [
-            "Plains",
-            "Island",
-            "Swamp",
-            "Mountain",
-            "Forest",
-        ],
-        setCodes: ["sld", "slu", "slc"]
     )
 
     // MARK: - Judge Promo Lands

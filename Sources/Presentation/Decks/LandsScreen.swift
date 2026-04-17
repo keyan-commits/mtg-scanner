@@ -44,6 +44,11 @@ struct LandsScreen: View {
                     categoryRow(category, in: CollectibleLands.all)
                 }
             }
+            Section("Secret Lair Lands") {
+                ForEach(SecretLairLands.all) { category in
+                    categoryRow(category, in: SecretLairLands.all)
+                }
+            }
             Section("cEDH Staples") {
                 ForEach(CEDHStaples.all) { category in
                     categoryRow(category, in: CEDHStaples.all)
@@ -201,7 +206,10 @@ struct LandCategoryDetailView: View {
 
             if !category.setCodes.isEmpty {
                 if let printings = try? await cardRepository.findAllPrintings(name: name) {
-                    let filtered = printings.filter { category.setCodes.contains($0.set.code) }
+                    var filtered = printings.filter { category.setCodes.contains($0.set.code) }
+                    if !category.collectorNumbers.isEmpty {
+                        filtered = filtered.filter { category.collectorNumbers.contains($0.collectorNumber) }
+                    }
                     if !filtered.isEmpty {
                         resolvedCards[name] = filtered
                         continue
