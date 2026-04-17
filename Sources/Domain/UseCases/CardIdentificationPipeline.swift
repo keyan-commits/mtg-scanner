@@ -836,10 +836,12 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
             let sa = scores[a.scryfallID] ?? 0
             let sb = scores[b.scryfallID] ?? 0
             if sa != sb { return sa > sb }
-            // Tiebreak: oldest release (original printing)
-            let da = a.releasedAt ?? "9999"
-            let db = b.releasedAt ?? "9999"
-            if da != db { return da < db }
+            // Tiebreak: newest release first — users are more likely to
+            // own recent printings than Alpha/Beta originals. "Oldest first"
+            // was actively wrong (see matchByMetadata comment).
+            let da = a.releasedAt ?? "0000"
+            let db = b.releasedAt ?? "0000"
+            if da != db { return da > db }
             return (Int(a.collectorNumber.filter(\.isNumber)) ?? 9999) < (Int(b.collectorNumber.filter(\.isNumber)) ?? 9999)
         }
 
