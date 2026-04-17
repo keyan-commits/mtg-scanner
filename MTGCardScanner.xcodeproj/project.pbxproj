@@ -195,6 +195,7 @@
 		F54F9F705A2FB17C70853CD7 /* CardSet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E619225B3207092573B2DCAF /* CardSet.swift */; };
 		F65CD81296B087494D44B03F /* TextClusterCardDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CE585E206E314FF91928DF4 /* TextClusterCardDetector.swift */; };
 		F6DE3942B7B3D24B6ED2A97C /* DatabaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6F1591F40970795644DD5FE /* DatabaseManager.swift */; };
+		PR1CEREFRE5HBUILD0000001 /* PriceRefreshService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PR1CEREFRE5HF1LEREF00001 /* PriceRefreshService.swift */; };
 		F80154E1D152299F367ACC4B /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E04D7EF05D11224F9316FE28 /* CameraPreviewView.swift */; };
 		FC3A4B8922CB7CD438C71646 /* ScanResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EC46C1D9B23E21E86BF9A17 /* ScanResult.swift */; };
 		FCE74529AFB0644161584114 /* DecklistCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8060DCB554DB14C4FE317B2C /* DecklistCache.swift */; };
@@ -330,6 +331,7 @@
 		A37AB2078D2731512F0C20A3 /* CardCopiesDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardCopiesDetailView.swift; sourceTree = "<group>"; };
 		A3D7EB6055DD1DABA482C2D2 /* ScryfallCardRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScryfallCardRepositoryTests.swift; sourceTree = "<group>"; };
 		A6F1591F40970795644DD5FE /* DatabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseManager.swift; sourceTree = "<group>"; };
+		PR1CEREFRE5HF1LEREF00001 /* PriceRefreshService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PriceRefreshService.swift; sourceTree = "<group>"; };
 		A7EF5276B61E7BDCAB95652E /* MTGCardScannerTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MTGCardScannerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A8FB20D7CCAA7E097227D5B7 /* TrainingDataExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingDataExporter.swift; sourceTree = "<group>"; };
 		D2B3C4E5F6071829A3B4C5D7 /* TrainingDataCollector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingDataCollector.swift; sourceTree = "<group>"; };
@@ -574,6 +576,7 @@
 				44077D8AD1EB01565E5AA3DE /* BulkDataDownloader.swift */,
 				988768095CEF35BB3BAC7747 /* CardDatabase.swift */,
 				A6F1591F40970795644DD5FE /* DatabaseManager.swift */,
+				PR1CEREFRE5HF1LEREF00001 /* PriceRefreshService.swift */,
 				21299263386630693EDC580B /* DeckListModel.swift */,
 				9F27ADD22AA84EB65A5D8C00 /* DeckListRepository.swift */,
 			);
@@ -1044,6 +1047,7 @@
 				1377DBE1993939A725BBB242 /* CopyrightYearExtractor.swift in Sources */,
 				2AC58702854C4FE8F8CBF5CE /* CurrencyService.swift in Sources */,
 				F6DE3942B7B3D24B6ED2A97C /* DatabaseManager.swift in Sources */,
+				PR1CEREFRE5HBUILD0000001 /* PriceRefreshService.swift in Sources */,
 				E7C79EA37838BDBACAF04751 /* DeckCompatibilityView.swift in Sources */,
 				0EAAE6F32011A604557C58E4 /* DeckDetailView.swift in Sources */,
 				DEB0BBC5C5C0D932EB794B45 /* DeckFormat.swift in Sources */,

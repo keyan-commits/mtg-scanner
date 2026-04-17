@@ -8,6 +8,7 @@ struct SettingsScreen: View {
     @State private var currency: String = LocalCurrency.current
     @State private var ratesUpdated: String = "Never"
     @State private var refreshing: Bool = false
+    @State private var pricesUpdated: String = "Never"
     @Bindable private var currencyService = CurrencyService.shared
     @Bindable private var iconManager = AppIconManager.shared
     @Bindable private var printingPreference = PrintingStrategyPreference.shared
@@ -63,6 +64,39 @@ struct SettingsScreen: View {
                 }
             } footer: {
                 Text("Rates are fetched from frankfurter.app (free, ECB-backed) and cached locally for 24 hours. Tap refresh to fetch new rates immediately.")
+                    .font(.caption2)
+            }
+
+            Section {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Card prices")
+                            .foregroundStyle(MD3Theme.onSurface)
+                        Text("Last updated: \(pricesUpdated)")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if let service = PriceRefreshService.shared {
+                        if service.isRefreshing {
+                            VStack(spacing: 2) {
+                                ProgressView().scaleEffect(0.7)
+                                Text("\(Int(service.progress * 100))%")
+                                    .font(.system(size: 9, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                            }
+                        } else {
+                            Button {
+                                Task { await service.refresh(); updatePricesTimestamp() }
+                            } label: {
+                                Image(systemName: "arrow.clockwise")
+                                    .foregroundStyle(MD3Theme.primary)
+                            }
+                        }
+                    }
+                }
+            } footer: {
+                Text("Prices from Scryfall (TCGPlayer market data). Auto-refreshes daily on launch. ~100MB download over WiFi recommended.")
                     .font(.caption2)
             }
 
@@ -147,6 +181,7 @@ struct SettingsScreen: View {
         .task {
             await currencyService.refreshIfStale()
             updateTimestamp()
+            updatePricesTimestamp()
         }
         .onChange(of: currencyService.lastUpdated) { _, _ in
             updateTimestamp()
@@ -168,6 +203,17 @@ struct SettingsScreen: View {
             ratesUpdated = formatter.string(from: date)
         } else {
             ratesUpdated = "Never"
+        }
+    }
+
+    private func updatePricesTimestamp() {
+        if let date = PriceRefreshService.shared?.lastUpdated {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .short
+            pricesUpdated = formatter.string(from: date)
+        } else {
+            pricesUpdated = "Never"
         }
     }
 

@@ -10,6 +10,7 @@ struct MTGCardScannerApp: App {
     @State private var storedPipeline: CardIdentificationPipeline?
     @State private var storedRepository: LocalCardRepository?
     @State private var storedDeckRepository: DeckListRepository?
+    @State private var priceRefreshService: PriceRefreshService?
 
     private let databaseManager: DatabaseManager?
     private let downloader: ScryfallBulkDataDownloader
@@ -40,6 +41,13 @@ struct MTGCardScannerApp: App {
             .background(MD3Theme.background)
             .task {
                 await setupDatabase()
+                // Daily price refresh — runs in background after app is ready
+                if let databaseManager {
+                    let service = PriceRefreshService(downloader: downloader, databaseManager: databaseManager)
+                    PriceRefreshService.shared = service
+                    priceRefreshService = service
+                    await service.refreshIfStale()
+                }
             }
             .task {
                 // Daily WUBRG icon rotation. No-op if rotation is
