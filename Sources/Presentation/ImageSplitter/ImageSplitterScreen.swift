@@ -27,9 +27,8 @@ struct ImageSplitterScreen: View {
         VStack(spacing: 0) {
             if viewModel.sourceImage == nil {
                 photoPickerView
-            } else if viewModel.isDetecting {
-                ProgressView("Detecting cards...")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if viewModel.isDetecting || (viewModel.isIdentifying && viewModel.identifiedCards.isEmpty) {
+                geminiProcessingView
             } else {
                 splitPreviewView
             }
@@ -91,6 +90,62 @@ struct ImageSplitterScreen: View {
                 )
             }
         }
+    }
+
+    // MARK: - Gemini Processing View
+
+    private var geminiProcessingView: some View {
+        VStack(spacing: 20) {
+            Spacer()
+
+            if let sourceImage = viewModel.sourceImage {
+                Image(decorative: sourceImage, scale: 1.0)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxHeight: 250)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(MD3Theme.primary.opacity(0.3), lineWidth: 2)
+                    )
+                    .padding(.horizontal, 32)
+            }
+
+            VStack(spacing: 12) {
+                ProgressView()
+                    .scaleEffect(1.2)
+                if GeminiVisionService.isActive {
+                    Text("Identifying cards with Gemini Vision...")
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(MD3Theme.onSurface)
+                    Text("Sending image for AI analysis")
+                        .font(.caption)
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                } else {
+                    Text("Detecting cards...")
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(MD3Theme.onSurface)
+                }
+            }
+
+            Button {
+                viewModel.cancelIdentification()
+            } label: {
+                Text("Cancel")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(.red, lineWidth: 1)
+                    )
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+        .background(MD3Theme.background)
     }
 
     // MARK: - Photo Picker

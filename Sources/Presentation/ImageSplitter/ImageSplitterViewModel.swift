@@ -53,6 +53,16 @@ final class ImageSplitterViewModel {
         self.deckRepository = deckRepository
     }
 
+    private var identificationTask: Task<Void, Never>?
+
+    func cancelIdentification() {
+        identificationTask?.cancel()
+        identificationTask = nil
+        isIdentifying = false
+        isDetecting = false
+        identifyingProgress = nil
+    }
+
     // MARK: - Detection
 
     func setImage(_ image: CGImage) {
@@ -73,11 +83,10 @@ final class ImageSplitterViewModel {
 
         // Gemini mode: skip rectangle detection, go straight to identification
         if GeminiVisionService.isActive {
-            isDetecting = false
-            // Create a single placeholder entry so the UI has something to show
-            detectedCards = [(image: image, rect: CGRect(x: 0, y: 0, width: image.width, height: image.height))]
-            selectedIndices = [0]
-            await identifyCards()
+            isDetecting = true
+            identificationTask = Task {
+                await identifyCards()
+            }
             return
         }
 
@@ -327,7 +336,15 @@ final class ImageSplitterViewModel {
            let sourceImage {
             let geminiTotal = max(total, 1)
             identifyingProgress = (current: 0, total: geminiTotal)
+            isDetecting = false
+
             let geminiCards = await pipeline.identifyAllWithGemini(image: sourceImage)
+
+            guard !Task.isCancelled else {
+                isIdentifying = false
+                identifyingProgress = nil
+                return
+            }
 
             if !geminiCards.isEmpty {
                 // Gemini returned N cards with bounding boxes — crop each
@@ -340,9 +357,12 @@ final class ImageSplitterViewModel {
                     debugLogs[i] = "Gemini: \(entry.card.name) [\(entry.card.set.code)] #\(entry.card.collectorNumber)"
 
                     // Crop individual card from source image using bounding box
+                    let imgBounds = CGRect(x: 0, y: 0, width: sourceImage.width, height: sourceImage.height)
                     if let bbox = entry.bbox,
-                       let cropped = sourceImage.cropping(to: bbox.intersection(CGRect(x: 0, y: 0, width: sourceImage.width, height: sourceImage.height))) {
+                       let cropped = sourceImage.cropping(to: bbox.intersection(imgBounds)),
+                       cropped.width > 50 && cropped.height > 50 {
                         detectedCards.append((image: cropped, rect: bbox))
+
                     } else {
                         detectedCards.append((image: sourceImage, rect: .zero))
                     }
