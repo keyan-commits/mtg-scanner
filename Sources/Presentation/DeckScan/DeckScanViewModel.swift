@@ -120,9 +120,12 @@ final class DeckScanViewModel {
         scanState = .processing(current: 0, total: 1)
 
         // === Gemini whole-image mode: skip detection entirely ===
+        print("[DeckScan] Gemini active: \(GeminiVisionService.isActive) (configured: \(GeminiVisionService.isConfigured), enabled: \(GeminiVisionService.isEnabled), limit: \(GeminiVisionService.isDailyLimitReached))")
         if GeminiVisionService.isActive {
+            print("[DeckScan] Sending whole image to Gemini...")
             scanState = .processing(current: 0, total: 1)
             let geminiResults = await pipeline.identifyAllWithGemini(image: image)
+            print("[DeckScan] Gemini returned \(geminiResults.count) cards")
             if !geminiResults.isEmpty {
                 identifiedCards = geminiResults.map(\.card)
                 processingProgress = 1.0
@@ -130,6 +133,7 @@ final class DeckScanViewModel {
                 return
             }
             // Gemini failed — fall through to local pipeline
+            print("[DeckScan] Gemini failed, falling back to local pipeline")
         }
 
         var cardImages: [CGImage] = []

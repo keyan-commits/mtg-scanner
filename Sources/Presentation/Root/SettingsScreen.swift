@@ -10,7 +10,7 @@ struct SettingsScreen: View {
     @State private var refreshing: Bool = false
     @State private var pricesUpdated: String = "Never"
     @State private var geminiAPIKey: String = GeminiVisionService.apiKey ?? ""
-    @State private var geminiEnabled: Bool = GeminiVisionService.isEnabled
+    @State private var geminiEnabled: Bool = GeminiVisionService.isEnabled || (GeminiVisionService.isConfigured && UserDefaults.standard.object(forKey: "geminiEnabled") == nil)
     @State private var geminiTestResult: String?
     @State private var geminiTesting: Bool = false
     @State private var showUsageEditor: Bool = false

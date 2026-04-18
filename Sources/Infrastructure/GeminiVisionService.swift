@@ -18,7 +18,13 @@ actor GeminiVisionService {
     private static let enabledKey = "geminiEnabled"
 
     static var isEnabled: Bool {
-        get { UserDefaults.standard.bool(forKey: enabledKey) }
+        get {
+            // Default to true if key exists but user never toggled
+            if UserDefaults.standard.object(forKey: enabledKey) == nil && isConfigured {
+                return true
+            }
+            return UserDefaults.standard.bool(forKey: enabledKey)
+        }
         set { UserDefaults.standard.set(newValue, forKey: enabledKey) }
     }
 
