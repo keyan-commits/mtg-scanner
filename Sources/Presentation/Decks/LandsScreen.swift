@@ -47,18 +47,16 @@ struct LandsScreen: View {
                     categoryRow(category, in: CollectibleLands.all)
                 }
             }
-            if !dynamicSecretLair.isEmpty {
-                Section("Secret Lair Lands") {
-                    ForEach(dynamicSecretLair) { category in
-                        categoryRow(category, in: dynamicSecretLair)
-                    }
+            Section("Secret Lair Lands") {
+                let slCategories = dynamicSecretLair.isEmpty ? SecretLairLands.all : dynamicSecretLair
+                ForEach(slCategories) { category in
+                    categoryRow(category, in: slCategories)
                 }
             }
-            if !dynamicReservedList.isEmpty {
-                Section("Reserved List") {
-                    ForEach(dynamicReservedList) { category in
-                        categoryRow(category, in: dynamicReservedList)
-                    }
+            Section("Reserved List") {
+                let rlCategories = dynamicReservedList.isEmpty ? ReservedList.all : dynamicReservedList
+                ForEach(rlCategories) { category in
+                    categoryRow(category, in: rlCategories)
                 }
             }
             Section("cEDH Staples") {
