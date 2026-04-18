@@ -331,22 +331,24 @@ final class ImageSplitterViewModel {
             GeminiVisionService.recordUsage()
 
             if !geminiCards.isEmpty {
-                // Gemini returned N cards — create entries for each
-                // (may differ from detectedCards count since we skipped detection)
+                // Gemini returned N cards with bounding boxes — crop each
                 identifiedCards = [:]
                 geminiIdentified = []
-                for (i, card) in geminiCards.enumerated() {
-                    identifiedCards[i] = card
+                detectedCards = []
+                for (i, entry) in geminiCards.enumerated() {
+                    identifiedCards[i] = entry.card
                     geminiIdentified.insert(i)
-                    debugLogs[i] = "Gemini (whole image): \(card.name) [\(card.set.code)] #\(card.collectorNumber)"
-                }
-                // Ensure detectedCards has enough placeholder entries for the UI
-                if geminiCards.count > detectedCards.count {
-                    for _ in detectedCards.count..<geminiCards.count {
+                    debugLogs[i] = "Gemini: \(entry.card.name) [\(entry.card.set.code)] #\(entry.card.collectorNumber)"
+
+                    // Crop individual card from source image using bounding box
+                    if let bbox = entry.bbox,
+                       let cropped = sourceImage.cropping(to: bbox.intersection(CGRect(x: 0, y: 0, width: sourceImage.width, height: sourceImage.height))) {
+                        detectedCards.append((image: cropped, rect: bbox))
+                    } else {
                         detectedCards.append((image: sourceImage, rect: .zero))
                     }
-                    selectedIndices = Set(0..<geminiCards.count)
                 }
+                selectedIndices = Set(0..<geminiCards.count)
                 isIdentifying = false
                 identifyingProgress = nil
                 return

@@ -75,8 +75,8 @@ protocol CardIdentificationPipelineProtocol: Sendable {
     func identifyWithGemini(cgImage: CGImage) async -> Card?
 
     /// Identifies all cards in a full image using Gemini Vision API.
-    /// Returns array of (Card, wasGemini) pairs. Uses a single API call.
-    func identifyAllWithGemini(image: CGImage) async -> [Card]
+    /// Returns array of (card, boundingBox) pairs. Uses a single API call.
+    func identifyAllWithGemini(image: CGImage) async -> [(card: Card, bbox: CGRect?)]
 
     /// Clears the FeaturePrint cache (e.g., before batch identification of a new photo).
     func clearFeaturePrintCache() async
@@ -520,25 +520,35 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         await featurePrintCache?.clear()
     }
 
-    func identifyAllWithGemini(image: CGImage) async -> [Card] {
+    func identifyAllWithGemini(image: CGImage) async -> [(card: Card, bbox: CGRect?)] {
         guard GeminiVisionService.isConfigured else { return [] }
         let gemini = GeminiVisionService()
         guard let results = await gemini.identifyAllCards(image: image) else { return [] }
 
-        var cards: [Card] = []
+        let imgW = CGFloat(image.width)
+        let imgH = CGFloat(image.height)
+
+        var cards: [(card: Card, bbox: CGRect?)] = []
         for result in results {
             if let printings = try? await repository.findAllPrintings(name: result.cardName),
                !printings.isEmpty {
-                if let sc = result.setCode, let cn = result.collectorNumber,
-                   let exact = printings.first(where: { $0.set.code == sc && $0.collectorNumber == cn }) {
-                    cards.append(exact)
-                } else if let match = await resolveExactPrinting(
-                    cardImage: image, cardName: result.cardName,
-                    printings: printings, illustrationID: nil
-                ) {
-                    cards.append(match)
-                } else if let first = printings.first {
-                    cards.append(first)
+                var card: Card?
+                if let sc = result.setCode, let cn = result.collectorNumber {
+                    card = printings.first(where: { $0.set.code == sc && $0.collectorNumber == cn })
+                }
+                if card == nil {
+                    card = await resolveExactPrinting(
+                        cardImage: image, cardName: result.cardName,
+                        printings: printings, illustrationID: nil
+                    )
+                }
+                if card == nil { card = printings.first }
+
+                if let card {
+                    let bbox: CGRect? = result.boundingBox.map { b in
+                        CGRect(x: b.x * imgW, y: b.y * imgH, width: b.w * imgW, height: b.h * imgH)
+                    }
+                    cards.append((card: card, bbox: bbox))
                 }
             }
         }

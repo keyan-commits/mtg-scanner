@@ -122,10 +122,10 @@ final class DeckScanViewModel {
         // === Gemini whole-image mode: skip detection entirely ===
         if GeminiVisionService.isActive {
             scanState = .processing(current: 0, total: 1)
-            let geminiCards = await pipeline.identifyAllWithGemini(image: image)
+            let geminiResults = await pipeline.identifyAllWithGemini(image: image)
             GeminiVisionService.recordUsage()
-            if !geminiCards.isEmpty {
-                identifiedCards = geminiCards.compactMap { $0 }
+            if !geminiResults.isEmpty {
+                identifiedCards = geminiResults.map(\.card)
                 processingProgress = 1.0
                 scanState = .results
                 return

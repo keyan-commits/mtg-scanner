@@ -138,7 +138,8 @@ actor GeminiVisionService {
             return GeminiCardResult(
                 cardName: cardName,
                 setCode: setCode,
-                collectorNumber: collectorNumber
+                collectorNumber: collectorNumber,
+                boundingBox: nil
             )
         } catch {
             print("[Gemini] Request failed: \(error.localizedDescription)")
@@ -162,12 +163,17 @@ actor GeminiVisionService {
         request.timeoutInterval = 30
 
         let prompt = """
-        Identify ALL Magic: The Gathering cards visible in this binder page photo.
-        For each card, determine the exact English card name, the Scryfall 3-letter set code, and the collector number if readable.
+        Identify ALL Magic: The Gathering cards visible in this photo.
+        For each card, determine:
+        1. The exact English card name
+        2. The Scryfall 3-letter set code (if readable)
+        3. The collector number (if readable)
+        4. The bounding box as fractional coordinates (0.0-1.0) relative to image width/height: x (left edge), y (top edge), w (width), h (height)
+
         Cards may be in sleeves or at angles. Include duplicates — if you see 4 copies of the same card, list it 4 times.
         Return ONLY a JSON array (no other text or markdown):
-        [{"card_name": "exact name", "set_code": "abc", "collector_number": "123"}, ...]
-        Order the cards left-to-right, top-to-bottom as they appear in the binder page.
+        [{"card_name": "exact name", "set_code": "abc", "collector_number": "123", "x": 0.0, "y": 0.0, "w": 0.25, "h": 0.33}, ...]
+        Order the cards left-to-right, top-to-bottom as they appear in the photo.
         """
 
         let body: [String: Any] = [
@@ -213,10 +219,19 @@ actor GeminiVisionService {
 
             let results = array.compactMap { item -> GeminiCardResult? in
                 guard let name = item["card_name"] as? String else { return nil }
+                var bbox: (x: Double, y: Double, w: Double, h: Double)?
+                if let x = item["x"] as? Double,
+                   let y = item["y"] as? Double,
+                   let w = item["w"] as? Double,
+                   let h = item["h"] as? Double,
+                   w > 0 && h > 0 {
+                    bbox = (x: x, y: y, w: w, h: h)
+                }
                 return GeminiCardResult(
                     cardName: name,
                     setCode: item["set_code"] as? String,
-                    collectorNumber: item["collector_number"] as? String
+                    collectorNumber: item["collector_number"] as? String,
+                    boundingBox: bbox
                 )
             }
 
@@ -233,4 +248,7 @@ struct GeminiCardResult {
     let cardName: String
     let setCode: String?
     let collectorNumber: String?
+    /// Bounding box as fractional coordinates (0-1) relative to image dimensions.
+    /// (x, y) is top-left corner; (w, h) is width and height.
+    let boundingBox: (x: Double, y: Double, w: Double, h: Double)?
 }
