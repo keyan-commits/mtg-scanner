@@ -194,15 +194,25 @@ actor GeminiVisionService {
         guard let apiKey = Self.apiKey, !apiKey.isEmpty else { return nil }
         Self.recordUsage()
 
-        let uiImage = UIImage(cgImage: image)
-        guard let jpegData = uiImage.jpegData(compressionQuality: 0.6) else { return nil }
+        var uiImage = UIImage(cgImage: image)
+        // Downscale very large images to keep payload reasonable
+        let maxDimension: CGFloat = 2048
+        if uiImage.size.width > maxDimension || uiImage.size.height > maxDimension {
+            let scale = maxDimension / max(uiImage.size.width, uiImage.size.height)
+            let newSize = CGSize(width: uiImage.size.width * scale, height: uiImage.size.height * scale)
+            let renderer = UIGraphicsImageRenderer(size: newSize)
+            uiImage = renderer.image { _ in uiImage.draw(in: CGRect(origin: .zero, size: newSize)) }
+            print("[Gemini] Downscaled image to \(Int(newSize.width))x\(Int(newSize.height))")
+        }
+        guard let jpegData = uiImage.jpegData(compressionQuality: 0.7) else { return nil }
         let base64 = jpegData.base64EncodedString()
+        print("[Gemini] Payload size: \(jpegData.count / 1024)KB")
 
         guard let url = URL(string: "\(Self.endpoint)?key=\(apiKey)") else { return nil }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 30
+        request.timeoutInterval = 60
 
         let prompt = """
         Identify ALL Magic: The Gathering cards visible in this photo.
@@ -291,6 +301,7 @@ actor GeminiVisionService {
             print("[Gemini] Batch: identified \(results.count) cards")
             return results
         } catch {
+            Self.lastError = "Request failed: \(error.localizedDescription)"
             print("[Gemini] Batch request failed: \(error.localizedDescription)")
             return nil
         }
