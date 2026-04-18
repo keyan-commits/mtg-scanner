@@ -575,13 +575,7 @@ struct ImageSplitterScreen: View {
                                 )
                             }
                         } label: {
-                            HStack(spacing: 12) {
-                                Image(decorative: viewModel.detectedCards[index].image, scale: 1.0)
-                                    .resizable()
-                                    .aspectRatio(63.0 / 88.0, contentMode: .fit)
-                                    .frame(height: 60)
-                                    .clipShape(RoundedRectangle(cornerRadius: 4))
-
+                            HStack(spacing: 8) {
                                 VStack(alignment: .leading, spacing: 2) {
                                     HStack(spacing: 4) {
                                         Text(card.name)
@@ -589,13 +583,12 @@ struct ImageSplitterScreen: View {
                                             .foregroundStyle(MD3Theme.onSurface)
                                             .lineLimit(1)
                                         if viewModel.geminiIdentified.contains(index) {
-                                            Text("Gemini")
-                                                .font(.system(size: 8, weight: .bold))
+                                            Text("G")
+                                                .font(.system(size: 7, weight: .bold))
                                                 .foregroundStyle(.white)
-                                                .padding(.horizontal, 4)
-                                                .padding(.vertical, 1)
+                                                .frame(width: 14, height: 14)
                                                 .background(Color.blue)
-                                                .clipShape(Capsule())
+                                                .clipShape(Circle())
                                         }
                                     }
                                     Text(card.setNameWithYear)

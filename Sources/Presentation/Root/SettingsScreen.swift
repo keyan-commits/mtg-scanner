@@ -446,6 +446,7 @@ struct SettingsScreen: View {
             "contents": [["parts": [["text": "Reply with exactly: OK"]]]]
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        GeminiVisionService.recordUsage()
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
