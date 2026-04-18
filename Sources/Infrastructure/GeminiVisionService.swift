@@ -8,7 +8,9 @@ import UIKit
 actor GeminiVisionService {
 
     private static let apiKeyKey = "geminiAPIKey"
-    private static let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent"
+    // Using 2.0 Flash for higher free tier limits (15 RPM, 1500 RPD)
+    // 2.5 Flash only allows 5 RPM / 20 RPD; 3 Flash not yet available via API
+    private static let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
     static var apiKey: String? {
         get { UserDefaults.standard.string(forKey: apiKeyKey) }
@@ -59,8 +61,8 @@ actor GeminiVisionService {
 
     private static let dailyLimitKey = "geminiDailyCount"
     private static let dailyDateKey = "geminiDailyDate"
-    // Gemini 3 Flash free tier: 15 RPM, 1000 RPD
-    private static let dailyLimit = 1000
+    // Gemini 2.0 Flash free tier: 15 RPM, 1500 RPD
+    private static let dailyLimit = 1500
 
     /// Number of Gemini requests made today.
     static var dailyUsage: Int {
@@ -268,6 +270,8 @@ actor GeminiVisionService {
                 return nil
             }
 
+            print("[Gemini] Raw response (\(text.count) chars): \(text.prefix(500))")
+
             let cleaned = text
                 .replacingOccurrences(of: "```json", with: "")
                 .replacingOccurrences(of: "```", with: "")
@@ -278,7 +282,8 @@ actor GeminiVisionService {
                 return nil
             }
             guard let parsed = try? JSONSerialization.jsonObject(with: resultData) else {
-                print("[Gemini] Batch: failed to parse JSON from: \(text.prefix(200))")
+                print("[Gemini] Batch: failed to parse JSON from: \(cleaned.prefix(300))")
+                Self.lastError = "Failed to parse Gemini response as JSON"
                 return nil
             }
 
@@ -288,15 +293,22 @@ actor GeminiVisionService {
             if let obj = parsed as? [String: Any] {
                 array = obj["cards"] as? [[String: Any]] ?? []
                 analysis = obj["analysis"] as? String
+                print("[Gemini] Parsed object: analysis=\(analysis != nil), cards=\(array.count)")
             } else if let arr = parsed as? [[String: Any]] {
                 array = arr
+                print("[Gemini] Parsed plain array: \(array.count) items")
             } else {
-                print("[Gemini] Batch: unexpected JSON structure")
+                print("[Gemini] Batch: unexpected JSON structure: \(type(of: parsed))")
+                Self.lastError = "Unexpected Gemini response format"
                 return nil
             }
 
             let results = array.compactMap { item -> GeminiCardResult? in
-                guard let name = item["card_name"] as? String else { return nil }
+                // Handle both "card_name" and "name" field names
+                guard let name = (item["card_name"] as? String) ?? (item["name"] as? String) else {
+                    print("[Gemini] Skipping item with no card_name/name: \(item.keys.sorted())")
+                    return nil
+                }
                 var bbox: (x: Double, y: Double, w: Double, h: Double)?
                 if let x = item["x"] as? Double,
                    let y = item["y"] as? Double,
