@@ -399,6 +399,26 @@ final class DeckScanViewModel {
             .sorted { $0.quantity > $1.quantity }
     }
 
+    /// Adjusts the quantity of a card by name. Adds or removes copies.
+    func adjustQuantity(cardName: String, delta: Int) {
+        if delta > 0 {
+            // Add copies
+            if let card = identifiedCards.first(where: { $0.name == cardName }) {
+                for _ in 0..<delta {
+                    identifiedCards.append(card)
+                }
+            }
+        } else if delta < 0 {
+            // Remove copies
+            var toRemove = -delta
+            identifiedCards.removeAll { card in
+                guard card.name == cardName && toRemove > 0 else { return false }
+                toRemove -= 1
+                return true
+            }
+        }
+    }
+
     /// Resets to the initial photo selection state.
     func reset() {
         sourceImage = nil

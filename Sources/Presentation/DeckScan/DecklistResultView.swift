@@ -199,11 +199,31 @@ struct DecklistResultView: View {
     }
 
     private func decklistRow(entry: (name: String, card: Card, quantity: Int)) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
+            // Quantity stepper
+            Button {
+                viewModel.adjustQuantity(cardName: entry.name, delta: -1)
+            } label: {
+                Image(systemName: "minus.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(entry.quantity > 1 ? MD3Theme.onSurfaceVariant : MD3Theme.outlineVariant)
+            }
+            .disabled(entry.quantity <= 1)
+            .buttonStyle(.plain)
+
             Text("\(entry.quantity)x")
-                .font(MD3Typography.bodyMedium)
+                .font(.system(size: 14, weight: .bold, design: .monospaced))
                 .foregroundStyle(MD3Theme.primary)
-                .frame(width: 32, alignment: .leading)
+                .frame(width: 28)
+
+            Button {
+                viewModel.adjustQuantity(cardName: entry.name, delta: 1)
+            } label: {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(MD3Theme.primary)
+            }
+            .buttonStyle(.plain)
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
