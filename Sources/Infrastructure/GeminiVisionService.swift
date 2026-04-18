@@ -180,6 +180,7 @@ actor GeminiVisionService {
                 cardName: cardName,
                 setCode: setCode,
                 collectorNumber: collectorNumber,
+                quantity: 1,
                 boundingBox: nil
             )
         } catch {
@@ -215,17 +216,14 @@ actor GeminiVisionService {
         request.timeoutInterval = 60
 
         let prompt = """
-        Identify ALL Magic: The Gathering cards visible in this photo.
-        For each card, determine:
-        1. The exact English card name
-        2. The Scryfall 3-letter set code (if readable)
-        3. The collector number (if readable)
-        4. The bounding box as fractional coordinates (0.0-1.0) relative to image width/height: x (left edge), y (top edge), w (width), h (height)
+        List down all the Magic: The Gathering cards visible in this photo, their expansions, and number of pieces per card.
+        Group identical cards together with a quantity count.
+        For each unique card, determine the exact English card name and the Scryfall 3-letter set code based on the card's appearance (frame style, art, set symbol).
+        Also estimate a bounding box for one representative copy as fractional coordinates (0.0-1.0) relative to image width/height.
 
-        Cards may be in sleeves or at angles. Include duplicates — if you see 4 copies of the same card, list it 4 times.
         Return ONLY a JSON array (no other text or markdown):
-        [{"card_name": "exact name", "set_code": "abc", "collector_number": "123", "x": 0.0, "y": 0.0, "w": 0.25, "h": 0.33}, ...]
-        Order the cards left-to-right, top-to-bottom as they appear in the photo.
+        [{"card_name": "exact name", "set_code": "abc", "quantity": 4, "x": 0.0, "y": 0.0, "w": 0.25, "h": 0.33}, ...]
+        Order by: creatures first, then spells, then lands. Include sideboard cards if visible (separated from main deck).
         """
 
         let body: [String: Any] = [
@@ -289,10 +287,12 @@ actor GeminiVisionService {
                    w > 0 && h > 0 {
                     bbox = (x: x, y: y, w: w, h: h)
                 }
+                let qty = item["quantity"] as? Int ?? 1
                 return GeminiCardResult(
                     cardName: name,
                     setCode: item["set_code"] as? String,
                     collectorNumber: item["collector_number"] as? String,
+                    quantity: qty,
                     boundingBox: bbox
                 )
             }
@@ -312,6 +312,7 @@ struct GeminiCardResult {
     let cardName: String
     let setCode: String?
     let collectorNumber: String?
+    let quantity: Int
     /// Bounding box as fractional coordinates (0-1) relative to image dimensions.
     /// (x, y) is top-left corner; (w, h) is width and height.
     let boundingBox: (x: Double, y: Double, w: Double, h: Double)?

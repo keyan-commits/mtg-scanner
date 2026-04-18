@@ -575,9 +575,12 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
                     let bbox: CGRect? = result.boundingBox.map { b in
                         CGRect(x: b.x * imgW, y: b.y * imgH, width: b.w * imgW, height: b.h * imgH)
                     }
-                    cards.append((card: card, bbox: bbox))
+                    // Expand quantity: add N copies of the same card
+                    for _ in 0..<max(1, result.quantity) {
+                        cards.append((card: card, bbox: bbox))
+                    }
 
-                    // Auto-learn: crop + save to embedding store
+                    // Auto-learn: crop + save to embedding store (once per unique card)
                     if let bbox,
                        let cropped = image.cropping(to: bbox.intersection(CGRect(x: 0, y: 0, width: imgW, height: imgH))),
                        cropped.width > 50 && cropped.height > 50 {
