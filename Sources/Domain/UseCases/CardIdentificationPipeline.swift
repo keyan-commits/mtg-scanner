@@ -576,6 +576,13 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
                         CGRect(x: b.x * imgW, y: b.y * imgH, width: b.w * imgW, height: b.h * imgH)
                     }
                     cards.append((card: card, bbox: bbox))
+
+                    // Auto-learn: crop + save to embedding store
+                    if let bbox,
+                       let cropped = image.cropping(to: bbox.intersection(CGRect(x: 0, y: 0, width: imgW, height: imgH))),
+                       cropped.width > 50 && cropped.height > 50 {
+                        await learnFromIdentification(cardImage: cropped, card: card)
+                    }
                 }
             }
         }
@@ -594,21 +601,29 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
             return nil
         }
 
+        var card: Card?
+
         // Try exact printing match first
-        if let sc = result.setCode, let cn = result.collectorNumber,
-           let exact = printings.first(where: { $0.set.code == sc && $0.collectorNumber == cn }) {
-            return exact
+        if let sc = result.setCode, let cn = result.collectorNumber {
+            card = printings.first(where: { $0.set.code == sc && $0.collectorNumber == cn })
         }
 
         // Resolve best printing using multi-signal scoring
-        if let match = await resolveExactPrinting(
-            cardImage: cgImage, cardName: result.cardName,
-            printings: printings, illustrationID: nil
-        ) {
-            return match
+        if card == nil {
+            card = await resolveExactPrinting(
+                cardImage: cgImage, cardName: result.cardName,
+                printings: printings, illustrationID: nil
+            )
         }
 
-        return printings.first
+        if card == nil { card = printings.first }
+
+        // Auto-learn from Gemini result
+        if let card {
+            await learnFromIdentification(cardImage: cgImage, card: card)
+        }
+
+        return card
     }
 
     // MARK: - Step 2: OCR Signal Extraction

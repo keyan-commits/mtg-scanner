@@ -362,8 +362,6 @@ final class ImageSplitterViewModel {
                        let cropped = sourceImage.cropping(to: bbox.intersection(imgBounds)),
                        cropped.width > 50 && cropped.height > 50 {
                         detectedCards.append((image: cropped, rect: bbox))
-                        // ML auto-learn: feed Gemini result into local pipeline
-                        await pipeline.learnFromIdentification(cardImage: cropped, card: entry.card)
                     } else {
                         detectedCards.append((image: sourceImage, rect: .zero))
                     }
