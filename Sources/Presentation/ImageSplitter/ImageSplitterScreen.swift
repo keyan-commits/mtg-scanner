@@ -220,8 +220,16 @@ struct ImageSplitterScreen: View {
     private var splitPreviewView: some View {
         ScrollView {
             VStack(spacing: 16) {
-                if let sourceImage = viewModel.sourceImage {
+                // Show rectangle overlay only for local detection, not Gemini
+                if let sourceImage = viewModel.sourceImage, viewModel.geminiAnalysis == nil {
                     imageWithBoxes(sourceImage)
+                        .padding(.horizontal, 16)
+                } else if let sourceImage = viewModel.sourceImage {
+                    // Gemini mode: just show the photo without inaccurate rectangles
+                    Image(decorative: sourceImage, scale: 1.0)
+                        .resizable()
+                        .scaledToFit()
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                         .padding(.horizontal, 16)
                 }
 
@@ -566,13 +574,23 @@ struct ImageSplitterScreen: View {
                     HStack(spacing: 0) {
                         NavigationLink {
                             if let repo = cardRepository, let deckRepo = deckRepository {
-                                let pos = identifiedPairs.firstIndex(where: { $0.index == index }) ?? 0
-                                CardListPagerView(
-                                    cards: pagerCards,
-                                    initialIndex: pos,
-                                    cardRepository: repo,
-                                    deckRepository: deckRepo
-                                )
+                                if pagerCards.count <= 20 {
+                                    let pos = identifiedPairs.firstIndex(where: { $0.index == index }) ?? 0
+                                    CardListPagerView(
+                                        cards: pagerCards,
+                                        initialIndex: pos,
+                                        cardRepository: repo,
+                                        deckRepository: deckRepo
+                                    )
+                                } else {
+                                    // Too many cards for TabView pager — show single card
+                                    CardDetailView(
+                                        card: card,
+                                        repository: repo,
+                                        deckRepository: deckRepo,
+                                        onScanAnother: {}
+                                    )
+                                }
                             }
                         } label: {
                             HStack(spacing: 8) {
