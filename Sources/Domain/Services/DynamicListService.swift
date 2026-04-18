@@ -110,8 +110,40 @@ final class DynamicListService {
 
     // MARK: - Secret Lair Lands
 
+    /// Known collector-number ranges mapped to drop names. Used to give
+    /// auto-discovered groups friendly display names.
+    private static let knownDropsByRange: [(range: ClosedRange<Int>, name: String, icon: String)] = [
+        (1...5, "Eldraine Wonderland", "wand.and.stars"),
+        (63...67, "The Godzilla Lands", "flame.fill"),
+        (100...109, "Happy Little Gathering (Bob Ross)", "paintpalette.fill"),
+        (239...243, "Unfathomable Crushing Brutality", "bolt.fill"),
+        (254...258, "The Full-Text Lands", "text.justify.left"),
+        (325...329, "PixelSnowLands.jpg", "snowflake"),
+        (359...363, "The Dracula Lands", "moon.fill"),
+        (384...395, "The Astrology Lands", "star.circle.fill"),
+        (415...419, "Shades Not Included", "sun.max.fill"),
+        (448...452, "Secret Lair x Fortnite", "gamecontroller.fill"),
+        (484...488, "Secret Lair x Arcane", "sparkle"),
+        (1088...1092, "Transformers Lands", "gearshape.fill"),
+        (1130...1134, "Special Guest: Kozyndan", "paintbrush.pointed.fill"),
+        (1190...1194, "Post Malone: The Lands", "music.note"),
+        (1382...1386, "Featuring: Gary Baseman", "theatermasks.fill"),
+        (1399...1403, "Featuring: JungShan", "mountain.2.fill"),
+        (1468...1472, "PixelLands_v02.jpg", "square.grid.3x3.fill"),
+        (1473...1477, "PixelSnowLands v2 (ELK64)", "snowflake.circle.fill"),
+        (1478...1482, "The Strange Sands", "leaf.fill"),
+        (1513...1515, "Artist Series: Alayna Danner", "paintbrush.fill"),
+        (1647...1656, "Secret Lair x Brain Dead", "brain.fill"),
+        (1939...1943, "Secret Lair x SpongeBob", "water.waves"),
+        (1945...1949, "Flower Power", "camera.macro"),
+        (1950...1954, "Secret Lair x Spider-Man", "web.camera.fill"),
+        (2076...2080, "KEXP: Where the Music Matters", "radio.fill"),
+        (2144...2147, "Special Guest: Kelogsloops", "drop.fill"),
+        (2509...2513, "D&D: Forgotten Realms Lands", "shield.fill"),
+    ]
+
     /// Returns Secret Lair basic land drops built from the database.
-    /// Groups by artist name to auto-discover new drops.
+    /// Groups by collector number proximity to correctly merge multi-artist drops.
     func secretLairDrops() async -> [LandCategory] {
         if let cached = cachedSecretLairDrops { return cached }
         guard let db = databaseManager else { return [] }
@@ -120,63 +152,65 @@ final class DynamicListService {
             let records = try await db.fetchSecretLairBasics()
             guard !records.isEmpty else { return [] }
 
-            // Group by artist
-            var byArtist: [String: [CardRecord]] = [:]
-            for record in records {
-                let artist = record.artist ?? "Unknown"
-                byArtist[artist, default: []].append(record)
+            // Sort by collector number (numeric)
+            let sorted = records.sorted {
+                (Int($0.collectorNumber.filter(\.isNumber)) ?? 0) < (Int($1.collectorNumber.filter(\.isNumber)) ?? 0)
             }
 
-            // Known artist → drop name mapping for nicer display
-            let knownDrops: [String: (name: String, icon: String)] = [
-                "Alayna Danner": ("Eldraine Wonderland / Alayna Danner", "wand.and.stars"),
-                "Jubilee": ("Pixel Lands (Jubilee)", "square.grid.3x3.fill"),
-                "ELK64": ("PixelSnowLands v2 (ELK64)", "snowflake.circle.fill"),
-                "Jeanne D'Angelo": ("The Astrology Lands", "star.circle.fill"),
-                "kozyndan": ("Special Guest: Kozyndan", "paintbrush.pointed.fill"),
-                "Mark Riddick": ("Unfathomable Crushing Brutality", "bolt.fill"),
-                "Ben Schnuck": ("Shades Not Included", "sun.max.fill"),
-                "Gary Baseman": ("Featuring: Gary Baseman", "theatermasks.fill"),
-                "JungShan": ("Featuring: JungShan", "mountain.2.fill"),
-                "Bob Ross": ("Happy Little Gathering", "paintpalette.fill"),
-                "Scott Balmer": ("The Strange Sands", "leaf.fill"),
-                "Jon Vermilyea": ("Secret Lair x SpongeBob", "water.waves"),
-                "Ashley Dreyfus": ("Flower Power", "camera.macro"),
-                "Pedro Potier": ("Secret Lair x Spider-Man", "web.camera.fill"),
-                "Arthur Yuan": ("D&D: Forgotten Realms Lands", "shield.fill"),
-                "Kelogsloops": ("Special Guest: Kelogsloops", "drop.fill"),
-            ]
+            // Group by collector number proximity (gap > 10 = new group)
+            var groups: [[CardRecord]] = []
+            var currentGroup: [CardRecord] = []
 
+            for record in sorted {
+                let num = Int(record.collectorNumber.filter(\.isNumber)) ?? 0
+                if let lastNum = currentGroup.last.flatMap({ Int($0.collectorNumber.filter(\.isNumber)) }),
+                   num - lastNum > 10 {
+                    if !currentGroup.isEmpty { groups.append(currentGroup) }
+                    currentGroup = [record]
+                } else {
+                    currentGroup.append(record)
+                }
+            }
+            if !currentGroup.isEmpty { groups.append(currentGroup) }
+
+            // Build categories from groups
             var categories: [LandCategory] = []
 
-            for (artist, cards) in byArtist.sorted(by: { $0.value.first?.collectorNumber ?? "" < $1.value.first?.collectorNumber ?? "" }) {
-                let known = knownDrops[artist]
-                let dropName = known?.name ?? artist
-                let icon = known?.icon ?? "paintbrush.fill"
-                let isSnow = cards.first?.name.contains("Snow") ?? false
+            for group in groups {
+                let firstNum = Int(group.first?.collectorNumber.filter(\.isNumber) ?? "0") ?? 0
+                let artists = Array(Set(group.compactMap(\.artist))).sorted()
+                let artistLabel = artists.isEmpty ? "Unknown" : artists.joined(separator: ", ")
 
+                // Look up known drop name by collector number range
+                let known = Self.knownDropsByRange.first { $0.range.contains(firstNum) }
+                let dropName = known?.name ?? artistLabel
+                let icon = known?.icon ?? "paintbrush.fill"
+
+                let isSnow = group.first?.name.contains("Snow") ?? false
                 let cardNames: [String]
                 if isSnow {
                     cardNames = ["Snow-Covered Plains", "Snow-Covered Island", "Snow-Covered Swamp", "Snow-Covered Mountain", "Snow-Covered Forest"]
                 } else {
-                    // Use unique names from this artist's cards
-                    cardNames = Array(Set(cards.map(\.name))).sorted {
-                        let order = ["Plains", "Island", "Swamp", "Mountain", "Forest"]
-                        return (order.firstIndex(of: $0) ?? 99) < (order.firstIndex(of: $1) ?? 99)
+                    let basicOrder = ["Plains", "Island", "Swamp", "Mountain", "Forest", "Wastes"]
+                    cardNames = Array(Set(group.map(\.name))).sorted {
+                        (basicOrder.firstIndex(of: $0) ?? 99) < (basicOrder.firstIndex(of: $1) ?? 99)
                     }
                 }
 
-                let collectorNumbers = cards.map(\.collectorNumber).sorted {
+                let collectorNumbers = group.map(\.collectorNumber).sorted {
                     (Int($0.filter(\.isNumber)) ?? 0) < (Int($1.filter(\.isNumber)) ?? 0)
                 }
 
-                let id = "sld-\(artist.lowercased().replacingOccurrences(of: " ", with: "-"))"
+                let id = "sld-\(firstNum)"
+                let desc = known != nil
+                    ? "\(group.count) basic lands by \(artistLabel). Sources: Scryfall."
+                    : "\(group.count) basic lands by \(artistLabel) in the Secret Lair Drop series."
 
                 categories.append(LandCategory(
                     id: id,
                     name: dropName,
                     iconName: icon,
-                    description: "\(cards.count) basic lands by \(artist) in the Secret Lair Drop series.",
+                    description: desc,
                     cardNames: cardNames,
                     setCodes: ["sld"],
                     collectorNumbers: collectorNumbers
