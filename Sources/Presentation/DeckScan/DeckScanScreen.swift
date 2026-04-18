@@ -133,18 +133,39 @@ struct DeckScanScreen: View {
         VStack(spacing: 24) {
             Spacer()
 
-            ProgressView(value: viewModel.processingProgress) {
-                Text("Identifying card \(current) of \(total)...")
+            if let sourceImage = viewModel.sourceImage {
+                Image(decorative: sourceImage, scale: 1.0)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxHeight: 200)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal, 32)
+            }
+
+            ProgressView()
+                .scaleEffect(1.2)
+
+            if GeminiVisionService.isActive {
+                Text("Identifying with Gemini Vision...")
                     .font(MD3Typography.titleMedium)
                     .foregroundStyle(MD3Theme.onBackground)
-            }
-            .progressViewStyle(.linear)
-            .tint(MD3Theme.primary)
-            .padding(.horizontal, 48)
+                Text("Sending photo to AI for analysis")
+                    .font(MD3Typography.bodyMedium)
+                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+            } else {
+                ProgressView(value: viewModel.processingProgress) {
+                    Text("Identifying card \(current) of \(total)...")
+                        .font(MD3Typography.titleMedium)
+                        .foregroundStyle(MD3Theme.onBackground)
+                }
+                .progressViewStyle(.linear)
+                .tint(MD3Theme.primary)
+                .padding(.horizontal, 48)
 
-            Text("Detecting and identifying cards...")
-                .font(MD3Typography.bodyMedium)
-                .foregroundStyle(MD3Theme.onSurfaceVariant)
+                Text("Detecting and identifying cards...")
+                    .font(MD3Typography.bodyMedium)
+                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+            }
 
             Spacer()
         }
