@@ -124,10 +124,10 @@ final class DeckScanViewModel {
         if GeminiVisionService.isActive {
             print("[DeckScan] Sending whole image to Gemini...")
             scanState = .processing(current: 0, total: 1)
-            let geminiResults = await pipeline.identifyAllWithGemini(image: image)
-            print("[DeckScan] Gemini returned \(geminiResults.count) cards")
-            if !geminiResults.isEmpty {
-                identifiedCards = geminiResults.map(\.card)
+            let geminiResult = await pipeline.identifyAllWithGemini(image: image)
+            print("[DeckScan] Gemini returned \(geminiResult.cards.count) cards\(geminiResult.analysis.map { " — \($0)" } ?? "")")
+            if !geminiResult.cards.isEmpty {
+                identifiedCards = geminiResult.cards.map(\.card)
                 processingProgress = 1.0
                 scanState = .results
                 return

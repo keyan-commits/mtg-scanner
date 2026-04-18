@@ -23,6 +23,8 @@ final class ImageSplitterViewModel {
     var quantities: [Int: Int] = [:]
     /// Debug logs per card index for troubleshooting.
     var debugLogs: [Int: String] = [:]
+    /// Gemini's deck analysis (e.g., "Old School 93/94 Mono-Blue Fish deck")
+    var geminiAnalysis: String?
 
     var isDetecting = false
     var isIdentifying = false
@@ -331,7 +333,9 @@ final class ImageSplitterViewModel {
             let geminiTotal = max(total, 1)
             identifyingProgress = (current: 0, total: geminiTotal)
 
-            let geminiCards = await pipeline.identifyAllWithGemini(image: sourceImage)
+            let geminiResult = await pipeline.identifyAllWithGemini(image: sourceImage)
+            let geminiCards = geminiResult.cards
+            geminiAnalysis = geminiResult.analysis
 
             guard !Task.isCancelled else {
                 isIdentifying = false

@@ -527,6 +527,18 @@ struct ImageSplitterScreen: View {
                 .transition(.opacity)
             }
 
+            if let analysis = viewModel.geminiAnalysis {
+                Text(analysis)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(MD3Theme.primary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(MD3Theme.primary.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .padding(.horizontal, 16)
+            }
+
             Text("Identified Cards")
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(MD3Theme.onSurface)

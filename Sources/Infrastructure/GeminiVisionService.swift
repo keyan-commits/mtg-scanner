@@ -191,7 +191,7 @@ actor GeminiVisionService {
 
     /// Identifies ALL cards in a full binder page photo. Returns an array of results.
     /// Uses a single API call instead of one per card.
-    func identifyAllCards(image: CGImage) async -> [GeminiCardResult]? {
+    func identifyAllCards(image: CGImage) async -> (analysis: String?, cards: [GeminiCardResult])? {
         guard let apiKey = Self.apiKey, !apiKey.isEmpty else { return nil }
         Self.recordUsage()
 
@@ -220,10 +220,11 @@ actor GeminiVisionService {
         Group identical cards together with a quantity count.
         For each unique card, determine the exact English card name and the Scryfall 3-letter set code based on the card's appearance (frame style, art, set symbol).
         Also estimate a bounding box for one representative copy as fractional coordinates (0.0-1.0) relative to image width/height.
+        Include a brief analysis of what deck/archetype this appears to be.
 
-        Return ONLY a JSON array (no other text or markdown):
-        [{"card_name": "exact name", "set_code": "abc", "quantity": 4, "x": 0.0, "y": 0.0, "w": 0.25, "h": 0.33}, ...]
-        Order by: creatures first, then spells, then lands. Include sideboard cards if visible (separated from main deck).
+        Return ONLY a JSON object (no other text or markdown):
+        {"analysis": "Brief description of the deck archetype and format", "cards": [{"card_name": "exact name", "set_code": "abc", "quantity": 4, "x": 0.0, "y": 0.0, "w": 0.25, "h": 0.33}, ...]}
+        Order cards by: creatures first, then spells, then lands. Include sideboard cards if visible.
         """
 
         let body: [String: Any] = [
@@ -271,9 +272,25 @@ actor GeminiVisionService {
                 .replacingOccurrences(of: "```", with: "")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
 
-            guard let resultData = cleaned.data(using: .utf8),
-                  let array = try JSONSerialization.jsonObject(with: resultData) as? [[String: Any]] else {
-                print("[Gemini] Batch: failed to parse JSON array from: \(text.prefix(200))")
+            guard let resultData = cleaned.data(using: .utf8) else {
+                print("[Gemini] Batch: failed to encode cleaned text")
+                return nil
+            }
+            guard let parsed = try? JSONSerialization.jsonObject(with: resultData) else {
+                print("[Gemini] Batch: failed to parse JSON from: \(text.prefix(200))")
+                return nil
+            }
+
+            // Handle both object format {"analysis":..., "cards":[...]} and plain array [...]
+            let array: [[String: Any]]
+            var analysis: String?
+            if let obj = parsed as? [String: Any] {
+                array = obj["cards"] as? [[String: Any]] ?? []
+                analysis = obj["analysis"] as? String
+            } else if let arr = parsed as? [[String: Any]] {
+                array = arr
+            } else {
+                print("[Gemini] Batch: unexpected JSON structure")
                 return nil
             }
 
@@ -298,8 +315,8 @@ actor GeminiVisionService {
             }
 
             Self.lastError = nil
-            print("[Gemini] Batch: identified \(results.count) cards")
-            return results
+            print("[Gemini] Batch: identified \(results.count) cards\(analysis.map { " — \($0)" } ?? "")")
+            return (analysis: analysis, cards: results)
         } catch {
             Self.lastError = "Request failed: \(error.localizedDescription)"
             print("[Gemini] Batch request failed: \(error.localizedDescription)")

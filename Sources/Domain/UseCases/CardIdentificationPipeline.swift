@@ -75,8 +75,8 @@ protocol CardIdentificationPipelineProtocol: Sendable {
     func identifyWithGemini(cgImage: CGImage) async -> Card?
 
     /// Identifies all cards in a full image using Gemini Vision API.
-    /// Returns array of (card, boundingBox) pairs. Uses a single API call.
-    func identifyAllWithGemini(image: CGImage) async -> [(card: Card, bbox: CGRect?)]
+    /// Returns analysis text and array of (card, boundingBox) pairs. Uses a single API call.
+    func identifyAllWithGemini(image: CGImage) async -> (analysis: String?, cards: [(card: Card, bbox: CGRect?)])
 
     /// Saves a card image as a training sample for the embedding store.
     /// Used to feed Gemini-identified results back into local ML.
@@ -547,10 +547,12 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         await featurePrintCache?.clear()
     }
 
-    func identifyAllWithGemini(image: CGImage) async -> [(card: Card, bbox: CGRect?)] {
-        guard GeminiVisionService.isConfigured else { return [] }
+    func identifyAllWithGemini(image: CGImage) async -> (analysis: String?, cards: [(card: Card, bbox: CGRect?)]) {
+        guard GeminiVisionService.isConfigured else { return (nil, []) }
         let gemini = GeminiVisionService()
-        guard let results = await gemini.identifyAllCards(image: image) else { return [] }
+        guard let result = await gemini.identifyAllCards(image: image) else { return (nil, []) }
+        let results = result.cards
+        let analysis = result.analysis
 
         let imgW = CGFloat(image.width)
         let imgH = CGFloat(image.height)
@@ -589,7 +591,7 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
                 }
             }
         }
-        return cards
+        return (analysis: analysis, cards: cards)
     }
 
     func identifyWithGemini(cgImage: CGImage) async -> Card? {
