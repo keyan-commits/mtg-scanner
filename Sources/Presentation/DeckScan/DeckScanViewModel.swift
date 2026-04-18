@@ -37,6 +37,7 @@ final class DeckScanViewModel {
     var rows: Int = 3
     var columns: Int = 7
     var identifiedCards: [Card] = []
+    var geminiAnalysis: String?
     var scanState: DeckScanState = .selectingPhoto
     var processingProgress: Double = 0
 
@@ -127,6 +128,7 @@ final class DeckScanViewModel {
             let geminiResult = await pipeline.identifyAllWithGemini(image: image)
             print("[DeckScan] Gemini returned \(geminiResult.cards.count) cards\(geminiResult.analysis.map { " — \($0)" } ?? "")")
             if !geminiResult.cards.isEmpty {
+                geminiAnalysis = geminiResult.analysis
                 identifiedCards = geminiResult.cards.map(\.card)
                 processingProgress = 1.0
                 scanState = .results

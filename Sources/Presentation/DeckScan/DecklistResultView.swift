@@ -81,12 +81,23 @@ struct DecklistResultView: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack {
-            Text("Decklist (\(viewModel.identifiedCards.count) cards identified)")
-                .font(MD3Typography.titleMedium)
-                .foregroundStyle(MD3Theme.onBackground)
-
-            Spacer()
+        VStack(alignment: .leading, spacing: 8) {
+            if let analysis = viewModel.geminiAnalysis {
+                Text(analysis)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(MD3Theme.primary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(MD3Theme.primary.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            HStack {
+                Text("Decklist (\(viewModel.identifiedCards.count) cards identified)")
+                    .font(MD3Typography.titleMedium)
+                    .foregroundStyle(MD3Theme.onBackground)
+                Spacer()
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)

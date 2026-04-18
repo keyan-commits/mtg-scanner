@@ -563,13 +563,12 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
                !printings.isEmpty {
                 var card: Card?
                 if let sc = result.setCode, let cn = result.collectorNumber {
+                    // Exact set + collector match
                     card = printings.first(where: { $0.set.code == sc && $0.collectorNumber == cn })
                 }
-                if card == nil {
-                    card = await resolveExactPrinting(
-                        cardImage: image, cardName: result.cardName,
-                        printings: printings, illustrationID: nil
-                    )
+                if card == nil, let sc = result.setCode {
+                    // Trust Gemini's set code — pick any printing from that set
+                    card = printings.first(where: { $0.set.code == sc })
                 }
                 if card == nil { card = printings.first }
 
