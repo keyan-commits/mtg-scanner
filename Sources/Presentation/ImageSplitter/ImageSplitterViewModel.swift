@@ -79,13 +79,43 @@ final class ImageSplitterViewModel {
     }
 
     /// Runs all detection methods and merges results.
-    /// When Gemini is active, skips detection entirely and goes straight to identification.
+    /// When Gemini is active, tries Gemini first (whole image). Only runs
+    /// local detection if Gemini fails or is unavailable.
     func detect() async {
         guard let image = sourceImage else { return }
 
-        // When Gemini is active, still run detection (for fallback + crops)
-        // but also trigger Gemini whole-image mode in identifyCards().
+        // === Gemini first: send whole image, skip detection if successful ===
+        if GeminiVisionService.isActive, let pipeline {
+            isIdentifying = true
+            let geminiResult = await pipeline.identifyAllWithGemini(image: image)
+            geminiAnalysis = geminiResult.analysis
 
+            if !geminiResult.cards.isEmpty {
+                identifiedCards = [:]
+                geminiIdentified = []
+                detectedCards = []
+                let imgBounds = CGRect(x: 0, y: 0, width: image.width, height: image.height)
+                for (i, entry) in geminiResult.cards.enumerated() {
+                    identifiedCards[i] = entry.card
+                    geminiIdentified.insert(i)
+                    debugLogs[i] = "Gemini: \(entry.card.name) [\(entry.card.set.code)] #\(entry.card.collectorNumber)"
+                    if let bbox = entry.bbox,
+                       let cropped = image.cropping(to: bbox.intersection(imgBounds)),
+                       cropped.width > 50 && cropped.height > 50 {
+                        detectedCards.append((image: cropped, rect: bbox))
+                    } else {
+                        detectedCards.append((image: image, rect: .zero))
+                    }
+                }
+                selectedIndices = Set(0..<geminiResult.cards.count)
+                isIdentifying = false
+                return  // Done — skip local detection entirely
+            }
+            // Gemini failed — fall through to local detection
+            isIdentifying = false
+        }
+
+        // === Local detection pipeline (fallback) ===
         isDetecting = true
 
         let imgArea = image.width * image.height
@@ -326,51 +356,7 @@ final class ImageSplitterViewModel {
         let total = indices.count
         var current = 0
 
-        // === Gemini whole-image mode ===
-        // Send the FULL source image in one API call instead of per-crop
-        if GeminiVisionService.isActive,
-           let sourceImage {
-            let geminiTotal = max(total, 1)
-            identifyingProgress = (current: 0, total: geminiTotal)
-
-            let geminiResult = await pipeline.identifyAllWithGemini(image: sourceImage)
-            let geminiCards = geminiResult.cards
-            geminiAnalysis = geminiResult.analysis
-
-            guard !Task.isCancelled else {
-                isIdentifying = false
-                identifyingProgress = nil
-                return
-            }
-
-            if !geminiCards.isEmpty {
-                // Gemini returned N cards with bounding boxes — crop each
-                identifiedCards = [:]
-                geminiIdentified = []
-                detectedCards = []
-                for (i, entry) in geminiCards.enumerated() {
-                    identifiedCards[i] = entry.card
-                    geminiIdentified.insert(i)
-                    debugLogs[i] = "Gemini: \(entry.card.name) [\(entry.card.set.code)] #\(entry.card.collectorNumber)"
-
-                    // Crop individual card from source image using bounding box
-                    let imgBounds = CGRect(x: 0, y: 0, width: sourceImage.width, height: sourceImage.height)
-                    if let bbox = entry.bbox,
-                       let cropped = sourceImage.cropping(to: bbox.intersection(imgBounds)),
-                       cropped.width > 50 && cropped.height > 50 {
-                        detectedCards.append((image: cropped, rect: bbox))
-                    } else {
-                        detectedCards.append((image: sourceImage, rect: .zero))
-                    }
-                }
-                selectedIndices = Set(0..<geminiCards.count)
-                isIdentifying = false
-                identifyingProgress = nil
-                return
-            }
-        }
-
-        // === Local pipeline (per-crop) ===
+        // === Local pipeline (per-crop, runs when Gemini was skipped or failed) ===
         for index in indices {
             guard identifiedCards[index] == nil else { continue } // skip Gemini-identified
             guard index < detectedCards.count else { continue }

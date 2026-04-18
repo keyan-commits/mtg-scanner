@@ -528,15 +528,26 @@ struct ImageSplitterScreen: View {
             }
 
             if let analysis = viewModel.geminiAnalysis {
-                Text(analysis)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(MD3Theme.primary)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(MD3Theme.primary.opacity(0.08))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .padding(.horizontal, 16)
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 14))
+                        .foregroundStyle(MD3Theme.primary)
+                        .padding(.top, 2)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Gemini Analysis")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(MD3Theme.primary.opacity(0.7))
+                            .textCase(.uppercase)
+                        Text(analysis)
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .foregroundStyle(MD3Theme.onSurface)
+                    }
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(MD3Theme.primary.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .padding(.horizontal, 16)
             }
 
             Text("Identified Cards")
