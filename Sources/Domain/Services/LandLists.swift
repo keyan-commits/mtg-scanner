@@ -63,6 +63,7 @@ enum LandLists {
         bondLands,
         rainbowLands,
         utilityLands,
+        wastes,
     ]
 
     // MARK: - Original Dual Lands (ABUR)
@@ -576,6 +577,18 @@ enum LandLists {
             "Gemstone Caverns",
             "Hall of Heliod's Generosity",
             "Reliquary Tower",
+        ]
+    )
+
+    // MARK: - Wastes
+
+    static let wastes = LandCategory(
+        id: "wastes",
+        name: "Wastes",
+        iconName: "diamond.fill",
+        description: "The sixth basic land type, introduced in Oath of the Gatewatch (2016). Produces colorless mana ({C}). Required for cards with colorless mana costs like Kozilek, the Great Distortion. Multiple art variants across OGW, promos, and Secret Lair drops.",
+        cardNames: [
+            "Wastes",
         ]
     )
 }
