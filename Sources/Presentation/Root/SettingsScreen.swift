@@ -9,6 +9,7 @@ struct SettingsScreen: View {
     @State private var ratesUpdated: String = "Never"
     @State private var refreshing: Bool = false
     @State private var pricesUpdated: String = "Never"
+    @State private var geminiAPIKey: String = GeminiVisionService.apiKey ?? ""
     @Bindable private var currencyService = CurrencyService.shared
     @Bindable private var iconManager = AppIconManager.shared
     @Bindable private var printingPreference = PrintingStrategyPreference.shared
@@ -129,6 +130,27 @@ struct SettingsScreen: View {
                 Text("Deck Display")
             } footer: {
                 Text("Decks browsed from MTGTop8 (and other deck lists outside My Decks) only carry card names — we resolve each name to a concrete printing using this strategy. Your saved decks in My Decks aren't affected; they keep whichever printings you picked.")
+                    .font(.caption2)
+            }
+
+            Section {
+                SecureField("Gemini API Key", text: $geminiAPIKey)
+                    .textContentType(.password)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                    .onChange(of: geminiAPIKey) { _, newValue in
+                        GeminiVisionService.apiKey = newValue.isEmpty ? nil : newValue
+                    }
+                HStack {
+                    Text("Status")
+                    Spacer()
+                    Text(GeminiVisionService.isConfigured ? "Active" : "Not configured")
+                        .foregroundStyle(GeminiVisionService.isConfigured ? .green : .secondary)
+                }
+            } header: {
+                Text("Gemini Vision (Card Scanner)")
+            } footer: {
+                Text("Free Gemini API key from aistudio.google.com. Used as a fallback when the local scanner can't identify a card (binder pages, glare, sleeves). 15 requests/min, 1,500/day free.")
                     .font(.caption2)
             }
 

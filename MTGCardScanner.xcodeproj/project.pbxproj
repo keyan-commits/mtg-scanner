@@ -187,6 +187,7 @@
 		E8EED731F7C61FF1A8209312 /* LatestTopFinishesCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69BFC134783609D55B801606 /* LatestTopFinishesCache.swift */; };
 		E93F0D62D3AB75D903510FD1 /* FeaturePrintCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6E4B9316C204EFE3C573CD /* FeaturePrintCache.swift */; };
 		E93F0D62D3AB75D903510FD2 /* VisualEmbeddingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6E4B9316C204EFE3C574 /* VisualEmbeddingStore.swift */; };
+		GEM1N1V1510NBUILD000001 /* GeminiVisionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = GEM1N1V1510NF1LEREF0001 /* GeminiVisionService.swift */; };
 		E93F0D62D3AB75D903510FD3 /* EmbeddingDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6E4B9316C204EFE3C575 /* EmbeddingDownloader.swift */; };
 		EA972ABE7B267C2D9627E552 /* CardScannerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86689942D94ACB052854F23E /* CardScannerViewModel.swift */; };
 		EE8118A9FA5C65C0CBA78B1C /* ScryfallCardRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A92D5221A071F97A64E4FEF /* ScryfallCardRepository.swift */; };
@@ -410,6 +411,7 @@
 		F9DC23CBC42A3962BA36BCAC /* CardTextRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardTextRecognizer.swift; sourceTree = "<group>"; };
 		FA6E4B9316C204EFE3C573CD /* FeaturePrintCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeaturePrintCache.swift; sourceTree = "<group>"; };
 		FA6E4B9316C204EFE3C574 /* VisualEmbeddingStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEmbeddingStore.swift; sourceTree = "<group>"; };
+		GEM1N1V1510NF1LEREF0001 /* GeminiVisionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiVisionService.swift; sourceTree = "<group>"; };
 		FA6E4B9316C204EFE3C575 /* EmbeddingDownloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddingDownloader.swift; sourceTree = "<group>"; };
 		FC3CD4D36FEC5623515FEAA8 /* SetupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupScreen.swift; sourceTree = "<group>"; };
 		FED8B2BEDEF495AD8311F1D5 /* CardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardTests.swift; sourceTree = "<group>"; };
@@ -528,6 +530,7 @@
 				E23BC4B6964F6D705CD71D61 /* ColorSegmentationCardDetector.swift */,
 				FA6E4B9316C204EFE3C575 /* EmbeddingDownloader.swift */,
 				FA6E4B9316C204EFE3C573CD /* FeaturePrintCache.swift */,
+				GEM1N1V1510NF1LEREF0001 /* GeminiVisionService.swift */,
 				FA6E4B9316C204EFE3C574 /* VisualEmbeddingStore.swift */,
 				7C298A51F47FEA3016F0AC80 /* ImageMatcher.swift */,
 				68455DF4B8C0DA6191DD9018 /* ImageProcessor.swift */,
@@ -1080,6 +1083,7 @@
 				E93F0D62D3AB75D903510FD1 /* FeaturePrintCache.swift in Sources */,
 				E93F0D62D3AB75D903510FD3 /* EmbeddingDownloader.swift in Sources */,
 				E93F0D62D3AB75D903510FD2 /* VisualEmbeddingStore.swift in Sources */,
+				GEM1N1V1510NBUILD000001 /* GeminiVisionService.swift in Sources */,
 				756A0FAB29F6D3B3298CFC1B /* FormatsScreen.swift in Sources */,
 				2C2EA070C12148C438122E7C /* Formatters.swift in Sources */,
 				C2856ED9C5E74EB10B6D80F1 /* HTTPClient.swift in Sources */,

@@ -353,23 +353,56 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         // Strategy 2: OCR fallback
         if visualOnly { return nil }
 
-        guard let identified = await resolvePrinting(cardImage: finalImage, wasCropped: false) else {
-            return nil
+        if let identified = await resolvePrinting(cardImage: finalImage, wasCropped: false) {
+            let finalCard = await resolveArtVariant(card: identified, cardImage: finalImage)
+
+            // Auto-learn: save this identification as a training sample
+            if let store = embeddingStore {
+                await store.addSample(
+                    cardImage: finalImage,
+                    cardName: finalCard.name,
+                    setCode: finalCard.set.code,
+                    collectorNumber: finalCard.collectorNumber
+                )
+            }
+
+            return finalCard
         }
 
-        let finalCard = await resolveArtVariant(card: identified, cardImage: finalImage)
-
-        // Auto-learn: save this identification as a training sample
-        if let store = embeddingStore {
-            await store.addSample(
-                cardImage: finalImage,
-                cardName: finalCard.name,
-                setCode: finalCard.set.code,
-                collectorNumber: finalCard.collectorNumber
-            )
+        // Strategy 3: Gemini Vision API fallback
+        if GeminiVisionService.isConfigured {
+            print("[MTGScanner] Local pipeline failed, trying Gemini Vision...")
+            let gemini = GeminiVisionService()
+            if let result = await gemini.identifyCard(image: finalImage) {
+                // Look up the card name in local DB
+                if let printings = try? await repository.findAllPrintings(name: result.cardName),
+                   !printings.isEmpty {
+                    // If Gemini provided set+collector, find exact printing
+                    if let sc = result.setCode, let cn = result.collectorNumber {
+                        if let exact = printings.first(where: { $0.set.code == sc && $0.collectorNumber == cn }) {
+                            print("[MTGScanner] Gemini: exact printing match \(exact.name) [\(exact.set.code)]")
+                            return exact
+                        }
+                    }
+                    // Otherwise return the best printing
+                    let match = await resolveExactPrinting(
+                        cardImage: finalImage,
+                        cardName: result.cardName,
+                        printings: printings,
+                        illustrationID: nil
+                    )
+                    if let match {
+                        print("[MTGScanner] Gemini: resolved printing \(match.name) [\(match.set.code)]")
+                        return match
+                    }
+                    // Last resort: return first printing
+                    print("[MTGScanner] Gemini: using first printing for \(result.cardName)")
+                    return printings.first
+                }
+            }
         }
 
-        return finalCard
+        return nil
     }
 
     /// Identifies a card from raw image data.
