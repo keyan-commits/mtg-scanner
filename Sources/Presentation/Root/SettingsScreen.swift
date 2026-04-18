@@ -15,6 +15,7 @@ struct SettingsScreen: View {
     @State private var geminiTesting: Bool = false
     @State private var showUsageEditor: Bool = false
     @State private var manualUsageText: String = ""
+    @State private var showGeminiHelp: Bool = false
     @FocusState private var geminiKeyFocused: Bool
     @Bindable private var currencyService = CurrencyService.shared
     @Bindable private var iconManager = AppIconManager.shared
@@ -230,7 +231,16 @@ struct SettingsScreen: View {
                     .disabled(geminiTesting)
                 }
             } header: {
-                Text("Gemini Vision (Card Scanner)")
+                HStack {
+                    Text("Gemini Vision (Card Scanner)")
+                    Spacer()
+                    Button {
+                        showGeminiHelp = true
+                    } label: {
+                        Image(systemName: "questionmark.circle")
+                            .font(.system(size: 14))
+                    }
+                }
             } footer: {
                 Text("Free API key from aistudio.google.com. Used as a fallback when the local scanner can't identify a card.\n\nFree tier: 15 requests/min, 1,500 requests/day. Exceeding these limits may result in charges on your Google Cloud account. Monitor usage at aistudio.google.com.")
                     .font(.caption2)
@@ -282,6 +292,74 @@ struct SettingsScreen: View {
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showGeminiHelp) {
+            NavigationStack {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Group {
+                            Text("Getting a Free API Key")
+                                .font(.headline)
+                            Text("1. Go to aistudio.google.com/apikey")
+                            Text("2. Sign in with your Google account")
+                            Text("3. Click \"Create API Key\"")
+                            Text("4. Copy the key and paste it in the field above")
+                        }
+
+                        Divider()
+
+                        Group {
+                            Text("Checking Your Usage")
+                                .font(.headline)
+                            Text("1. Go to aistudio.google.com")
+                            Text("2. Click on your profile icon (top right)")
+                            Text("3. Select \"API Keys\" or \"Settings\"")
+                            Text("4. Look for \"Usage\" or \"Activity\" section")
+                            Text("5. The dashboard shows total API requests")
+                            Text("6. Tap the usage counter in the app to sync the count manually")
+                        }
+
+                        Divider()
+
+                        Group {
+                            Text("Free Tier Limits")
+                                .font(.headline)
+                            HStack {
+                                Text("Requests per minute:")
+                                Spacer()
+                                Text("15").bold()
+                            }
+                            HStack {
+                                Text("Requests per day:")
+                                Spacer()
+                                Text("1,500").bold()
+                            }
+                            Text("The app automatically stops using Gemini when the daily limit is reached and falls back to local scanning. Rate limit errors (429) pause Gemini for 60 seconds.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Divider()
+
+                        Group {
+                            Text("How It Works")
+                                .font(.headline)
+                            Text("When enabled, the app sends your card photo to Google's Gemini AI which identifies all visible cards in one shot. This is much more accurate than local scanning for binder pages, sleeved cards, and angled photos.")
+                            Text("The local scanner is used as a fallback when Gemini is disabled, offline, or has reached its daily limit.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding()
+                }
+                .navigationTitle("Gemini Vision Help")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { showGeminiHelp = false }
+                    }
+                }
+            }
+        }
         .alert("Set API Usage", isPresented: $showUsageEditor) {
             TextField("Usage count", text: $manualUsageText)
                 .keyboardType(.numberPad)
