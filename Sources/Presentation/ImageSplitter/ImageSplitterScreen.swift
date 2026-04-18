@@ -27,7 +27,10 @@ struct ImageSplitterScreen: View {
         VStack(spacing: 0) {
             if viewModel.sourceImage == nil {
                 photoPickerView
-            } else if viewModel.isDetecting || (viewModel.isIdentifying && viewModel.identifiedCards.isEmpty) {
+            } else if viewModel.isDetecting {
+                ProgressView("Detecting cards...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if viewModel.isIdentifying && viewModel.identifiedCards.isEmpty && GeminiVisionService.isActive {
                 geminiProcessingView
             } else {
                 splitPreviewView

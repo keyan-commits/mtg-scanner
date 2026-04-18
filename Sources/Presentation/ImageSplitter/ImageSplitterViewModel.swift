@@ -81,14 +81,8 @@ final class ImageSplitterViewModel {
     func detect() async {
         guard let image = sourceImage else { return }
 
-        // Gemini mode: skip rectangle detection, go straight to identification
-        if GeminiVisionService.isActive {
-            isDetecting = true
-            identificationTask = Task {
-                await identifyCards()
-            }
-            return
-        }
+        // When Gemini is active, still run detection (for fallback + crops)
+        // but also trigger Gemini whole-image mode in identifyCards().
 
         isDetecting = true
 
@@ -336,7 +330,6 @@ final class ImageSplitterViewModel {
            let sourceImage {
             let geminiTotal = max(total, 1)
             identifyingProgress = (current: 0, total: geminiTotal)
-            isDetecting = false
 
             let geminiCards = await pipeline.identifyAllWithGemini(image: sourceImage)
 
