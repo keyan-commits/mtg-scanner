@@ -8,8 +8,8 @@ import UIKit
 actor GeminiVisionService {
 
     private static let apiKeyKey = "geminiAPIKey"
-    // Gemini 3.1 Flash: 15 RPM, 1000 RPD free tier
-    private static let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash:generateContent"
+    // Gemini 2.0 Flash: 15 RPM, 1500 RPD free tier (stable, verified endpoint)
+    private static let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
     static var apiKey: String? {
         get { UserDefaults.standard.string(forKey: apiKeyKey) }
@@ -60,8 +60,8 @@ actor GeminiVisionService {
 
     private static let dailyLimitKey = "geminiDailyCount"
     private static let dailyDateKey = "geminiDailyDate"
-    // Gemini 3.1 Flash free tier: 15 RPM, 1000 RPD
-    private static let dailyLimit = 1000
+    // Gemini 2.0 Flash free tier: 15 RPM, 1500 RPD
+    private static let dailyLimit = 1500
 
     /// Number of Gemini requests made today.
     static var dailyUsage: Int {
