@@ -133,6 +133,88 @@ actor GeminiVisionService {
             return nil
         }
     }
+
+    /// Identifies ALL cards in a full binder page photo. Returns an array of results.
+    /// Uses a single API call instead of one per card.
+    func identifyAllCards(image: CGImage) async -> [GeminiCardResult]? {
+        guard let apiKey = Self.apiKey, !apiKey.isEmpty else { return nil }
+
+        let uiImage = UIImage(cgImage: image)
+        guard let jpegData = uiImage.jpegData(compressionQuality: 0.6) else { return nil }
+        let base64 = jpegData.base64EncodedString()
+
+        guard let url = URL(string: "\(Self.endpoint)?key=\(apiKey)") else { return nil }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30
+
+        let prompt = """
+        Identify ALL Magic: The Gathering cards visible in this binder page photo.
+        For each card, determine the exact English card name, the Scryfall 3-letter set code, and the collector number if readable.
+        Cards may be in sleeves or at angles. Include duplicates — if you see 4 copies of the same card, list it 4 times.
+        Return ONLY a JSON array (no other text or markdown):
+        [{"card_name": "exact name", "set_code": "abc", "collector_number": "123"}, ...]
+        Order the cards left-to-right, top-to-bottom as they appear in the binder page.
+        """
+
+        let body: [String: Any] = [
+            "contents": [[
+                "parts": [
+                    ["inline_data": ["mime_type": "image/jpeg", "data": base64]],
+                    ["text": prompt]
+                ]
+            ]]
+        ]
+
+        guard let httpBody = try? JSONSerialization.data(withJSONObject: body) else { return nil }
+        request.httpBody = httpBody
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse,
+                  httpResponse.statusCode == 200 else {
+                print("[Gemini] Batch HTTP error: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+                return nil
+            }
+
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let candidates = json["candidates"] as? [[String: Any]],
+                  let content = candidates.first?["content"] as? [String: Any],
+                  let parts = content["parts"] as? [[String: Any]],
+                  let text = parts.first?["text"] as? String else {
+                print("[Gemini] Batch: failed to parse response")
+                return nil
+            }
+
+            let cleaned = text
+                .replacingOccurrences(of: "```json", with: "")
+                .replacingOccurrences(of: "```", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+
+            guard let resultData = cleaned.data(using: .utf8),
+                  let array = try JSONSerialization.jsonObject(with: resultData) as? [[String: Any]] else {
+                print("[Gemini] Batch: failed to parse JSON array from: \(text.prefix(200))")
+                return nil
+            }
+
+            let results = array.compactMap { item -> GeminiCardResult? in
+                guard let name = item["card_name"] as? String else { return nil }
+                return GeminiCardResult(
+                    cardName: name,
+                    setCode: item["set_code"] as? String,
+                    collectorNumber: item["collector_number"] as? String
+                )
+            }
+
+            print("[Gemini] Batch: identified \(results.count) cards")
+            return results
+        } catch {
+            print("[Gemini] Batch request failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
 }
 
 struct GeminiCardResult {

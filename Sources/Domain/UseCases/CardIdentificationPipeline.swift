@@ -74,6 +74,10 @@ protocol CardIdentificationPipelineProtocol: Sendable {
     /// Returns nil if Gemini is not configured or fails.
     func identifyWithGemini(cgImage: CGImage) async -> Card?
 
+    /// Identifies all cards in a full image using Gemini Vision API.
+    /// Returns array of (Card, wasGemini) pairs. Uses a single API call.
+    func identifyAllWithGemini(image: CGImage) async -> [Card]
+
     /// Clears the FeaturePrint cache (e.g., before batch identification of a new photo).
     func clearFeaturePrintCache() async
 }
@@ -514,6 +518,31 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
 
     func clearFeaturePrintCache() async {
         await featurePrintCache?.clear()
+    }
+
+    func identifyAllWithGemini(image: CGImage) async -> [Card] {
+        guard GeminiVisionService.isConfigured else { return [] }
+        let gemini = GeminiVisionService()
+        guard let results = await gemini.identifyAllCards(image: image) else { return [] }
+
+        var cards: [Card] = []
+        for result in results {
+            if let printings = try? await repository.findAllPrintings(name: result.cardName),
+               !printings.isEmpty {
+                if let sc = result.setCode, let cn = result.collectorNumber,
+                   let exact = printings.first(where: { $0.set.code == sc && $0.collectorNumber == cn }) {
+                    cards.append(exact)
+                } else if let match = await resolveExactPrinting(
+                    cardImage: image, cardName: result.cardName,
+                    printings: printings, illustrationID: nil
+                ) {
+                    cards.append(match)
+                } else if let first = printings.first {
+                    cards.append(first)
+                }
+            }
+        }
+        return cards
     }
 
     func identifyWithGemini(cgImage: CGImage) async -> Card? {

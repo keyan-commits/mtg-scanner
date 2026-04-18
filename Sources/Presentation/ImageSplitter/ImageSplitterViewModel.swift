@@ -303,65 +303,74 @@ final class ImageSplitterViewModel {
 
         isIdentifying = true
         identifiedCards = [:]
+        geminiIdentified = []
         debugLogs = [:]
         let indices = Array(selectedIndices).sorted()
         let total = indices.count
         var current = 0
 
+        // === Gemini whole-image mode ===
+        // Send the FULL source image in one API call instead of per-crop
+        if GeminiVisionService.isConfigured && !GeminiVisionService.isDailyLimitReached,
+           let sourceImage {
+            identifyingProgress = (current: 0, total: total)
+            let geminiCards = await pipeline.identifyAllWithGemini(image: sourceImage)
+            GeminiVisionService.recordUsage()
+
+            if !geminiCards.isEmpty {
+                // Map Gemini results to detected card indices (by order)
+                for (i, index) in indices.enumerated() {
+                    if i < geminiCards.count {
+                        identifiedCards[index] = geminiCards[i]
+                        geminiIdentified.insert(index)
+                        debugLogs[index] = "Gemini (whole image): \(geminiCards[i].name) [\(geminiCards[i].set.code)] #\(geminiCards[i].collectorNumber)"
+                    }
+                    current += 1
+                    identifyingProgress = (current: current, total: total)
+                }
+
+                // If Gemini found all cards, skip local pipeline
+                let unidentified = indices.filter { identifiedCards[$0] == nil }
+                if unidentified.isEmpty {
+                    isIdentifying = false
+                    identifyingProgress = nil
+                    return
+                }
+                // Fall through to local pipeline for any Gemini missed
+            }
+        }
+
+        // === Local pipeline (per-crop) ===
         for index in indices {
+            guard identifiedCards[index] == nil else { continue } // skip Gemini-identified
             guard index < detectedCards.count else { continue }
             let cardImage = detectedCards[index].image
             let w = cardImage.width, h = cardImage.height
-            var log = "Crop: \(w)x\(h)\n"
-
-            // Debug: check CJK detection
-            let cjkRequest = VNRecognizeTextRequest()
-            cjkRequest.recognitionLevel = .fast
-            cjkRequest.recognitionLanguages = ["zh-Hans", "zh-Hant", "en-US"]
-            let cjkHandler = VNImageRequestHandler(cgImage: cardImage, options: [:])
-            var hasCJK = false
-            var cjkSample = ""
-            if let _ = try? cjkHandler.perform([cjkRequest]) {
-                for obs in (cjkRequest.results ?? []) {
-                    if let text = obs.topCandidates(1).first?.string {
-                        let isCJK = text.unicodeScalars.contains { s in (0x4E00...0x9FFF).contains(s.value) }
-                        if isCJK { hasCJK = true; cjkSample = String(text.prefix(10)); break }
-                    }
-                }
-            }
-            log += "CJK: \(hasCJK)\(hasCJK ? " [\(cjkSample)]" : "")\n"
+            var log = debugLogs[index] ?? ""
+            log += "Local pipeline: \(w)x\(h)\n"
 
             var card: Card?
-            var usedGemini = false
 
-            // Strategy 0: Gemini Vision (most accurate for binder pages)
-            if GeminiVisionService.isConfigured && !GeminiVisionService.isDailyLimitReached {
-                log += "Trying Gemini Vision...\n"
-                card = await pipeline.identifyWithGemini(cgImage: cardImage)
-                if let card {
-                    log += "Gemini: \(card.name) [\(card.set.code)]\n"
-                    usedGemini = true
-                    GeminiVisionService.recordUsage()
-                } else {
-                    log += "Gemini: nil, falling back to local...\n"
-                }
-            } else if GeminiVisionService.isDailyLimitReached {
-                log += "Gemini: daily limit reached, using local...\n"
-            }
-
-            // Strategy 1: Local OCR flow (works for high-quality single card photos)
+            // Strategy 1: Local OCR flow
+            card = await pipeline.identify(cgImage: cardImage)
+            // Strategy 2: Visual search
             if card == nil {
-                card = await pipeline.identify(cgImage: cardImage)
-            }
-            // Strategy 2: Visual search (works for binder pages, sleeves, low-res crops)
-            if card == nil {
-                log += "OCR flow: nil, trying visual search...\n"
+                log += "OCR: nil, trying visual search...\n"
                 card = await pipeline.identifyCropped(cardImage: cardImage, visualOnly: false)
             }
+            // Strategy 3: Per-card Gemini fallback (if whole-image didn't run)
+            if card == nil && GeminiVisionService.isConfigured && !GeminiVisionService.isDailyLimitReached {
+                card = await pipeline.identifyWithGemini(cgImage: cardImage)
+                if card != nil {
+                    GeminiVisionService.recordUsage()
+                    geminiIdentified.insert(index)
+                    log += "Gemini (single): identified\n"
+                }
+            }
+
             if let card {
                 identifiedCards[index] = card
-                if usedGemini { geminiIdentified.insert(index) }
-                log += "Result: \(card.name) [\(card.set.code)] #\(card.collectorNumber)\(usedGemini ? " (Gemini)" : "")"
+                log += "Result: \(card.name) [\(card.set.code)] #\(card.collectorNumber)"
             } else {
                 log += "Result: NOT IDENTIFIED"
             }
