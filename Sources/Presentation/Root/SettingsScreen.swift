@@ -16,6 +16,7 @@ struct SettingsScreen: View {
     @State private var showUsageEditor: Bool = false
     @State private var manualUsageText: String = ""
     @State private var showGeminiHelp: Bool = false
+    @State private var geminiToast: String?
     @FocusState private var geminiKeyFocused: Bool
     @Bindable private var currencyService = CurrencyService.shared
     @Bindable private var iconManager = AppIconManager.shared
@@ -149,8 +150,18 @@ struct SettingsScreen: View {
                     .submitLabel(.done)
                     .onSubmit { geminiKeyFocused = false }
                     .onChange(of: geminiAPIKey) { _, newValue in
+                        let wasConfigured = GeminiVisionService.isConfigured
                         GeminiVisionService.apiKey = newValue.isEmpty ? nil : newValue
                         geminiTestResult = nil
+                        // Auto-enable and show toast when key first entered
+                        if !wasConfigured && GeminiVisionService.isConfigured {
+                            geminiEnabled = true
+                            GeminiVisionService.isEnabled = true
+                            showGeminiToast("Gemini Vision auto-enabled")
+                        } else if wasConfigured && !GeminiVisionService.isConfigured {
+                            geminiEnabled = false
+                            showGeminiToast("Gemini Vision disabled (key removed)")
+                        }
                     }
                     .toolbar {
                         ToolbarItemGroup(placement: .keyboard) {
@@ -162,6 +173,7 @@ struct SettingsScreen: View {
                     Toggle("Enable Gemini Vision", isOn: $geminiEnabled)
                         .onChange(of: geminiEnabled) { _, newValue in
                             GeminiVisionService.isEnabled = newValue
+                            showGeminiToast(newValue ? "Gemini Vision enabled" : "Gemini Vision disabled")
                         }
                 }
                 HStack {
@@ -380,6 +392,21 @@ struct SettingsScreen: View {
         .onChange(of: currencyService.lastUpdated) { _, _ in
             updateTimestamp()
         }
+        .overlay(alignment: .top) {
+            if let toast = geminiToast {
+                Text(toast)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(MD3Theme.primary)
+                    .clipShape(Capsule())
+                    .shadow(radius: 4)
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: geminiToast)
     }
 
     private func refresh() async {
@@ -442,6 +469,14 @@ struct SettingsScreen: View {
             }
         } catch {
             geminiTestResult = "Network error"
+        }
+    }
+
+    private func showGeminiToast(_ message: String) {
+        geminiToast = message
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            geminiToast = nil
         }
     }
 
