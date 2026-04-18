@@ -455,6 +455,7 @@ struct SettingsScreen: View {
                    let candidates = json["candidates"] as? [[String: Any]],
                    !candidates.isEmpty {
                     geminiTestResult = "OK"
+                    GeminiVisionService.lastError = nil
                 } else {
                     geminiTestResult = "Unexpected response"
                 }
