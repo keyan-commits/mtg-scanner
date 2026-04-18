@@ -502,10 +502,21 @@ struct ImageSplitterScreen: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 4))
 
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(card.name)
-                                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(MD3Theme.onSurface)
-                                        .lineLimit(1)
+                                    HStack(spacing: 4) {
+                                        Text(card.name)
+                                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                            .foregroundStyle(MD3Theme.onSurface)
+                                            .lineLimit(1)
+                                        if viewModel.geminiIdentified.contains(index) {
+                                            Text("Gemini")
+                                                .font(.system(size: 8, weight: .bold))
+                                                .foregroundStyle(.white)
+                                                .padding(.horizontal, 4)
+                                                .padding(.vertical, 1)
+                                                .background(Color.blue)
+                                                .clipShape(Capsule())
+                                        }
+                                    }
                                     Text(card.setNameWithYear)
                                         .font(.caption2)
                                         .foregroundStyle(MD3Theme.onSurfaceVariant)

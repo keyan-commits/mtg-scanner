@@ -17,6 +17,8 @@ final class ImageSplitterViewModel {
     var priceOverlayEnabled = true
     var manualPrices: [Int: String] = [:]
     var identifiedCards: [Int: Card] = [:]
+    /// Which cards were identified by Gemini (vs local pipeline).
+    var geminiIdentified: Set<Int> = []
     /// Quantity per card index (default 1, range 1–20). Used when adding to collection.
     var quantities: [Int: Int] = [:]
     /// Debug logs per card index for troubleshooting.
@@ -330,16 +332,21 @@ final class ImageSplitterViewModel {
             log += "CJK: \(hasCJK)\(hasCJK ? " [\(cjkSample)]" : "")\n"
 
             var card: Card?
+            var usedGemini = false
 
             // Strategy 0: Gemini Vision (most accurate for binder pages)
-            if GeminiVisionService.isConfigured {
+            if GeminiVisionService.isConfigured && !GeminiVisionService.isDailyLimitReached {
                 log += "Trying Gemini Vision...\n"
                 card = await pipeline.identifyWithGemini(cgImage: cardImage)
                 if let card {
                     log += "Gemini: \(card.name) [\(card.set.code)]\n"
+                    usedGemini = true
+                    GeminiVisionService.recordUsage()
                 } else {
                     log += "Gemini: nil, falling back to local...\n"
                 }
+            } else if GeminiVisionService.isDailyLimitReached {
+                log += "Gemini: daily limit reached, using local...\n"
             }
 
             // Strategy 1: Local OCR flow (works for high-quality single card photos)
@@ -353,7 +360,8 @@ final class ImageSplitterViewModel {
             }
             if let card {
                 identifiedCards[index] = card
-                log += "Result: \(card.name) [\(card.set.code)] #\(card.collectorNumber)"
+                if usedGemini { geminiIdentified.insert(index) }
+                log += "Result: \(card.name) [\(card.set.code)] #\(card.collectorNumber)\(usedGemini ? " (Gemini)" : "")"
             } else {
                 log += "Result: NOT IDENTIFIED"
             }

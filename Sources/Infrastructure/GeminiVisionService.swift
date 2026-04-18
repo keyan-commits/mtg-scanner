@@ -20,6 +20,39 @@ actor GeminiVisionService {
         return !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    // MARK: - Daily Usage Tracking
+
+    private static let dailyLimitKey = "geminiDailyCount"
+    private static let dailyDateKey = "geminiDailyDate"
+    private static let dailyLimit = 1500
+
+    /// Number of Gemini requests made today.
+    static var dailyUsage: Int {
+        resetIfNewDay()
+        return UserDefaults.standard.integer(forKey: dailyLimitKey)
+    }
+
+    /// Whether the daily free-tier limit has been reached.
+    static var isDailyLimitReached: Bool {
+        dailyUsage >= dailyLimit
+    }
+
+    /// Records one API usage. Call after a successful Gemini response.
+    static func recordUsage() {
+        resetIfNewDay()
+        let count = UserDefaults.standard.integer(forKey: dailyLimitKey)
+        UserDefaults.standard.set(count + 1, forKey: dailyLimitKey)
+    }
+
+    private static func resetIfNewDay() {
+        let today = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
+        let stored = UserDefaults.standard.double(forKey: dailyDateKey)
+        if stored < today {
+            UserDefaults.standard.set(0, forKey: dailyLimitKey)
+            UserDefaults.standard.set(today, forKey: dailyDateKey)
+        }
+    }
+
     /// Identifies a card from a CGImage. Returns (cardName, setCode?, collectorNumber?) or nil.
     func identifyCard(image: CGImage) async -> GeminiCardResult? {
         guard let apiKey = Self.apiKey, !apiKey.isEmpty else { return nil }

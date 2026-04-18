@@ -162,6 +162,14 @@ struct SettingsScreen: View {
                         .foregroundStyle(active ? .green : .secondary)
                 }
                 if !geminiAPIKey.isEmpty {
+                    HStack {
+                        Text("Today's usage")
+                        Spacer()
+                        Text("\(GeminiVisionService.dailyUsage) / 1,500")
+                            .foregroundStyle(GeminiVisionService.isDailyLimitReached ? .red : .secondary)
+                    }
+                }
+                if !geminiAPIKey.isEmpty {
                     Button {
                         Task { await testGeminiConnection() }
                     } label: {
