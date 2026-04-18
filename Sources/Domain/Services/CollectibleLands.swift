@@ -24,6 +24,7 @@ enum CollectibleLands {
         judgePromoLands,
         iconicReservedListLands,
         otherIconicCollectibleLands,
+        collectibleWastes,
     ]
 
     // MARK: - Guru Lands
@@ -372,6 +373,18 @@ enum CollectibleLands {
             "Yavimaya, Cradle of Growth",
             "Boseiju, Who Endures",
             "Otawara, Soaring City",
+        ]
+    )
+
+    // MARK: - Collectible Wastes
+
+    static let collectibleWastes = LandCategory(
+        id: "collectible-wastes",
+        name: "Collectible Wastes",
+        iconName: "diamond.fill",
+        description: "Premium printings of Wastes, the sixth basic land type introduced in Oath of the Gatewatch (2016). Produces colorless mana ({C}). Includes full-art promos, Secret Lair variants, and special printings.",
+        cardNames: [
+            "Wastes",
         ]
     )
 }

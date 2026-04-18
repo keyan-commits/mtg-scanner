@@ -329,9 +329,24 @@ final class ImageSplitterViewModel {
             }
             log += "CJK: \(hasCJK)\(hasCJK ? " [\(cjkSample)]" : "")\n"
 
-            // Try proven OCR flow first (works for high-quality single card photos)
-            var card = await pipeline.identify(cgImage: cardImage)
-            // Fall back to visual search (works for binder pages, sleeves, low-res crops)
+            var card: Card?
+
+            // Strategy 0: Gemini Vision (most accurate for binder pages)
+            if GeminiVisionService.isConfigured {
+                log += "Trying Gemini Vision...\n"
+                card = await pipeline.identifyWithGemini(cgImage: cardImage)
+                if let card {
+                    log += "Gemini: \(card.name) [\(card.set.code)]\n"
+                } else {
+                    log += "Gemini: nil, falling back to local...\n"
+                }
+            }
+
+            // Strategy 1: Local OCR flow (works for high-quality single card photos)
+            if card == nil {
+                card = await pipeline.identify(cgImage: cardImage)
+            }
+            // Strategy 2: Visual search (works for binder pages, sleeves, low-res crops)
             if card == nil {
                 log += "OCR flow: nil, trying visual search...\n"
                 card = await pipeline.identifyCropped(cardImage: cardImage, visualOnly: false)

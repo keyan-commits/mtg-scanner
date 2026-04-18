@@ -70,6 +70,10 @@ protocol CardIdentificationPipelineProtocol: Sendable {
     /// Falls back to single-card identification if multi-detect finds nothing.
     func identifyAll(imageData: Data) async -> [Card]
 
+    /// Identifies a card using Gemini Vision API only (no local pipeline).
+    /// Returns nil if Gemini is not configured or fails.
+    func identifyWithGemini(cgImage: CGImage) async -> Card?
+
     /// Clears the FeaturePrint cache (e.g., before batch identification of a new photo).
     func clearFeaturePrintCache() async
 }
@@ -510,6 +514,35 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
 
     func clearFeaturePrintCache() async {
         await featurePrintCache?.clear()
+    }
+
+    func identifyWithGemini(cgImage: CGImage) async -> Card? {
+        guard GeminiVisionService.isConfigured else { return nil }
+        let gemini = GeminiVisionService()
+        guard let result = await gemini.identifyCard(image: cgImage) else { return nil }
+
+        // Look up in local DB
+        guard let printings = try? await repository.findAllPrintings(name: result.cardName),
+              !printings.isEmpty else {
+            print("[MTGScanner] Gemini identified '\(result.cardName)' but not found in DB")
+            return nil
+        }
+
+        // Try exact printing match first
+        if let sc = result.setCode, let cn = result.collectorNumber,
+           let exact = printings.first(where: { $0.set.code == sc && $0.collectorNumber == cn }) {
+            return exact
+        }
+
+        // Resolve best printing using multi-signal scoring
+        if let match = await resolveExactPrinting(
+            cardImage: cgImage, cardName: result.cardName,
+            printings: printings, illustrationID: nil
+        ) {
+            return match
+        }
+
+        return printings.first
     }
 
     // MARK: - Step 2: OCR Signal Extraction
