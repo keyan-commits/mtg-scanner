@@ -10,6 +10,9 @@ struct SettingsScreen: View {
     @State private var refreshing: Bool = false
     @State private var pricesUpdated: String = "Never"
     @State private var geminiAPIKey: String = GeminiVisionService.apiKey ?? ""
+    @State private var geminiTestResult: String?
+    @State private var geminiTesting: Bool = false
+    @FocusState private var geminiKeyFocused: Bool
     @Bindable private var currencyService = CurrencyService.shared
     @Bindable private var iconManager = AppIconManager.shared
     @Bindable private var printingPreference = PrintingStrategyPreference.shared
@@ -138,8 +141,18 @@ struct SettingsScreen: View {
                     .textContentType(.password)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
+                    .focused($geminiKeyFocused)
+                    .submitLabel(.done)
+                    .onSubmit { geminiKeyFocused = false }
                     .onChange(of: geminiAPIKey) { _, newValue in
                         GeminiVisionService.apiKey = newValue.isEmpty ? nil : newValue
+                        geminiTestResult = nil
+                    }
+                    .toolbar {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button("Done") { geminiKeyFocused = false }
+                        }
                     }
                 HStack {
                     Text("Status")
@@ -148,10 +161,32 @@ struct SettingsScreen: View {
                     Text(active ? "Active" : "Not configured")
                         .foregroundStyle(active ? .green : .secondary)
                 }
+                if !geminiAPIKey.isEmpty {
+                    Button {
+                        Task { await testGeminiConnection() }
+                    } label: {
+                        HStack {
+                            if geminiTesting {
+                                ProgressView().scaleEffect(0.7)
+                                Text("Testing...")
+                            } else {
+                                Image(systemName: "antenna.radiowaves.left.and.right")
+                                Text("Test Connection")
+                            }
+                            Spacer()
+                            if let result = geminiTestResult {
+                                Text(result)
+                                    .font(.caption)
+                                    .foregroundStyle(result.contains("OK") ? .green : .red)
+                            }
+                        }
+                    }
+                    .disabled(geminiTesting)
+                }
             } header: {
                 Text("Gemini Vision (Card Scanner)")
             } footer: {
-                Text("Free Gemini API key from aistudio.google.com. Used as a fallback when the local scanner can't identify a card (binder pages, glare, sleeves). 15 requests/min, 1,500/day free.")
+                Text("Free API key from aistudio.google.com. Used as a fallback when the local scanner can't identify a card.\n\nFree tier: 15 requests/min, 1,500 requests/day. Exceeding these limits may result in charges on your Google Cloud account. Monitor usage at aistudio.google.com.")
                     .font(.caption2)
             }
 
@@ -226,6 +261,51 @@ struct SettingsScreen: View {
             ratesUpdated = formatter.string(from: date)
         } else {
             ratesUpdated = "Never"
+        }
+    }
+
+    private func testGeminiConnection() async {
+        geminiTesting = true
+        defer { geminiTesting = false }
+
+        guard let apiKey = GeminiVisionService.apiKey, !apiKey.isEmpty else {
+            geminiTestResult = "No key"
+            return
+        }
+
+        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=\(apiKey)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 10
+
+        let body: [String: Any] = [
+            "contents": [["parts": [["text": "Reply with exactly: OK"]]]]
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+            if statusCode == 200 {
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let candidates = json["candidates"] as? [[String: Any]],
+                   !candidates.isEmpty {
+                    geminiTestResult = "OK"
+                } else {
+                    geminiTestResult = "Unexpected response"
+                }
+            } else if statusCode == 400 {
+                geminiTestResult = "Invalid key"
+            } else if statusCode == 403 {
+                geminiTestResult = "Key not authorized"
+            } else if statusCode == 429 {
+                geminiTestResult = "Rate limited"
+            } else {
+                geminiTestResult = "HTTP \(statusCode)"
+            }
+        } catch {
+            geminiTestResult = "Network error"
         }
     }
 
