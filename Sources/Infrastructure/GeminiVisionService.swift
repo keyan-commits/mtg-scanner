@@ -8,9 +8,8 @@ import UIKit
 actor GeminiVisionService {
 
     private static let apiKeyKey = "geminiAPIKey"
-    // Using 2.0 Flash for higher free tier limits (15 RPM, 1500 RPD)
-    // 2.5 Flash only allows 5 RPM / 20 RPD; 3 Flash not yet available via API
-    private static let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+    // Gemini 3.1 Flash: 15 RPM, 1000 RPD free tier
+    private static let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash:generateContent"
 
     static var apiKey: String? {
         get { UserDefaults.standard.string(forKey: apiKeyKey) }
@@ -61,8 +60,8 @@ actor GeminiVisionService {
 
     private static let dailyLimitKey = "geminiDailyCount"
     private static let dailyDateKey = "geminiDailyDate"
-    // Gemini 2.0 Flash free tier: 15 RPM, 1500 RPD
-    private static let dailyLimit = 1500
+    // Gemini 3.1 Flash free tier: 15 RPM, 1000 RPD
+    private static let dailyLimit = 1000
 
     /// Number of Gemini requests made today.
     static var dailyUsage: Int {
