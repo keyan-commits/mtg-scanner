@@ -22,8 +22,10 @@ struct LandCategory: Identifiable, Sendable {
     /// Used by Secret Lair drops where all share set code "sld" but each
     /// drop occupies a distinct collector-number range.
     let collectorNumbers: [String]
+    /// When non-nil, further filter printings to this artist name.
+    let artistFilter: String?
 
-    init(id: String, name: String, iconName: String, description: String, cardNames: [String], setCodes: [String] = [], collectorNumbers: [String] = []) {
+    init(id: String, name: String, iconName: String, description: String, cardNames: [String], setCodes: [String] = [], collectorNumbers: [String] = [], artistFilter: String? = nil) {
         self.id = id
         self.name = name
         self.iconName = iconName
@@ -31,6 +33,7 @@ struct LandCategory: Identifiable, Sendable {
         self.cardNames = cardNames
         self.setCodes = setCodes
         self.collectorNumbers = collectorNumbers
+        self.artistFilter = artistFilter
     }
 }
 

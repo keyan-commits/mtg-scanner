@@ -119,6 +119,20 @@ final class DeckScanViewModel {
         processingProgress = 0
         scanState = .processing(current: 0, total: 1)
 
+        // === Gemini whole-image mode: skip detection entirely ===
+        if GeminiVisionService.isActive {
+            scanState = .processing(current: 0, total: 1)
+            let geminiCards = await pipeline.identifyAllWithGemini(image: image)
+            GeminiVisionService.recordUsage()
+            if !geminiCards.isEmpty {
+                identifiedCards = geminiCards.compactMap { $0 }
+                processingProgress = 1.0
+                scanState = .results
+                return
+            }
+            // Gemini failed — fall through to local pipeline
+        }
+
         var cardImages: [CGImage] = []
 
         // ML model detection (most accurate if available)

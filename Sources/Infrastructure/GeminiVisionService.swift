@@ -15,9 +15,21 @@ actor GeminiVisionService {
         set { UserDefaults.standard.set(newValue, forKey: apiKeyKey) }
     }
 
+    private static let enabledKey = "geminiEnabled"
+
+    static var isEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: enabledKey) }
+        set { UserDefaults.standard.set(newValue, forKey: enabledKey) }
+    }
+
     static var isConfigured: Bool {
         guard let key = apiKey else { return false }
         return !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// Whether Gemini should be used right now (configured + enabled + within limit).
+    static var isActive: Bool {
+        isConfigured && isEnabled && !isDailyLimitReached
     }
 
     // MARK: - Daily Usage Tracking

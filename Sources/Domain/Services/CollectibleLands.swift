@@ -391,7 +391,8 @@ enum CollectibleLands {
             "Mountain",
             "Forest",
         ],
-        setCodes: ["tdm"]
+        setCodes: ["tdm"],
+        artistFilter: "Ron Spencer"
     )
 
     // MARK: - Collectible Wastes

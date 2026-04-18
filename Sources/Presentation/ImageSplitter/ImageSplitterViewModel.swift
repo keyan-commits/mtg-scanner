@@ -67,8 +67,20 @@ final class ImageSplitterViewModel {
     }
 
     /// Runs all detection methods and merges results.
+    /// When Gemini is active, skips detection entirely and goes straight to identification.
     func detect() async {
         guard let image = sourceImage else { return }
+
+        // Gemini mode: skip rectangle detection, go straight to identification
+        if GeminiVisionService.isActive {
+            isDetecting = false
+            // Create a single placeholder entry so the UI has something to show
+            detectedCards = [(image: image, rect: CGRect(x: 0, y: 0, width: image.width, height: image.height))]
+            selectedIndices = [0]
+            await identifyCards()
+            return
+        }
+
         isDetecting = true
 
         let imgArea = image.width * image.height
@@ -311,32 +323,33 @@ final class ImageSplitterViewModel {
 
         // === Gemini whole-image mode ===
         // Send the FULL source image in one API call instead of per-crop
-        if GeminiVisionService.isConfigured && !GeminiVisionService.isDailyLimitReached,
+        if GeminiVisionService.isActive,
            let sourceImage {
-            identifyingProgress = (current: 0, total: total)
+            let geminiTotal = max(total, 1)
+            identifyingProgress = (current: 0, total: geminiTotal)
             let geminiCards = await pipeline.identifyAllWithGemini(image: sourceImage)
             GeminiVisionService.recordUsage()
 
             if !geminiCards.isEmpty {
-                // Map Gemini results to detected card indices (by order)
-                for (i, index) in indices.enumerated() {
-                    if i < geminiCards.count {
-                        identifiedCards[index] = geminiCards[i]
-                        geminiIdentified.insert(index)
-                        debugLogs[index] = "Gemini (whole image): \(geminiCards[i].name) [\(geminiCards[i].set.code)] #\(geminiCards[i].collectorNumber)"
+                // Gemini returned N cards — create entries for each
+                // (may differ from detectedCards count since we skipped detection)
+                identifiedCards = [:]
+                geminiIdentified = []
+                for (i, card) in geminiCards.enumerated() {
+                    identifiedCards[i] = card
+                    geminiIdentified.insert(i)
+                    debugLogs[i] = "Gemini (whole image): \(card.name) [\(card.set.code)] #\(card.collectorNumber)"
+                }
+                // Ensure detectedCards has enough placeholder entries for the UI
+                if geminiCards.count > detectedCards.count {
+                    for _ in detectedCards.count..<geminiCards.count {
+                        detectedCards.append((image: sourceImage, rect: .zero))
                     }
-                    current += 1
-                    identifyingProgress = (current: current, total: total)
+                    selectedIndices = Set(0..<geminiCards.count)
                 }
-
-                // If Gemini found all cards, skip local pipeline
-                let unidentified = indices.filter { identifiedCards[$0] == nil }
-                if unidentified.isEmpty {
-                    isIdentifying = false
-                    identifyingProgress = nil
-                    return
-                }
-                // Fall through to local pipeline for any Gemini missed
+                isIdentifying = false
+                identifyingProgress = nil
+                return
             }
         }
 
@@ -359,7 +372,7 @@ final class ImageSplitterViewModel {
                 card = await pipeline.identifyCropped(cardImage: cardImage, visualOnly: false)
             }
             // Strategy 3: Per-card Gemini fallback (if whole-image didn't run)
-            if card == nil && GeminiVisionService.isConfigured && !GeminiVisionService.isDailyLimitReached {
+            if card == nil && GeminiVisionService.isActive {
                 card = await pipeline.identifyWithGemini(cgImage: cardImage)
                 if card != nil {
                     GeminiVisionService.recordUsage()

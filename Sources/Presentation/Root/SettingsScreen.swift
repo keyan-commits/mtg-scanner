@@ -10,6 +10,7 @@ struct SettingsScreen: View {
     @State private var refreshing: Bool = false
     @State private var pricesUpdated: String = "Never"
     @State private var geminiAPIKey: String = GeminiVisionService.apiKey ?? ""
+    @State private var geminiEnabled: Bool = GeminiVisionService.isEnabled
     @State private var geminiTestResult: String?
     @State private var geminiTesting: Bool = false
     @FocusState private var geminiKeyFocused: Bool
@@ -154,12 +155,29 @@ struct SettingsScreen: View {
                             Button("Done") { geminiKeyFocused = false }
                         }
                     }
+                if !geminiAPIKey.isEmpty {
+                    Toggle("Enable Gemini Vision", isOn: $geminiEnabled)
+                        .onChange(of: geminiEnabled) { _, newValue in
+                            GeminiVisionService.isEnabled = newValue
+                        }
+                }
                 HStack {
                     Text("Status")
                     Spacer()
-                    let active = !geminiAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    Text(active ? "Active" : "Not configured")
-                        .foregroundStyle(active ? .green : .secondary)
+                    let hasKey = !geminiAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    if !hasKey {
+                        Text("No API key")
+                            .foregroundStyle(.secondary)
+                    } else if !geminiEnabled {
+                        Text("Disabled")
+                            .foregroundStyle(.orange)
+                    } else if GeminiVisionService.isDailyLimitReached {
+                        Text("Daily limit reached")
+                            .foregroundStyle(.red)
+                    } else {
+                        Text("Active")
+                            .foregroundStyle(.green)
+                    }
                 }
                 if !geminiAPIKey.isEmpty {
                     HStack {

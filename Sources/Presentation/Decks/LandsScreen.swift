@@ -227,6 +227,9 @@ struct LandCategoryDetailView: View {
                     if !category.collectorNumbers.isEmpty {
                         filtered = filtered.filter { category.collectorNumbers.contains($0.collectorNumber) }
                     }
+                    if let artist = category.artistFilter {
+                        filtered = filtered.filter { $0.artist?.contains(artist) == true }
+                    }
                     if !filtered.isEmpty {
                         resolvedCards[name] = filtered
                         continue
