@@ -27,9 +27,26 @@ actor GeminiVisionService {
         return !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    /// Whether Gemini should be used right now (configured + enabled + within limit).
+    /// Whether Gemini should be used right now (configured + enabled + within limit + not rate-limited).
     static var isActive: Bool {
-        isConfigured && isEnabled && !isDailyLimitReached
+        isConfigured && isEnabled && !isDailyLimitReached && !isRateLimited
+    }
+
+    /// Last error message from Gemini (shown to user).
+    static var lastError: String? {
+        get { UserDefaults.standard.string(forKey: "geminiLastError") }
+        set { UserDefaults.standard.set(newValue, forKey: "geminiLastError") }
+    }
+
+    /// Whether Gemini hit a rate limit (429) — auto-resets after 60 seconds.
+    private static var isRateLimited: Bool {
+        let rateLimitedAt = UserDefaults.standard.double(forKey: "geminiRateLimitedAt")
+        guard rateLimitedAt > 0 else { return false }
+        return Date().timeIntervalSince1970 - rateLimitedAt < 60
+    }
+
+    private static func markRateLimited() {
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "geminiRateLimitedAt")
     }
 
     // MARK: - Daily Usage Tracking
@@ -47,6 +64,12 @@ actor GeminiVisionService {
     /// Whether the daily free-tier limit has been reached.
     static var isDailyLimitReached: Bool {
         dailyUsage >= dailyLimit
+    }
+
+    /// Manually sets the daily usage count (for syncing with Google's dashboard).
+    static func setDailyUsage(_ count: Int) {
+        resetIfNewDay()
+        UserDefaults.standard.set(count, forKey: dailyLimitKey)
     }
 
     /// Records one API usage. Call after a successful Gemini response.
@@ -103,9 +126,19 @@ actor GeminiVisionService {
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
 
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode == 200 else {
-                print("[Gemini] HTTP error: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+            guard let httpResponse = response as? HTTPURLResponse else {
+                Self.lastError = "No response from Gemini"
+                return nil
+            }
+            if httpResponse.statusCode == 429 {
+                Self.markRateLimited()
+                Self.lastError = "Rate limited — waiting 60s before retrying"
+                print("[Gemini] Rate limited (429)")
+                return nil
+            }
+            guard httpResponse.statusCode == 200 else {
+                Self.lastError = "HTTP \(httpResponse.statusCode)"
+                print("[Gemini] HTTP error: \(httpResponse.statusCode)")
                 return nil
             }
 
@@ -135,6 +168,7 @@ actor GeminiVisionService {
             let setCode = result["set_code"] as? String
             let collectorNumber = result["collector_number"] as? String
 
+            Self.lastError = nil
             print("[Gemini] Identified: \(cardName) [\(setCode ?? "?")] #\(collectorNumber ?? "?")")
             return GeminiCardResult(
                 cardName: cardName,
@@ -193,9 +227,19 @@ actor GeminiVisionService {
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
 
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode == 200 else {
-                print("[Gemini] Batch HTTP error: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+            guard let httpResponse = response as? HTTPURLResponse else {
+                Self.lastError = "No response from Gemini"
+                return nil
+            }
+            if httpResponse.statusCode == 429 {
+                Self.markRateLimited()
+                Self.lastError = "Rate limited — waiting 60s before retrying"
+                print("[Gemini] Batch: rate limited (429)")
+                return nil
+            }
+            guard httpResponse.statusCode == 200 else {
+                Self.lastError = "HTTP \(httpResponse.statusCode)"
+                print("[Gemini] Batch HTTP error: \(httpResponse.statusCode)")
                 return nil
             }
 
@@ -237,6 +281,7 @@ actor GeminiVisionService {
                 )
             }
 
+            Self.lastError = nil
             print("[Gemini] Batch: identified \(results.count) cards")
             return results
         } catch {

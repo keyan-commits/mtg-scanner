@@ -13,6 +13,8 @@ struct SettingsScreen: View {
     @State private var geminiEnabled: Bool = GeminiVisionService.isEnabled
     @State private var geminiTestResult: String?
     @State private var geminiTesting: Bool = false
+    @State private var showUsageEditor: Bool = false
+    @State private var manualUsageText: String = ""
     @FocusState private var geminiKeyFocused: Bool
     @Bindable private var currencyService = CurrencyService.shared
     @Bindable private var iconManager = AppIconManager.shared
@@ -180,11 +182,29 @@ struct SettingsScreen: View {
                     }
                 }
                 if !geminiAPIKey.isEmpty {
-                    HStack {
-                        Text("Today's usage")
-                        Spacer()
-                        Text("\(GeminiVisionService.dailyUsage) / 1,500")
-                            .foregroundStyle(GeminiVisionService.isDailyLimitReached ? .red : .secondary)
+                    Button {
+                        manualUsageText = "\(GeminiVisionService.dailyUsage)"
+                        showUsageEditor = true
+                    } label: {
+                        HStack {
+                            Text("Today's usage")
+                                .foregroundStyle(MD3Theme.onSurface)
+                            Spacer()
+                            Text("\(GeminiVisionService.dailyUsage) / 1,500")
+                                .foregroundStyle(GeminiVisionService.isDailyLimitReached ? .red : .secondary)
+                            Image(systemName: "pencil")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    if let error = GeminiVisionService.lastError {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                            Text(error)
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
                     }
                 }
                 if !geminiAPIKey.isEmpty {
@@ -262,6 +282,18 @@ struct SettingsScreen: View {
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
+        .alert("Set API Usage", isPresented: $showUsageEditor) {
+            TextField("Usage count", text: $manualUsageText)
+                .keyboardType(.numberPad)
+            Button("Save") {
+                if let count = Int(manualUsageText) {
+                    GeminiVisionService.setDailyUsage(count)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Enter the actual request count from aistudio.google.com to sync with Google's dashboard.")
+        }
         .task {
             await currencyService.refreshIfStale()
             updateTimestamp()

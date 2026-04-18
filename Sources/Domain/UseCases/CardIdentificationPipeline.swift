@@ -78,6 +78,10 @@ protocol CardIdentificationPipelineProtocol: Sendable {
     /// Returns array of (card, boundingBox) pairs. Uses a single API call.
     func identifyAllWithGemini(image: CGImage) async -> [(card: Card, bbox: CGRect?)]
 
+    /// Saves a card image as a training sample for the embedding store.
+    /// Used to feed Gemini-identified results back into local ML.
+    func learnFromIdentification(cardImage: CGImage, card: Card) async
+
     /// Clears the FeaturePrint cache (e.g., before batch identification of a new photo).
     func clearFeaturePrintCache() async
 }
@@ -514,6 +518,29 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         }
 
         return []
+    }
+
+    func learnFromIdentification(cardImage: CGImage, card: Card) async {
+        // Save to embedding store (persistent k-NN)
+        if let store = embeddingStore {
+            await store.addSample(
+                cardImage: cardImage,
+                cardName: card.name,
+                setCode: card.set.code,
+                collectorNumber: card.collectorNumber
+            )
+        }
+        // Cache in FeaturePrint cache (volatile, session-level)
+        if let cache = featurePrintCache,
+           let artImage = artVariantMatcher.extractArtRegion(from: cardImage) {
+            await cache.cache(
+                illustrationID: card.illustrationID ?? "",
+                cardName: card.name,
+                setCode: card.set.code,
+                collectorNumber: card.collectorNumber,
+                artImage: artImage
+            )
+        }
     }
 
     func clearFeaturePrintCache() async {
