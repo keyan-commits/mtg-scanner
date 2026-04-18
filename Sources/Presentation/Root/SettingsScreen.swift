@@ -299,7 +299,7 @@ struct SettingsScreen: View {
                         Group {
                             Text("Getting a Free API Key")
                                 .font(.headline)
-                            Text("1. Go to aistudio.google.com/apikey")
+                            copyableURL("aistudio.google.com/apikey")
                             Text("2. Sign in with your Google account")
                             Text("3. Click \"Create API Key\"")
                             Text("4. Copy the key and paste it in the field above")
@@ -310,7 +310,7 @@ struct SettingsScreen: View {
                         Group {
                             Text("Checking Your Usage")
                                 .font(.headline)
-                            Text("1. Go to aistudio.google.com")
+                            copyableURL("aistudio.google.com")
                             Text("2. Click on your profile icon (top right)")
                             Text("3. Select \"API Keys\" or \"Settings\"")
                             Text("4. Look for \"Usage\" or \"Activity\" section")
@@ -443,6 +443,23 @@ struct SettingsScreen: View {
         } catch {
             geminiTestResult = "Network error"
         }
+    }
+
+    private func copyableURL(_ urlString: String) -> some View {
+        Button {
+            UIPasteboard.general.string = "https://\(urlString)"
+        } label: {
+            HStack(spacing: 4) {
+                Text("1. Go to ")
+                Text(urlString)
+                    .foregroundStyle(MD3Theme.primary)
+                    .underline()
+                Image(systemName: "doc.on.doc")
+                    .font(.caption2)
+                    .foregroundStyle(MD3Theme.primary)
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     private func updatePricesTimestamp() {
