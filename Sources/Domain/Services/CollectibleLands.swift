@@ -24,6 +24,7 @@ enum CollectibleLands {
         judgePromoLands,
         iconicReservedListLands,
         otherIconicCollectibleLands,
+        dragonEyeLands,
         collectibleWastes,
     ]
 
@@ -374,6 +375,23 @@ enum CollectibleLands {
             "Boseiju, Who Endures",
             "Otawara, Soaring City",
         ]
+    )
+
+    // MARK: - Dragon Eye Lands (Tarkir: Dragonstorm)
+
+    static let dragonEyeLands = LandCategory(
+        id: "dragon-eye-lands",
+        name: "Dragon Eye Lands",
+        iconName: "eye.fill",
+        description: "Full-art basic lands from Tarkir: Dragonstorm (2025) by Ron Spencer. Distinctive dragon eye art — each land features a different dragon's eye. One of the most visually striking basic land cycles in recent sets.",
+        cardNames: [
+            "Plains",
+            "Island",
+            "Swamp",
+            "Mountain",
+            "Forest",
+        ],
+        setCodes: ["tdm"]
     )
 
     // MARK: - Collectible Wastes
