@@ -328,7 +328,6 @@ final class ImageSplitterViewModel {
             let geminiTotal = max(total, 1)
             identifyingProgress = (current: 0, total: geminiTotal)
             let geminiCards = await pipeline.identifyAllWithGemini(image: sourceImage)
-            GeminiVisionService.recordUsage()
 
             if !geminiCards.isEmpty {
                 // Gemini returned N cards with bounding boxes — crop each
@@ -377,7 +376,6 @@ final class ImageSplitterViewModel {
             if card == nil && GeminiVisionService.isActive {
                 card = await pipeline.identifyWithGemini(cgImage: cardImage)
                 if card != nil {
-                    GeminiVisionService.recordUsage()
                     geminiIdentified.insert(index)
                     log += "Gemini (single): identified\n"
                 }

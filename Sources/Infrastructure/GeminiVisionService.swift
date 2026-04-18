@@ -68,6 +68,7 @@ actor GeminiVisionService {
     /// Identifies a card from a CGImage. Returns (cardName, setCode?, collectorNumber?) or nil.
     func identifyCard(image: CGImage) async -> GeminiCardResult? {
         guard let apiKey = Self.apiKey, !apiKey.isEmpty else { return nil }
+        Self.recordUsage()
 
         // Convert to JPEG
         let uiImage = UIImage(cgImage: image)
@@ -151,6 +152,7 @@ actor GeminiVisionService {
     /// Uses a single API call instead of one per card.
     func identifyAllCards(image: CGImage) async -> [GeminiCardResult]? {
         guard let apiKey = Self.apiKey, !apiKey.isEmpty else { return nil }
+        Self.recordUsage()
 
         let uiImage = UIImage(cgImage: image)
         guard let jpegData = uiImage.jpegData(compressionQuality: 0.6) else { return nil }

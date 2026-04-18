@@ -123,7 +123,6 @@ final class DeckScanViewModel {
         if GeminiVisionService.isActive {
             scanState = .processing(current: 0, total: 1)
             let geminiResults = await pipeline.identifyAllWithGemini(image: image)
-            GeminiVisionService.recordUsage()
             if !geminiResults.isEmpty {
                 identifiedCards = geminiResults.map(\.card)
                 processingProgress = 1.0
