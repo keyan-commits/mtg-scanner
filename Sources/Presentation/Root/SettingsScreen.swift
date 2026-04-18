@@ -203,7 +203,7 @@ struct SettingsScreen: View {
                             Text("Today's usage")
                                 .foregroundStyle(MD3Theme.onSurface)
                             Spacer()
-                            Text("\(GeminiVisionService.dailyUsage) / 1,500")
+                            Text("\(GeminiVisionService.dailyUsage) / 20")
                                 .foregroundStyle(GeminiVisionService.isDailyLimitReached ? .red : .secondary)
                             Image(systemName: "pencil")
                                 .font(.caption2)
@@ -254,7 +254,7 @@ struct SettingsScreen: View {
                     }
                 }
             } footer: {
-                Text("Free API key from aistudio.google.com. Used as a fallback when the local scanner can't identify a card.\n\nFree tier: 15 requests/min, 1,500 requests/day. Exceeding these limits may result in charges on your Google Cloud account. Monitor usage at aistudio.google.com.")
+                Text("Free API key from aistudio.google.com. Used as a fallback when the local scanner can't identify a card.\n\nFree tier: 5 requests/min, 20 requests/day. Exceeding these limits may result in charges on your Google Cloud account. Monitor usage at aistudio.google.com.")
                     .font(.caption2)
             }
 
@@ -338,12 +338,12 @@ struct SettingsScreen: View {
                             HStack {
                                 Text("Requests per minute:")
                                 Spacer()
-                                Text("15").bold()
+                                Text("5").bold()
                             }
                             HStack {
                                 Text("Requests per day:")
                                 Spacer()
-                                Text("1,500").bold()
+                                Text("20").bold()
                             }
                             Text("The app automatically stops using Gemini when the daily limit is reached and falls back to local scanning. Rate limit errors (429) pause Gemini for 60 seconds.")
                                 .font(.caption)

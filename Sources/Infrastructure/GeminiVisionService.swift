@@ -59,7 +59,8 @@ actor GeminiVisionService {
 
     private static let dailyLimitKey = "geminiDailyCount"
     private static let dailyDateKey = "geminiDailyDate"
-    private static let dailyLimit = 1500
+    // Gemini 2.5 Flash free tier: 5 RPM, 20 RPD (not 1500 as initially assumed)
+    private static let dailyLimit = 20
 
     /// Number of Gemini requests made today.
     static var dailyUsage: Int {

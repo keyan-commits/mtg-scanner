@@ -557,10 +557,29 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         let imgW = CGFloat(image.width)
         let imgH = CGFloat(image.height)
 
+        print("[Gemini Pipeline] Processing \(results.count) card entries from Gemini:")
+        for (i, r) in results.enumerated() {
+            print("  [\(i)] \(r.quantity)x \(r.cardName) [\(r.setCode ?? "?")] bbox=\(r.boundingBox != nil)")
+        }
         var cards: [(card: Card, bbox: CGRect?)] = []
         for result in results {
-            if let printings = try? await repository.findAllPrintings(name: result.cardName),
-               !printings.isEmpty {
+            var printings = (try? await repository.findAllPrintings(name: result.cardName)) ?? []
+
+            // Fuzzy fallback: if exact name not found, try searching
+            if printings.isEmpty {
+                print("[Gemini Pipeline] Exact name not found: '\(result.cardName)', trying search...")
+                if let searchResults = try? await repository.searchCards(query: result.cardName),
+                   !searchResults.isEmpty {
+                    // Filter to exact case-insensitive matches if possible
+                    let exact = searchResults.filter { $0.name.lowercased() == result.cardName.lowercased() }
+                    printings = exact.isEmpty ? searchResults : exact
+                    print("[Gemini Pipeline] Search found \(printings.count) results")
+                } else {
+                    print("[Gemini Pipeline] SKIPPED: '\(result.cardName)' not in DB")
+                }
+            }
+
+            if !printings.isEmpty {
                 var card: Card?
                 if let sc = result.setCode, let cn = result.collectorNumber {
                     // Exact set + collector match
