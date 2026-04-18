@@ -144,8 +144,9 @@ struct SettingsScreen: View {
                 HStack {
                     Text("Status")
                     Spacer()
-                    Text(GeminiVisionService.isConfigured ? "Active" : "Not configured")
-                        .foregroundStyle(GeminiVisionService.isConfigured ? .green : .secondary)
+                    let active = !geminiAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    Text(active ? "Active" : "Not configured")
+                        .foregroundStyle(active ? .green : .secondary)
                 }
             } header: {
                 Text("Gemini Vision (Card Scanner)")
