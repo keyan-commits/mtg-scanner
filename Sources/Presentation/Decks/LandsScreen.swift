@@ -234,6 +234,15 @@ struct LandCategoryDetailView: View {
                 }
             }
 
+            // For single-card categories (e.g., Wastes), show ALL printings
+            if category.cardNames.count == 1 {
+                if let allPrintings = try? await cardRepository.findAllPrintings(name: name),
+                   !allPrintings.isEmpty {
+                    resolvedCards[name] = allPrintings
+                    continue
+                }
+            }
+
             // Fallback: standard resolution via CardResolver
             let resolver = CardResolver(cardRepository: cardRepository)
             if let card = await resolver.resolve(name: name) {
