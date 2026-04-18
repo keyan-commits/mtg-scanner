@@ -29,6 +29,9 @@ actor GeminiVisionService {
         set { UserDefaults.standard.set(newValue, forKey: enabledKey) }
     }
 
+    /// The full endpoint URL (for test connection and shared access).
+    static var endpointURL: String { endpoint }
+
     static var isConfigured: Bool {
         guard let key = apiKey else { return false }
         return !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
