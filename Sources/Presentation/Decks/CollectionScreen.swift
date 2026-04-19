@@ -13,6 +13,8 @@ struct CollectionScreen: View {
     @State private var debouncedSearchText: String = ""
     @State private var showAddSheet: Bool = false
     @State private var editingItem: CollectionItem?
+    @State private var showBulkStoreSheet: Bool = false
+    @State private var bulkStoreName: String = ""
     @State private var sortMode: SortMode = .name
     @State private var groupMode: GroupMode = .none
     @State private var viewMode: ViewMode = .list
@@ -334,13 +336,20 @@ struct CollectionScreen: View {
                 .pickerStyle(.segmented)
                 .frame(width: 80)
 
-                // Group mode menu
+                // Group mode menu + bulk actions
                 Menu {
                     Picker("Group by", selection: $groupMode) {
                         ForEach(GroupMode.allCases) { mode in
                             Label(mode.rawValue, systemImage: mode.icon).tag(mode)
                         }
                     }
+                    Divider()
+                    Button {
+                        showBulkStoreSheet = true
+                    } label: {
+                        Label("Set Store (All Visible)", systemImage: "storefront")
+                    }
+                    .disabled(filtered.isEmpty)
                 } label: {
                     Image(systemName: groupMode == .none
                           ? "rectangle.3.group"
@@ -423,6 +432,20 @@ struct CollectionScreen: View {
                     reload()
                 }
             )
+        }
+        .alert("Set Store for All Visible Cards", isPresented: $showBulkStoreSheet) {
+            TextField("Store / Seller name", text: $bulkStoreName)
+            Button("Apply to \(filtered.count) cards") {
+                let source = bulkStoreName.isEmpty ? nil : bulkStoreName
+                for item in filtered {
+                    item.purchaseSource = source
+                }
+                bulkStoreName = ""
+                reload()
+            }
+            Button("Cancel", role: .cancel) { bulkStoreName = "" }
+        } message: {
+            Text("This will set the purchase source for all \(filtered.count) currently visible cards.")
         }
         .onAppear { reload() }
         .task {
@@ -732,7 +755,17 @@ struct CollectionScreen: View {
         }
     }
 
+    private static let cachedValueKey = "collectionCachedValueUSD"
+    private static let cachedValueTimestamp = "collectionCachedValueAt"
+
     private func totalCollectionValueUSD() -> Double? {
+        // Use cached value if computed within the last hour
+        let cachedAt = UserDefaults.standard.double(forKey: Self.cachedValueTimestamp)
+        if cachedAt > 0 && Date().timeIntervalSince1970 - cachedAt < 3600 {
+            let cached = UserDefaults.standard.double(forKey: Self.cachedValueKey)
+            if cached > 0 { return cached }
+        }
+
         var total: Double = 0
         var hasAny = false
         for item in items {
@@ -740,6 +773,10 @@ struct CollectionScreen: View {
                 total += usd * Double(item.quantity)
                 hasAny = true
             }
+        }
+        if hasAny {
+            UserDefaults.standard.set(total, forKey: Self.cachedValueKey)
+            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.cachedValueTimestamp)
         }
         return hasAny ? total : nil
     }
@@ -775,6 +812,15 @@ struct CollectionScreen: View {
                             .font(.caption2)
                             .foregroundStyle(MD3Theme.onSurfaceVariant)
                             .lineLimit(1)
+                        if let source = item.purchaseSource {
+                            Text(source)
+                                .font(.system(size: 8, weight: .medium))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 1)
+                                .background(MD3Theme.tertiary)
+                                .clipShape(Capsule())
+                        }
                     }
                 }
                 Spacer(minLength: 8)

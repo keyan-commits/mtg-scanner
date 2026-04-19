@@ -321,6 +321,11 @@ final class CollectionItem {
     /// screen. Nil for legacy entries.
     var priceAtAddUSD: Double?
 
+    /// What the user actually paid for this card (in their local currency or USD).
+    var purchasePrice: Double?
+    /// Where the card was purchased (store name, seller, event, etc.).
+    var purchaseSource: String?
+
     init(
         cardName: String,
         setCode: String,

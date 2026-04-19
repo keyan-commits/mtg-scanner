@@ -10,6 +10,8 @@ struct EditCollectionItemSheet: View {
     @State private var quantity: Int = 1
     @State private var foilQuantity: Int = 0
     @State private var notes: String = ""
+    @State private var purchasePriceText: String = ""
+    @State private var purchaseSource: String = ""
     @State private var showDeleteConfirm: Bool = false
 
     @Environment(\.dismiss) private var dismiss
@@ -28,6 +30,18 @@ struct EditCollectionItemSheet: View {
                 Section("Quantity") {
                     Stepper("\(quantity) total", value: $quantity, in: 0...99)
                     Stepper("\(foilQuantity) foil", value: $foilQuantity, in: 0...max(quantity, 0))
+                }
+
+                Section("Purchase Info") {
+                    HStack {
+                        Text("Price Paid")
+                        Spacer()
+                        TextField("0.00", text: $purchasePriceText)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 100)
+                    }
+                    TextField("Store / Seller / Event", text: $purchaseSource)
                 }
 
                 Section("Notes") {
@@ -72,6 +86,8 @@ struct EditCollectionItemSheet: View {
             quantity = item.quantity
             foilQuantity = item.foilQuantity
             notes = item.notes ?? ""
+            purchasePriceText = item.purchasePrice.map { String(format: "%.2f", $0) } ?? ""
+            purchaseSource = item.purchaseSource ?? ""
         }
     }
 
@@ -80,6 +96,8 @@ struct EditCollectionItemSheet: View {
         // a notes setter — the @Model object is mutable and attached to the
         // shared context, so this is safe.
         item.notes = notes.isEmpty ? nil : notes
+        item.purchasePrice = Double(purchasePriceText)
+        item.purchaseSource = purchaseSource.isEmpty ? nil : purchaseSource
         try? deckRepository.setCollectionQuantity(
             item,
             quantity: quantity,
