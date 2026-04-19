@@ -325,6 +325,8 @@ final class CollectionItem {
     var purchasePrice: Double?
     /// Where the card was purchased (store name, seller, event, etc.).
     var purchaseSource: String?
+    /// Current market price per copy in USD (updated during daily price refresh).
+    var currentValueUSD: Double?
 
     init(
         cardName: String,

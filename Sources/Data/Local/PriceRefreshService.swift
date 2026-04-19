@@ -103,13 +103,34 @@ final class PriceRefreshService {
             }
 
             try context.save()
+            progress = 0.95
+
+            // Update collection item values from the price lookup
+            let collectionDescriptor = FetchDescriptor<CollectionItem>()
+            let collectionItems = (try? context.fetch(collectionDescriptor)) ?? []
+            for item in collectionItems {
+                if let prices = priceLookup[item.scryfallID],
+                   let usdString = prices.usd,
+                   let usd = Double(usdString) {
+                    item.currentValueUSD = usd
+                }
+            }
+            if !collectionItems.isEmpty { try context.save() }
+
+            // Compute and cache total collection value
+            let totalValue = collectionItems.reduce(0.0) { sum, item in
+                sum + (item.currentValueUSD ?? 0) * Double(item.quantity)
+            }
+            UserDefaults.standard.set(totalValue, forKey: "collectionCachedValueUSD")
+            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "collectionCachedValueAt")
+
             progress = 1.0
 
             // Clean up
             try? FileManager.default.removeItem(at: fileURL)
 
             UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.lastRefreshKey)
-            print("[PriceRefresh] Updated \(updated) card prices")
+            print("[PriceRefresh] Updated \(updated) card prices, \(collectionItems.count) collection values")
 
         } catch {
             print("[PriceRefresh] Failed: \(error.localizedDescription)")
