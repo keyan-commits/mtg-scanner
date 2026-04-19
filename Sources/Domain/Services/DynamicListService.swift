@@ -9,6 +9,7 @@ final class DynamicListService {
 
     private var cachedReservedList: [LandCategory]?
     private var cachedSecretLairDrops: [LandCategory]?
+    private var cachedFormatStaples: [String: [LandCategory]]?
     private var databaseManager: DatabaseManager?
 
     func configure(databaseManager: DatabaseManager) {
@@ -17,6 +18,7 @@ final class DynamicListService {
 
     /// Clears cached lists so they're rebuilt on next access.
     func invalidateCache() {
+        cachedFormatStaples = nil
         cachedReservedList = nil
         cachedSecretLairDrops = nil
     }
@@ -223,5 +225,34 @@ final class DynamicListService {
             print("[DynamicListService] Failed to fetch SLD basics: \(error)")
             return []
         }
+    }
+
+    // MARK: - Format Staples (from MTGTop8 aggregation)
+
+    /// Returns format-specific staple categories built from the MTGTop8
+    /// archetype aggregation cache. Returns empty if cache is cold.
+    func formatStaples(formatName: String) async -> [LandCategory] {
+        if let cached = cachedFormatStaples?[formatName] { return cached }
+
+        let service = SoughtAfterCardsService()
+        let sections = await service.topCardsByFormat(limit: 30)
+
+        guard let section = sections.first(where: { $0.formatName == formatName }),
+              !section.cards.isEmpty else {
+            return []
+        }
+
+        let cardNames = section.cards.map(\.cardName)
+        let category = LandCategory(
+            id: "dynamic-staples-\(formatName.lowercased())",
+            name: "\(formatName) Staples (\(cardNames.count))",
+            iconName: "star.fill",
+            description: "Most-played cards in \(formatName) across competitive archetypes. Dynamically updated from MTGTop8 tournament data.",
+            cardNames: cardNames
+        )
+
+        if cachedFormatStaples == nil { cachedFormatStaples = [:] }
+        cachedFormatStaples?[formatName] = [category]
+        return [category]
     }
 }

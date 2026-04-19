@@ -10,6 +10,13 @@ struct LandsScreen: View {
 
     @State private var dynamicReservedList: [LandCategory] = []
     @State private var dynamicSecretLair: [LandCategory] = []
+    @State private var dynamicModern: [LandCategory] = []
+    @State private var dynamicLegacy: [LandCategory] = []
+    @State private var dynamicPioneer: [LandCategory] = []
+    @State private var dynamicVintage: [LandCategory] = []
+    @State private var dynamicPauper: [LandCategory] = []
+    @State private var dynamicStandard: [LandCategory] = []
+    @State private var dynamicPremodern: [LandCategory] = []
     @State private var searchText: String = ""
     @State private var dynamicLoaded: Bool = false
 
@@ -20,13 +27,13 @@ struct LandsScreen: View {
             ("Collectible Lands", CollectibleLands.all),
             ("Secret Lair Lands", dynamicSecretLair.isEmpty ? SecretLairLands.all : dynamicSecretLair),
             ("Reserved List", dynamicReservedList.isEmpty ? ReservedList.all : dynamicReservedList),
-            ("Modern Staples", ModernStaples.all),
-            ("Legacy Staples", LegacyStaples.all),
-            ("Pioneer Staples", PioneerStaples.all),
-            ("Vintage Staples", VintageStaples.all),
-            ("Pauper Staples", PauperStaples.all),
-            ("Standard Staples", StandardStaples.all),
-            ("Premodern Staples", PremodernStaples.all),
+            ("Modern Staples", dynamicModern.isEmpty ? ModernStaples.all : dynamicModern),
+            ("Legacy Staples", dynamicLegacy.isEmpty ? LegacyStaples.all : dynamicLegacy),
+            ("Pioneer Staples", dynamicPioneer.isEmpty ? PioneerStaples.all : dynamicPioneer),
+            ("Vintage Staples", dynamicVintage.isEmpty ? VintageStaples.all : dynamicVintage),
+            ("Pauper Staples", dynamicPauper.isEmpty ? PauperStaples.all : dynamicPauper),
+            ("Standard Staples", dynamicStandard.isEmpty ? StandardStaples.all : dynamicStandard),
+            ("Premodern Staples", dynamicPremodern.isEmpty ? PremodernStaples.all : dynamicPremodern),
             ("cEDH Staples", CEDHStaples.all),
         ]
     }
@@ -112,41 +119,13 @@ struct LandsScreen: View {
                     categoryRow(category, in: rlCategories)
                 }
             }
-            Section("Modern Staples") {
-                ForEach(ModernStaples.all) { category in
-                    categoryRow(category, in: ModernStaples.all)
-                }
-            }
-            Section("Legacy Staples") {
-                ForEach(LegacyStaples.all) { category in
-                    categoryRow(category, in: LegacyStaples.all)
-                }
-            }
-            Section("Pioneer Staples") {
-                ForEach(PioneerStaples.all) { category in
-                    categoryRow(category, in: PioneerStaples.all)
-                }
-            }
-            Section("Vintage Staples") {
-                ForEach(VintageStaples.all) { category in
-                    categoryRow(category, in: VintageStaples.all)
-                }
-            }
-            Section("Pauper Staples") {
-                ForEach(PauperStaples.all) { category in
-                    categoryRow(category, in: PauperStaples.all)
-                }
-            }
-            Section("Standard Staples") {
-                ForEach(StandardStaples.all) { category in
-                    categoryRow(category, in: StandardStaples.all)
-                }
-            }
-            Section("Premodern Staples") {
-                ForEach(PremodernStaples.all) { category in
-                    categoryRow(category, in: PremodernStaples.all)
-                }
-            }
+            formatStaplesSection("Modern Staples", dynamic: dynamicModern, fallback: ModernStaples.all)
+            formatStaplesSection("Legacy Staples", dynamic: dynamicLegacy, fallback: LegacyStaples.all)
+            formatStaplesSection("Pioneer Staples", dynamic: dynamicPioneer, fallback: PioneerStaples.all)
+            formatStaplesSection("Vintage Staples", dynamic: dynamicVintage, fallback: VintageStaples.all)
+            formatStaplesSection("Pauper Staples", dynamic: dynamicPauper, fallback: PauperStaples.all)
+            formatStaplesSection("Standard Staples", dynamic: dynamicStandard, fallback: StandardStaples.all)
+            formatStaplesSection("Premodern Staples", dynamic: dynamicPremodern, fallback: PremodernStaples.all)
             Section("cEDH Staples") {
                 ForEach(CEDHStaples.all) { category in
                     categoryRow(category, in: CEDHStaples.all)
@@ -159,11 +138,29 @@ struct LandsScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "Search cards or categories")
         .task {
-            guard !dynamicLoaded else { return }  // Cache: only load once
+            guard !dynamicLoaded else { return }
             let service = DynamicListService.shared
             dynamicReservedList = await service.reservedList()
             dynamicSecretLair = await service.secretLairDrops()
+            // Load dynamic format staples from MTGTop8 aggregation cache
+            dynamicModern = await service.formatStaples(formatName: "Modern")
+            dynamicLegacy = await service.formatStaples(formatName: "Legacy")
+            dynamicPioneer = await service.formatStaples(formatName: "Pioneer")
+            dynamicVintage = await service.formatStaples(formatName: "Vintage")
+            dynamicPauper = await service.formatStaples(formatName: "Pauper")
+            dynamicStandard = await service.formatStaples(formatName: "Standard")
+            dynamicPremodern = await service.formatStaples(formatName: "Premodern")
             dynamicLoaded = true
+        }
+    }
+
+    @ViewBuilder
+    private func formatStaplesSection(_ title: String, dynamic: [LandCategory], fallback: [LandCategory]) -> some View {
+        let categories = dynamic.isEmpty ? fallback : dynamic
+        Section(dynamic.isEmpty ? title : "\(title) (Live)") {
+            ForEach(categories) { category in
+                categoryRow(category, in: categories)
+            }
         }
     }
 
