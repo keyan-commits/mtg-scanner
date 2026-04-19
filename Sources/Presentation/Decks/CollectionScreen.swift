@@ -787,11 +787,23 @@ struct CollectionScreen: View {
         }
     }
 
-    /// Reads the pre-computed total from UserDefaults (set by PriceRefreshService
-    /// or after collection changes). Single number, instant read.
+    /// Reads the pre-computed total from UserDefaults, or computes from
+    /// available data if not yet cached.
     private func totalCollectionValueUSD() -> Double? {
         let cached = UserDefaults.standard.double(forKey: "collectionCachedValueUSD")
-        return cached > 0 ? cached : nil
+        if cached > 0 { return cached }
+        // Fallback: compute from priceCache or currentValueUSD
+        guard !items.isEmpty else { return nil }
+        var total: Double = 0
+        var hasAny = false
+        for item in items {
+            let usd = priceCache[item.scryfallID] ?? item.currentValueUSD ?? 0
+            if usd > 0 { total += usd * Double(item.quantity); hasAny = true }
+        }
+        if hasAny {
+            UserDefaults.standard.set(total, forKey: "collectionCachedValueUSD")
+        }
+        return hasAny ? total : nil
     }
 
     /// Recomputes and saves the total collection value. Called only when
