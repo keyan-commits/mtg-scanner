@@ -16,6 +16,7 @@ struct CardDetailView: View {
     @State private var otherPrintings: [Card] = []
     @State private var isFirstPrint: Bool = false
     @State private var firstPrintScryfallID: String?
+    @State private var printingsSortAscending: Bool = true
     @State private var showAllPrintings = false
     @State private var showAddToDeck = false
     @State private var showAddToCollection = false
@@ -725,6 +726,14 @@ struct CardDetailView: View {
                         Text("\(otherPrintings.count)")
                             .font(MD3Typography.labelSmall)
                             .foregroundStyle(MD3Theme.onSurfaceVariant)
+
+                        Button {
+                            printingsSortAscending.toggle()
+                        } label: {
+                            Image(systemName: printingsSortAscending ? "arrow.up" : "arrow.down")
+                                .font(.caption)
+                                .foregroundStyle(MD3Theme.primary)
+                        }
                     }
                 }
 
@@ -733,7 +742,8 @@ struct CardDetailView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                 } else {
-                    let displayed = showAllPrintings ? otherPrintings : Array(otherPrintings.prefix(5))
+                    let sorted = printingsSortAscending ? otherPrintings : otherPrintings.reversed()
+                    let displayed = showAllPrintings ? Array(sorted) : Array(sorted.prefix(5))
 
                     ForEach(displayed) { printing in
                         Button {
