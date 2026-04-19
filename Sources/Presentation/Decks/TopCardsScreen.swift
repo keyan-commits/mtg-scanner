@@ -387,8 +387,16 @@ struct TopCardsDetailView: View {
         }
     }
 
+    /// Process-wide cache for top cards per set.
+    nonisolated(unsafe) private static var topCardsCache: [String: [Card]] = [:]
+
     private func loadTopCards() async {
-        guard topCards.isEmpty else { return }
+        if let cached = Self.topCardsCache[setInfo.code] {
+            topCards = cached
+            ownedQuantities = (try? deckRepository.ownedQuantitiesByName()) ?? [:]
+            isLoading = false
+            return
+        }
         let cards = (try? await cardRepository.fetchCardsBySet(setCode: setInfo.code)) ?? []
         // Sort by USD price descending, take top 10
         topCards = cards
@@ -400,6 +408,7 @@ struct TopCardsDetailView: View {
             }
             .prefix(10)
             .map { $0 }
+        Self.topCardsCache[setInfo.code] = topCards
         ownedQuantities = (try? deckRepository.ownedQuantitiesByName()) ?? [:]
         isLoading = false
     }

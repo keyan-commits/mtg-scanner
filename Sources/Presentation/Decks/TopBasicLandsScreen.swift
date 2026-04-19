@@ -217,8 +217,16 @@ struct TopBasicLandsScreen: View {
         }
     }
 
+    /// Process-wide cache for top 100 lands (avoids full DB scan on re-entry).
+    nonisolated(unsafe) private static var cachedTopLands: [Card]?
+
     private func loadTopLands() async {
-        guard topCards.isEmpty else { return }
+        if let cached = Self.cachedTopLands {
+            topCards = cached
+            ownedByScryfallID = (try? deckRepository.ownedQuantitiesByScryfallID()) ?? [:]
+            isLoading = false
+            return
+        }
         let lands = (try? await cardRepository.fetchBasicLands()) ?? []
         topCards = lands
             .filter { $0.prices.usd != nil }
@@ -229,6 +237,7 @@ struct TopBasicLandsScreen: View {
             }
             .prefix(100)
             .map { $0 }
+        Self.cachedTopLands = topCards
         ownedByScryfallID = (try? deckRepository.ownedQuantitiesByScryfallID()) ?? [:]
         isLoading = false
     }
