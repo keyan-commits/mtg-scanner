@@ -127,7 +127,9 @@ enum CollectibleLands {
             "Mountain",
             "Forest",
         ],
-        setCodes: ["zen"]
+        setCodes: ["zen"],
+        // Full-art basics only (230-249). Excludes intro deck non-full-art basics (250-269).
+        collectorNumbers: ["230", "231", "232", "233", "234", "235", "236", "237", "238", "239", "240", "241", "242", "243", "244", "245", "246", "247", "248", "249"]
     )
 
     // MARK: - Snow-Covered Lands

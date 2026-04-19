@@ -216,7 +216,9 @@ struct LandSectionPagerView: View {
 struct LandCategoryDetailView: View {
 
     /// Shared cache: resolved cards persist across navigation.
+    /// Cleared on app update (version change).
     nonisolated(unsafe) private static var cardCache: [String: [String: [Card]]] = [:]
+    nonisolated(unsafe) private static var cacheVersion: Int = 2 // bump to invalidate
 
     let category: LandCategory
     let viewMode: LandSectionPagerView.ViewMode
