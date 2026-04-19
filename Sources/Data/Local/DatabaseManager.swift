@@ -383,6 +383,33 @@ final class DatabaseManager: Sendable {
         return try context.fetch(descriptor)
     }
 
+    // MARK: - Price Movers
+
+    /// Returns cards with the biggest price increases (previous → current).
+    func fetchPriceMovers(limit: Int = 50) async throws -> [CardRecord] {
+        let context = ModelContext(modelContainer)
+        let descriptor = FetchDescriptor<CardRecord>(
+            predicate: #Predicate<CardRecord> { record in
+                record.priceUSD != nil && record.previousPriceUSD != nil
+            }
+        )
+        let records = try context.fetch(descriptor)
+        // Sort by price change % descending in-memory
+        // (SwiftData predicates can't do arithmetic)
+        return records
+            .compactMap { record -> (record: CardRecord, change: Double)? in
+                guard let curr = Double(record.priceUSD ?? ""),
+                      let prev = Double(record.previousPriceUSD ?? ""),
+                      prev > 0.50, curr > 1.0 else { return nil } // Filter out penny cards
+                let pct = ((curr - prev) / prev) * 100
+                guard pct > 5.0 else { return nil } // Only meaningful changes
+                return (record: record, change: pct)
+            }
+            .sorted { $0.change > $1.change }
+            .prefix(limit)
+            .map(\.record)
+    }
+
     /// Returns all cards in a given set.
     func fetchCards(setCode code: String) async throws -> [CardRecord] {
         let context = ModelContext(modelContainer)

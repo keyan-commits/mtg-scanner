@@ -26,6 +26,8 @@ final class CardRecord {
     var priceEUR: String?
     var priceEURFoil: String?
     var priceTix: String?
+    /// Previous day's USD price (for computing 24h price change).
+    var previousPriceUSD: String?
     var legalitiesJSON: String
     var imageURIsJSON: String
     var printsSearchURI: String?
@@ -135,7 +137,8 @@ extension CardRecord {
             usdFoil: priceUSDFoil,
             eur: priceEUR,
             eurFoil: priceEURFoil,
-            tix: priceTix
+            tix: priceTix,
+            previousUsd: previousPriceUSD
         )
 
         // Decode legalities JSON

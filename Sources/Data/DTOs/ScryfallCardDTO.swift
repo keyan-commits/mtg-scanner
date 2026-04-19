@@ -76,7 +76,8 @@ extension ScryfallCardDTO {
             usdFoil: prices.usdFoil,
             eur: prices.eur,
             eurFoil: prices.eurFoil,
-            tix: prices.tix
+            tix: prices.tix,
+            previousUsd: nil
         )
 
         let legalityMap: [String: LegalityStatus] = legalities.compactMapValues { rawValue in

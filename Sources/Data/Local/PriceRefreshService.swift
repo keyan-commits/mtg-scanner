@@ -85,6 +85,8 @@ final class PriceRefreshService {
 
             for record in records {
                 if let prices = priceLookup[record.scryfallID] {
+                    // Save previous price for 24h change tracking
+                    record.previousPriceUSD = record.priceUSD
                     record.priceUSD = prices.usd
                     record.priceUSDFoil = prices.usdFoil
                     record.priceEUR = prices.eur
