@@ -175,12 +175,12 @@ struct DeckDetailView: View {
 
                             Divider()
 
-                            Button(role: .destructive) {
+                            Button {
                                 showClearConfirmation = true
                             } label: {
-                                Label("Clear All Cards", systemImage: "trash")
+                                Label("Reset Collected Status", systemImage: "arrow.counterclockwise")
                             }
-                            .disabled(items.isEmpty)
+                            .disabled(items.filter { $0.status != .needed }.isEmpty)
                         } label: {
                             if changingAllPrintings {
                                 ProgressView()
@@ -293,16 +293,16 @@ struct DeckDetailView: View {
         .sheet(isPresented: $showSideboardGuide) {
             SideboardGuideSheet(format: deckFormat, sideboardCards: items.filter { $0.zone == "sideboard" }.map { $0.cardName.lowercased() })
         }
-        .confirmationDialog("Clear All Cards", isPresented: $showClearConfirmation, titleVisibility: .visible) {
-            Button("Clear All Cards", role: .destructive) {
-                for item in items {
-                    try? repository.deleteItem(item)
+        .confirmationDialog("Reset Collected Status", isPresented: $showClearConfirmation, titleVisibility: .visible) {
+            Button("Reset All to Needed", role: .destructive) {
+                for item in items where item.status != .needed {
+                    item.status = .needed
                 }
                 reload()
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Remove all \(items.count) cards from this deck? The reference decklist will be kept.")
+            Text("Reset all \(items.count) cards to 'Needed' status? This clears collected/ordered progress.")
         }
         .overlay(alignment: .bottom) {
             if showSideboardSuggestToast {
