@@ -215,10 +215,43 @@ struct LandSectionPagerView: View {
 /// Categories with `setCodes` show ALL printings from those sets.
 struct LandCategoryDetailView: View {
 
-    /// Shared cache: resolved cards persist across navigation.
-    /// Cleared on app update (version change).
+    /// In-memory cache: resolved cards persist across navigation within session.
     nonisolated(unsafe) private static var cardCache: [String: [String: [Card]]] = [:]
-    nonisolated(unsafe) private static var cacheVersion: Int = 2 // bump to invalidate
+
+    /// Disk cache directory for persisting resolved cards across app restarts.
+    private static var diskCacheURL: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("CardListCache", isDirectory: true)
+    }
+
+    /// Save resolved cards for a category to disk.
+    private static func saveToDisk(categoryID: String, cards: [String: [Card]]) {
+        let dir = diskCacheURL
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let file = dir.appendingPathComponent("\(categoryID).json")
+        // Encode as [[scryfallID, name, setCode, setName, collectorNumber, imageURL, priceUSD]]
+        var entries: [[String]] = []
+        for (_, cardList) in cards {
+            for card in cardList {
+                let img = card.imageURIs["normal"] ?? card.imageURIs["small"] ?? ""
+                entries.append([card.scryfallID, card.name, card.set.code, card.set.name,
+                               card.collectorNumber, img, card.prices.usd ?? ""])
+            }
+        }
+        if let data = try? JSONSerialization.data(withJSONObject: entries) {
+            try? data.write(to: file)
+        }
+    }
+
+    /// Load resolved card scryfallIDs from disk cache (for quick DB lookup).
+    private static func loadFromDisk(categoryID: String) -> [String]? {
+        let file = diskCacheURL.appendingPathComponent("\(categoryID).json")
+        guard let data = try? Data(contentsOf: file),
+              let entries = try? JSONSerialization.jsonObject(with: data) as? [[String]] else {
+            return nil
+        }
+        return entries.map { $0[0] } // scryfallIDs
+    }
 
     let category: LandCategory
     let viewMode: LandSectionPagerView.ViewMode
@@ -261,17 +294,20 @@ struct LandCategoryDetailView: View {
             }
         }
         .task {
-            // Load from cache first
+            // 1. In-memory cache (fastest)
             if let cached = Self.cardCache[category.id] {
                 resolvedCards = cached
             }
+            // 2. Ownership data
             ownedByName = (try? deckRepository.ownedQuantitiesByName()) ?? [:]
             ownedDetails = (try? deckRepository.ownedDetailsByName()) ?? [:]
             ownedByScryfallID = (try? deckRepository.ownedQuantitiesByScryfallID()) ?? [:]
+            // 3. If not in memory, try disk cache → resolve → save
             if resolvedCards.isEmpty {
                 await resolveAll()
-                // Save to cache
                 Self.cardCache[category.id] = resolvedCards
+                // Persist to disk for next app launch
+                Self.saveToDisk(categoryID: category.id, cards: resolvedCards)
             }
         }
     }
