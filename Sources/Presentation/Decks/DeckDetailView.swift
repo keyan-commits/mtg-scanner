@@ -15,6 +15,7 @@ struct DeckDetailView: View {
     @State private var showImportSideboardSheet: Bool = false
     @State private var showAddCardSheet: Bool = false
     @State private var showBulkOrderSheet: Bool = false
+    @State private var showClearConfirmation: Bool = false
     @State private var changePrintingItem: PurchaseItem?
     @State private var viewingCard: Card?
     @State private var loadingCardItemID: UUID?
@@ -171,6 +172,15 @@ struct DeckDetailView: View {
                                 Label("Change All Printings", systemImage: "rectangle.stack")
                             }
                             .disabled(items.isEmpty || changingAllPrintings)
+
+                            Divider()
+
+                            Button(role: .destructive) {
+                                showClearConfirmation = true
+                            } label: {
+                                Label("Clear All Cards", systemImage: "trash")
+                            }
+                            .disabled(items.isEmpty)
                         } label: {
                             if changingAllPrintings {
                                 ProgressView()
@@ -282,6 +292,17 @@ struct DeckDetailView: View {
         }
         .sheet(isPresented: $showSideboardGuide) {
             SideboardGuideSheet(format: deckFormat, sideboardCards: items.filter { $0.zone == "sideboard" }.map { $0.cardName.lowercased() })
+        }
+        .confirmationDialog("Clear All Cards", isPresented: $showClearConfirmation, titleVisibility: .visible) {
+            Button("Clear All Cards", role: .destructive) {
+                for item in items {
+                    try? repository.deleteItem(item)
+                }
+                reload()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Remove all \(items.count) cards from this deck? The reference decklist will be kept.")
         }
         .overlay(alignment: .bottom) {
             if showSideboardSuggestToast {
