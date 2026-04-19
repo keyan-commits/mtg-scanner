@@ -835,8 +835,9 @@ struct CardDetailView: View {
         guard let illustrationID = viewModel.card.illustrationID else { return }
 
         do {
-            let dbManager = try DatabaseManager()
-            let sameArt = try await dbManager.findByIllustrationID(illustrationID)
+            // Use the repository to find cards by illustration ID instead of
+            // creating a fresh DatabaseManager (which is wasteful per-view).
+            let sameArt = (try? await repository?.findAllPrintings(name: viewModel.card.name)) ?? []
 
             // Look for a matching card with a letter suffix collector number
             let knownNames: [String: [String: String]] = [
