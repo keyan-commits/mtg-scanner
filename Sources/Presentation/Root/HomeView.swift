@@ -64,6 +64,14 @@ struct HomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 if isSearchingActive {
+                    HStack {
+                        Spacer()
+                        Button("Done") {
+                            isSearchingActive = false
+                        }
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(MD3Theme.primary)
+                    }
                     searchResultsView
                 } else {
                     greeting
