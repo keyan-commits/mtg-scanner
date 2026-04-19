@@ -330,6 +330,22 @@ struct DecklistResultView: View {
                 addAllToCollectionButton
             }
 
+            if deckRepository != nil {
+                Button {
+                    createDeckFromScan()
+                } label: {
+                    Label("Create Deck", systemImage: "square.stack.3d.up")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .background(MD3Theme.primary)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .buttonStyle(.plain)
+                .disabled(viewModel.identifiedCards.isEmpty)
+            }
+
             HStack(spacing: 12) {
                 MD3OutlinedButton("Export") {
                     copyDecklistToClipboard()
@@ -475,6 +491,19 @@ struct DecklistResultView: View {
     }
 
     // MARK: - Export
+
+    private func createDeckFromScan() {
+        guard let deckRepository else { return }
+        let analysis = viewModel.geminiAnalysis ?? "Scanned Deck"
+        // Use first sentence or first 40 chars as name
+        let name = String(analysis.prefix(while: { $0 != "." })).prefix(60)
+        guard let deck = try? deckRepository.createDeck(name: String(name)) else { return }
+
+        let decklist = viewModel.buildDecklist()
+        for entry in decklist {
+            _ = try? deckRepository.addItem(card: entry.card, quantity: entry.quantity, to: deck)
+        }
+    }
 
     private func copyDecklistToClipboard() {
         var lines: [String] = []

@@ -777,6 +777,24 @@ struct ImageSplitterScreen: View {
                 .disabled(viewModel.addedToCollection)
             }
 
+            // Create Deck
+            if !viewModel.identifiedCards.isEmpty, let deckRepo = deckRepository {
+                Button {
+                    createDeckFromSplitScan(deckRepository: deckRepo)
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "square.stack.3d.up")
+                        Text("Create Deck")
+                    }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(MD3Theme.primary)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+            }
+
             // Save to Photos
             Button {
                 Task { await viewModel.saveSelectedCards() }
@@ -833,6 +851,26 @@ struct ImageSplitterScreen: View {
     }
 
     // MARK: - Helpers
+
+    private func createDeckFromSplitScan(deckRepository: DeckListRepository) {
+        let analysis = viewModel.geminiAnalysis ?? "Scanned Deck"
+        let name = String(analysis.prefix(while: { $0 != "." })).prefix(60)
+        guard let deck = try? deckRepository.createDeck(name: String(name)) else { return }
+
+        // Group identified cards by name
+        var grouped: [String: (card: Card, count: Int)] = [:]
+        for (_, card) in viewModel.identifiedCards {
+            if let existing = grouped[card.name] {
+                grouped[card.name] = (card: existing.card, count: existing.count + 1)
+            } else {
+                grouped[card.name] = (card: card, count: 1)
+            }
+        }
+
+        for (_, entry) in grouped {
+            _ = try? deckRepository.addItem(card: entry.card, quantity: entry.count, to: deck)
+        }
+    }
 
     private func loadPhoto(_ item: PhotosPickerItem?) async {
         guard let item else { return }
