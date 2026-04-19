@@ -15,6 +15,7 @@ struct CardDetailView: View {
     @State private var showCorrection = false
     @State private var otherPrintings: [Card] = []
     @State private var isFirstPrint: Bool = false
+    @State private var firstPrintScryfallID: String?
     @State private var showAllPrintings = false
     @State private var showAddToDeck = false
     @State private var showAddToCollection = false
@@ -760,10 +761,21 @@ struct CardDetailView: View {
                                 }
 
                                 VStack(alignment: .leading, spacing: 1) {
-                                    Text(printing.setNameWithYear)
-                                        .font(MD3Typography.bodySmall)
-                                        .foregroundStyle(MD3Theme.onSurface)
-                                        .lineLimit(1)
+                                    HStack(spacing: 4) {
+                                        Text(printing.setNameWithYear)
+                                            .font(MD3Typography.bodySmall)
+                                            .foregroundStyle(MD3Theme.onSurface)
+                                            .lineLimit(1)
+                                        if printing.scryfallID == firstPrintScryfallID {
+                                            Text("First Print")
+                                                .font(.system(size: 8, weight: .bold))
+                                                .foregroundStyle(.white)
+                                                .padding(.horizontal, 5)
+                                                .padding(.vertical, 1)
+                                                .background(Color.blue)
+                                                .clipShape(Capsule())
+                                        }
+                                    }
                                     Text("#\(printing.collectorNumber)")
                                         .font(MD3Typography.labelSmall)
                                         .foregroundStyle(MD3Theme.onSurfaceVariant)
@@ -812,13 +824,16 @@ struct CardDetailView: View {
             // Exclude the printing currently being viewed. Card identity
             // is the Scryfall printing ID, so this is now stable across
             // separate fetches.
-            otherPrintings = all.filter { $0 != viewModel.card }
+            otherPrintings = all
+                .filter { $0 != viewModel.card }
+                .sorted { ($0.releasedAt ?? "9999") < ($1.releasedAt ?? "9999") }
 
             // Determine if this is the first print (earliest release date)
             let earliest = all.min { a, b in
                 (a.releasedAt ?? "9999") < (b.releasedAt ?? "9999")
             }
             isFirstPrint = earliest?.scryfallID == viewModel.card.scryfallID
+            firstPrintScryfallID = earliest?.scryfallID
         } catch {
             otherPrintings = []
         }
