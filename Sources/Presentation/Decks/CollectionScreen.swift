@@ -787,21 +787,22 @@ struct CollectionScreen: View {
         }
     }
 
-    private static let cachedValueKey = "collectionCachedValueUSD"
-    private static let cachedValueTimestamp = "collectionCachedValueAt"
-
+    /// Reads the pre-computed total from UserDefaults (set by PriceRefreshService
+    /// or after collection changes). Single number, instant read.
     private func totalCollectionValueUSD() -> Double? {
-        // Fast path: use pre-computed values from CollectionItem.currentValueUSD
+        let cached = UserDefaults.standard.double(forKey: "collectionCachedValueUSD")
+        return cached > 0 ? cached : nil
+    }
+
+    /// Recomputes and saves the total collection value. Called only when
+    /// collection changes (add/remove/edit) — NOT on every screen load.
+    static func recomputeAndCacheTotal(items: [CollectionItem], priceCache: [String: Double]) {
         var total: Double = 0
-        var hasAny = false
         for item in items {
             let usd = priceCache[item.scryfallID] ?? item.currentValueUSD ?? 0
-            if usd > 0 {
-                total += usd * Double(item.quantity)
-                hasAny = true
-            }
+            total += usd * Double(item.quantity)
         }
-        return hasAny ? total : nil
+        UserDefaults.standard.set(total, forKey: "collectionCachedValueUSD")
     }
 
     // MARK: - Row
@@ -947,6 +948,8 @@ struct CollectionScreen: View {
 
     private func reload() {
         items = (try? deckRepository.fetchCollection()) ?? []
+        // Recompute total when collection changes
+        Self.recomputeAndCacheTotal(items: items, priceCache: priceCache)
     }
 
 }
