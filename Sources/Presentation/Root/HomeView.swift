@@ -8,6 +8,7 @@ struct HomeView: View {
 
     let deckRepository: DeckListRepository
     let cardRepository: CardRepositoryProtocol
+    @Binding var homeTabRetapped: Bool
     let onScanTap: () -> Void
 
     @State private var stats: HomeStats = .empty
@@ -64,14 +65,6 @@ struct HomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 if isSearchingActive {
-                    HStack {
-                        Spacer()
-                        Button("Done") {
-                            isSearchingActive = false
-                        }
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(MD3Theme.primary)
-                    }
                     searchResultsView
                 } else {
                     greeting
@@ -109,6 +102,12 @@ struct HomeView: View {
             // Re-run when the user flips Cards ↔ Decks so the active
             // results section reflects the current query.
             await performSearch()
+        }
+        .onChange(of: homeTabRetapped) { _, _ in
+            // User tapped Home tab while already on Home → dismiss search
+            if isSearchingActive {
+                isSearchingActive = false
+            }
         }
         .onChange(of: isSearchingActive) { _, isActive in
             if !isActive {

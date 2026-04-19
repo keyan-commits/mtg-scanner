@@ -11,17 +11,34 @@ struct RootView: View {
     let deckRepository: DeckListRepository
 
     @State private var selectedTab: Tab = .home
+    @State private var homeTabRetapped: Bool = false
 
     enum Tab: Hashable {
         case home, scan, decks, collection, shop
     }
 
+    /// Custom binding that detects same-tab re-taps (SwiftUI's @State
+    /// deduplicates same-value writes, but a custom Binding's setter
+    /// fires every time the user taps any tab bar item).
+    private var tabSelection: Binding<Tab> {
+        Binding<Tab>(
+            get: { selectedTab },
+            set: { newValue in
+                if newValue == selectedTab && newValue == .home {
+                    homeTabRetapped.toggle()
+                }
+                selectedTab = newValue
+            }
+        )
+    }
+
     var body: some View {
-        TabView(selection: $selectedTab) {
+        TabView(selection: tabSelection) {
             NavigationStack {
                 HomeView(
                     deckRepository: deckRepository,
                     cardRepository: repository,
+                    homeTabRetapped: $homeTabRetapped,
                     onScanTap: { selectedTab = .scan }
                 )
             }
