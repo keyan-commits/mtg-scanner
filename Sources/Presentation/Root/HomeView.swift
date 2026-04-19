@@ -25,6 +25,15 @@ struct HomeView: View {
     /// Top sought-after cards for the home section. Empty until the
     /// pre-warm has aggregated at least 2 curated major archetypes.
     @State private var soughtAfterCards: [SoughtAfterCard] = []
+    @State private var hotCards: [Card] = []  // Price movers (seller perspective)
+    @State private var marketPerspective: MarketPerspective = .player
+
+    enum MarketPerspective: String, CaseIterable, Identifiable {
+        case player = "Player"
+        case seller = "Seller"
+        case collector = "Collector"
+        var id: String { rawValue }
+    }
     /// Resolved Card per name (via the user's printing strategy) so
     /// the sought-after row can render images.
     @State private var soughtAfterResolved: [String: Card] = [:]
@@ -120,6 +129,7 @@ struct HomeView: View {
             reload()
             Task { await loadDeckArt() }
             Task { await loadSoughtAfterCards() }
+            Task { await loadHotCards() }
         }
         .sheet(item: $iconPickerDeck) { deck in
             ChooseDeckIconSheet(
@@ -539,6 +549,14 @@ struct HomeView: View {
     @ViewBuilder
     private var soughtAfterCardsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // Perspective picker
+            Picker("", selection: $marketPerspective) {
+                ForEach(MarketPerspective.allCases) { p in
+                    Text(p.rawValue).tag(p)
+                }
+            }
+            .pickerStyle(.segmented)
+
             NavigationLink {
                 SoughtAfterCardsScreen(
                     cardRepository: cardRepository,
@@ -546,7 +564,7 @@ struct HomeView: View {
                 )
             } label: {
                 HStack {
-                    Text("Most Sought-After Cards")
+                    Text(sectionTitle)
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(MD3Theme.onBackground)
                     Image(systemName: "chevron.right")
@@ -564,9 +582,18 @@ struct HomeView: View {
             .buttonStyle(.plain)
 
             if !soughtAfterCards.isEmpty {
-                Text("The most-played cards across the major archetypes worldwide")
-                    .font(.caption2)
-                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+                Group {
+                    switch marketPerspective {
+                    case .player:
+                        Text("Cards played across the most competitive archetypes")
+                    case .seller:
+                        Text("Cards with the biggest price movements in the last 24 hours")
+                    case .collector:
+                        Text("Reserved List and high-value cards worth collecting")
+                    }
+                }
+                .font(.caption2)
+                .foregroundStyle(MD3Theme.onSurfaceVariant)
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(alignment: .top, spacing: 10) {
@@ -703,6 +730,20 @@ struct HomeView: View {
         if let card = await resolver.resolve(name: name) {
             soughtAfterResolved[name] = card
         }
+    }
+
+    private var sectionTitle: String {
+        switch marketPerspective {
+        case .player: return "Format Staples"
+        case .seller: return "Hot Cards (Price Movers)"
+        case .collector: return "Collector Picks"
+        }
+    }
+
+    private func loadHotCards() async {
+        guard let dbManager = try? DatabaseManager() else { return }
+        let movers = (try? await dbManager.fetchPriceMovers(limit: 10)) ?? []
+        hotCards = movers.map { $0.toDomain() }
     }
 
     private func loadSoughtAfterCards() async {
