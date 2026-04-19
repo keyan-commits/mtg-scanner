@@ -27,13 +27,20 @@ struct LandsScreen: View {
             ("Collectible Lands", CollectibleLands.all),
             ("Secret Lair Lands", dynamicSecretLair.isEmpty ? SecretLairLands.all : dynamicSecretLair),
             ("Reserved List", dynamicReservedList.isEmpty ? ReservedList.all : dynamicReservedList),
-            ("Modern Staples", dynamicModern.isEmpty ? ModernStaples.all : dynamicModern),
-            ("Legacy Staples", dynamicLegacy.isEmpty ? LegacyStaples.all : dynamicLegacy),
-            ("Pioneer Staples", dynamicPioneer.isEmpty ? PioneerStaples.all : dynamicPioneer),
-            ("Vintage Staples", dynamicVintage.isEmpty ? VintageStaples.all : dynamicVintage),
-            ("Pauper Staples", dynamicPauper.isEmpty ? PauperStaples.all : dynamicPauper),
-            ("Standard Staples", dynamicStandard.isEmpty ? StandardStaples.all : dynamicStandard),
-            ("Premodern Staples", dynamicPremodern.isEmpty ? PremodernStaples.all : dynamicPremodern),
+            ("Modern Staples", ModernStaples.all),
+            ("Legacy Staples", LegacyStaples.all),
+            ("Pioneer Staples", PioneerStaples.all),
+            ("Vintage Staples", VintageStaples.all),
+            ("Pauper Staples", PauperStaples.all),
+            ("Standard Staples", StandardStaples.all),
+            ("Premodern Staples", PremodernStaples.all),
+            ("Modern Most-Played", dynamicModern),
+            ("Legacy Most-Played", dynamicLegacy),
+            ("Pioneer Most-Played", dynamicPioneer),
+            ("Vintage Most-Played", dynamicVintage),
+            ("Pauper Most-Played", dynamicPauper),
+            ("Standard Most-Played", dynamicStandard),
+            ("Premodern Most-Played", dynamicPremodern),
             ("cEDH Staples", CEDHStaples.all),
         ]
     }
@@ -119,13 +126,38 @@ struct LandsScreen: View {
                     categoryRow(category, in: rlCategories)
                 }
             }
-            formatStaplesSection("Modern Staples", dynamic: dynamicModern, fallback: ModernStaples.all)
-            formatStaplesSection("Legacy Staples", dynamic: dynamicLegacy, fallback: LegacyStaples.all)
-            formatStaplesSection("Pioneer Staples", dynamic: dynamicPioneer, fallback: PioneerStaples.all)
-            formatStaplesSection("Vintage Staples", dynamic: dynamicVintage, fallback: VintageStaples.all)
-            formatStaplesSection("Pauper Staples", dynamic: dynamicPauper, fallback: PauperStaples.all)
-            formatStaplesSection("Standard Staples", dynamic: dynamicStandard, fallback: StandardStaples.all)
-            formatStaplesSection("Premodern Staples", dynamic: dynamicPremodern, fallback: PremodernStaples.all)
+            // Staples: curated essential cards (timeless, rarely change)
+            Section("Modern Staples") {
+                ForEach(ModernStaples.all) { c in categoryRow(c, in: ModernStaples.all) }
+            }
+            Section("Legacy Staples") {
+                ForEach(LegacyStaples.all) { c in categoryRow(c, in: LegacyStaples.all) }
+            }
+            Section("Pioneer Staples") {
+                ForEach(PioneerStaples.all) { c in categoryRow(c, in: PioneerStaples.all) }
+            }
+            Section("Vintage Staples") {
+                ForEach(VintageStaples.all) { c in categoryRow(c, in: VintageStaples.all) }
+            }
+            Section("Pauper Staples") {
+                ForEach(PauperStaples.all) { c in categoryRow(c, in: PauperStaples.all) }
+            }
+            Section("Standard Staples") {
+                ForEach(StandardStaples.all) { c in categoryRow(c, in: StandardStaples.all) }
+            }
+            Section("Premodern Staples") {
+                ForEach(PremodernStaples.all) { c in categoryRow(c, in: PremodernStaples.all) }
+            }
+            // Most-Played: dynamic from MTGTop8 tournaments (changes with meta)
+            if !dynamicModern.isEmpty || !dynamicLegacy.isEmpty || !dynamicPioneer.isEmpty {
+                mostPlayedSection("Modern Most-Played", categories: dynamicModern)
+                mostPlayedSection("Legacy Most-Played", categories: dynamicLegacy)
+                mostPlayedSection("Pioneer Most-Played", categories: dynamicPioneer)
+                mostPlayedSection("Vintage Most-Played", categories: dynamicVintage)
+                mostPlayedSection("Pauper Most-Played", categories: dynamicPauper)
+                mostPlayedSection("Standard Most-Played", categories: dynamicStandard)
+                mostPlayedSection("Premodern Most-Played", categories: dynamicPremodern)
+            }
             Section("cEDH Staples") {
                 ForEach(CEDHStaples.all) { category in
                     categoryRow(category, in: CEDHStaples.all)
@@ -155,11 +187,12 @@ struct LandsScreen: View {
     }
 
     @ViewBuilder
-    private func formatStaplesSection(_ title: String, dynamic: [LandCategory], fallback: [LandCategory]) -> some View {
-        let categories = dynamic.isEmpty ? fallback : dynamic
-        Section(dynamic.isEmpty ? title : "\(title) (Live)") {
-            ForEach(categories) { category in
-                categoryRow(category, in: categories)
+    private func mostPlayedSection(_ title: String, categories: [LandCategory]) -> some View {
+        if !categories.isEmpty {
+            Section(title) {
+                ForEach(categories) { category in
+                    categoryRow(category, in: categories)
+                }
             }
         }
     }
