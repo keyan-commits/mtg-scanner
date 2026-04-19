@@ -489,17 +489,31 @@ struct CollectionScreen: View {
     /// Runs once per appear; cached results persist for the screen
     /// lifetime so scrolling never refetches.
     private func loadPricesIfNeeded() async {
-        for item in items where priceCache[item.scryfallID] == nil {
-            if let card = try? await cardRepository.fetchCard(
-                set: item.setCode,
-                collectorNumber: item.collectorNumber
-            ),
-               let usdString = card.prices.usd,
-               let usd = Double(usdString) {
-                priceCache[item.scryfallID] = usd
+        // Batch load: fetch all cards with missing prices in parallel
+        let missing = items.filter { priceCache[$0.scryfallID] == nil }
+        guard !missing.isEmpty else { pricesLoaded = true; return }
+
+        await withTaskGroup(of: (String, Double?).self) { group in
+            for item in missing {
+                group.addTask {
+                    if let card = try? await self.cardRepository.fetchCard(
+                        set: item.setCode,
+                        collectorNumber: item.collectorNumber
+                    ),
+                       let usdString = card.prices.usd,
+                       let usd = Double(usdString) {
+                        return (item.scryfallID, usd)
+                    }
+                    return (item.scryfallID, nil)
+                }
+            }
+            for await (id, price) in group {
+                if let price { priceCache[id] = price }
             }
         }
         pricesLoaded = true
+        // Invalidate cached total so it recomputes with all prices
+        UserDefaults.standard.removeObject(forKey: Self.cachedValueKey)
     }
 
     // MARK: - List body
@@ -772,11 +786,13 @@ struct CollectionScreen: View {
     private static let cachedValueTimestamp = "collectionCachedValueAt"
 
     private func totalCollectionValueUSD() -> Double? {
-        // Use cached value if computed within the last hour
-        let cachedAt = UserDefaults.standard.double(forKey: Self.cachedValueTimestamp)
-        if cachedAt > 0 && Date().timeIntervalSince1970 - cachedAt < 3600 {
-            let cached = UserDefaults.standard.double(forKey: Self.cachedValueKey)
-            if cached > 0 { return cached }
+        // Only use cached value if all prices have been loaded
+        if pricesLoaded {
+            let cachedAt = UserDefaults.standard.double(forKey: Self.cachedValueTimestamp)
+            if cachedAt > 0 && Date().timeIntervalSince1970 - cachedAt < 3600 {
+                let cached = UserDefaults.standard.double(forKey: Self.cachedValueKey)
+                if cached > 0 { return cached }
+            }
         }
 
         var total: Double = 0
@@ -787,7 +803,8 @@ struct CollectionScreen: View {
                 hasAny = true
             }
         }
-        if hasAny {
+        // Only cache when all prices are loaded (prevents caching partial totals)
+        if hasAny && pricesLoaded {
             UserDefaults.standard.set(total, forKey: Self.cachedValueKey)
             UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.cachedValueTimestamp)
         }
