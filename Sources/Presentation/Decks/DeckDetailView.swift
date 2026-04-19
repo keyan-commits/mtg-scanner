@@ -294,15 +294,28 @@ struct DeckDetailView: View {
             SideboardGuideSheet(format: deckFormat, sideboardCards: items.filter { $0.zone == "sideboard" }.map { $0.cardName.lowercased() })
         }
         .confirmationDialog("Reset Collected Status", isPresented: $showClearConfirmation, titleVisibility: .visible) {
-            Button("Reset All to Needed", role: .destructive) {
-                for item in items where item.status != .needed {
+            Button("Reset & Match Collection", role: .destructive) {
+                // Step 1: Reset all to needed
+                for item in items {
                     item.status = .needed
+                }
+                // Step 2: Match against collection
+                let owned = (try? repository.ownedQuantitiesByName()) ?? [:]
+                var used: [String: Int] = [:]  // track how many we've matched per card name
+                for item in items {
+                    let name = item.cardName
+                    let totalOwned = owned[name] ?? 0
+                    let alreadyUsed = used[name] ?? 0
+                    if alreadyUsed < totalOwned {
+                        item.status = .arrived
+                        used[name] = alreadyUsed + 1
+                    }
                 }
                 reload()
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Reset all \(items.count) cards to 'Needed' status? This clears collected/ordered progress.")
+            Text("Reset tracking and re-match against your collection. Cards you own will be marked as collected.")
         }
         .overlay(alignment: .bottom) {
             if showSideboardSuggestToast {
