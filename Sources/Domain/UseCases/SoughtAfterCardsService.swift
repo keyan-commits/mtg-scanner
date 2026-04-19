@@ -304,4 +304,45 @@ struct SoughtAfterCardsService: SoughtAfterCardsServiceProtocol {
         let aggregations = await aggregator.allCachedAggregations()
         return aggregations.count >= Self.minArchetypeCount
     }
+
+    // MARK: - Auto-populate from staples
+
+    private static let lastRefreshKey = "soughtAfterLastRefresh"
+
+    /// Whether it's been >24h since the last prewarm refresh.
+    var needsDailyRefresh: Bool {
+        let last = UserDefaults.standard.double(forKey: Self.lastRefreshKey)
+        guard last > 0 else { return true }
+        return Date().timeIntervalSince1970 - last > 24 * 60 * 60
+    }
+
+    /// Records that a refresh just completed.
+    func markRefreshed() {
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.lastRefreshKey)
+    }
+
+    /// Builds seed data from hardcoded format staple lists.
+    /// Used when the aggregation cache is empty so the home screen
+    /// shows useful data immediately without waiting for MTGTop8.
+    func seedFromStaples() -> [SoughtAfterCard] {
+        // Collect all card names across all format staple lists
+        var cardCounts: [String: Int] = [:]
+        let allStapleLists: [[LandCategory]] = [
+            ModernStaples.all, LegacyStaples.all, PioneerStaples.all,
+            VintageStaples.all, PauperStaples.all, PremodernStaples.all,
+            CEDHStaples.all
+        ]
+        for list in allStapleLists {
+            for category in list {
+                for name in category.cardNames {
+                    cardCounts[name, default: 0] += 1
+                }
+            }
+        }
+
+        // Cards that appear in multiple formats are the most sought-after
+        return cardCounts
+            .map { SoughtAfterCard(cardName: $0.key, archetypeCount: $0.value, totalCopies: $0.value) }
+            .sorted { ($0.archetypeCount, $0.totalCopies, $0.cardName) > ($1.archetypeCount, $1.totalCopies, $1.cardName) }
+    }
 }

@@ -707,13 +707,19 @@ struct HomeView: View {
 
     private func loadSoughtAfterCards() async {
         soughtAfterCards = await soughtAfterService.topCards(limit: 10)
-        // If the cache is too thin to produce meaningful results,
-        // kick off the curated-major pre-warm. Skipped if already
-        // useful so we don't burn network on every Home appearance.
-        if soughtAfterCards.isEmpty,
-           soughtAfterWarmupProgress == nil,
-           !(await soughtAfterService.hasUsefulCache()) {
-            await prewarmSoughtAfter()
+
+        // Auto-populate from format staples when cache is empty
+        if soughtAfterCards.isEmpty {
+            soughtAfterCards = Array(soughtAfterService.seedFromStaples().prefix(10))
+        }
+
+        // Daily auto-refresh from MTGTop8 (background, non-blocking)
+        if soughtAfterService.needsDailyRefresh,
+           soughtAfterWarmupProgress == nil {
+            Task {
+                await prewarmSoughtAfter()
+                soughtAfterService.markRefreshed()
+            }
         }
     }
 
