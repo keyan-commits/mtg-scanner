@@ -454,6 +454,8 @@ struct CollectionScreen: View {
             // Fetch Scryfall prices for any items missing from the cache.
             // Required for the value header + per-row prices.
             await loadPricesIfNeeded()
+            // Recompute total AFTER all prices are loaded
+            Self.recomputeAndCacheTotal(items: items, priceCache: priceCache)
             // Pre-load the archetype → card-names mapping so the
             // "Group by Deck Archetype" option is instant. Reads from
             // the aggregation cache (populated by Browse Archetypes).
@@ -787,23 +789,13 @@ struct CollectionScreen: View {
         }
     }
 
-    /// Reads the pre-computed total from UserDefaults, or computes from
-    /// available data if not yet cached.
+    /// Reads the pre-computed total from UserDefaults.
+    /// Returns nil until prices have been loaded this session to avoid
+    /// showing a stale value from a previous incomplete computation.
     private func totalCollectionValueUSD() -> Double? {
+        guard pricesLoaded else { return nil }
         let cached = UserDefaults.standard.double(forKey: "collectionCachedValueUSD")
-        if cached > 0 { return cached }
-        // Fallback: compute from priceCache or currentValueUSD
-        guard !items.isEmpty else { return nil }
-        var total: Double = 0
-        var hasAny = false
-        for item in items {
-            let usd = priceCache[item.scryfallID] ?? item.currentValueUSD ?? 0
-            if usd > 0 { total += usd * Double(item.quantity); hasAny = true }
-        }
-        if hasAny {
-            UserDefaults.standard.set(total, forKey: "collectionCachedValueUSD")
-        }
-        return hasAny ? total : nil
+        return cached > 0 ? cached : nil
     }
 
     /// Recomputes and saves the total collection value. Called only when
@@ -960,8 +952,6 @@ struct CollectionScreen: View {
 
     private func reload() {
         items = (try? deckRepository.fetchCollection()) ?? []
-        // Recompute total when collection changes
-        Self.recomputeAndCacheTotal(items: items, priceCache: priceCache)
     }
 
 }
