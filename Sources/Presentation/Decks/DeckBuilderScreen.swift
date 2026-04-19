@@ -230,6 +230,16 @@ struct DeckBuilderScreen: View {
                     }
                 }
                 if showResults && createdDeck == nil {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Clear") {
+                            parsedCards = []
+                            formatBreakdown = []
+                            referenceDecklists = [:]
+                            inputText = ""
+                            showResults = false
+                        }
+                        .foregroundStyle(.red)
+                    }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button("Edit List") {
                             showResults = false
