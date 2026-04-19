@@ -396,8 +396,7 @@ struct ShoppingListScreen: View {
         // Snapshot collection for optional subtraction.
         ownedByScryfallID = (try? deckRepository.ownedQuantitiesByScryfallID()) ?? [:]
 
-        let allItems = (try? deckRepository.fetchAllItems()) ?? []
-        let needed = allItems.filter { $0.status == .needed }
+        let needed = (try? deckRepository.fetchItemsByStatus(.needed)) ?? []
 
         // Group by printing identity
         let byKey = Dictionary(grouping: needed) { item in
@@ -420,13 +419,21 @@ struct ShoppingListScreen: View {
             .sorted { $0.cardName < $1.cardName }
         groups = built
 
-        // Fetch prices in parallel-ish (sequentially for simplicity, but cached)
-        for group in built {
-            let key = priceKey(setCode: group.setCode, collector: group.collectorNumber)
-            if priceCache[key] != nil { continue }
-            if let card = try? await cardRepository.fetchCard(set: group.setCode, collectorNumber: group.collectorNumber),
-               let usdString = card.prices.usd, let usd = Double(usdString) {
-                priceCache[key] = usd
+        // Fetch prices in parallel batches
+        await withTaskGroup(of: (String, Double?).self) { taskGroup in
+            for group in built {
+                let key = priceKey(setCode: group.setCode, collector: group.collectorNumber)
+                guard priceCache[key] == nil else { continue }
+                taskGroup.addTask {
+                    if let card = try? await cardRepository.fetchCard(set: group.setCode, collectorNumber: group.collectorNumber),
+                       let usdString = card.prices.usd, let usd = Double(usdString) {
+                        return (key, usd)
+                    }
+                    return (key, nil)
+                }
+            }
+            for await (key, price) in taskGroup {
+                if let price { priceCache[key] = price }
             }
         }
     }

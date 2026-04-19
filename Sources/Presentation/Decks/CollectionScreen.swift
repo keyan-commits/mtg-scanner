@@ -10,6 +10,7 @@ struct CollectionScreen: View {
 
     @State private var items: [CollectionItem] = []
     @State private var searchText: String = ""
+    @State private var debouncedSearchText: String = ""
     @State private var showAddSheet: Bool = false
     @State private var editingItem: CollectionItem?
     @State private var sortMode: SortMode = .name
@@ -104,7 +105,7 @@ struct CollectionScreen: View {
         var result = items
 
         // Text search
-        let q = searchText.trimmingCharacters(in: .whitespaces).lowercased()
+        let q = debouncedSearchText.trimmingCharacters(in: .whitespaces).lowercased()
         if !q.isEmpty {
             result = result.filter {
                 $0.cardName.lowercased().contains(q)
@@ -316,6 +317,12 @@ struct CollectionScreen: View {
         .navigationTitle("Collection")
         .navigationBarTitleDisplayMode(.large)
         .searchable(text: $searchText, prompt: "Search by card name or set")
+        .onChange(of: searchText) { _, newValue in
+            Task {
+                try? await Task.sleep(nanoseconds: 200_000_000)
+                if searchText == newValue { debouncedSearchText = newValue }
+            }
+        }
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 // View mode toggle

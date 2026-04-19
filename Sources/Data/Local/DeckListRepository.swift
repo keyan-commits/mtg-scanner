@@ -175,6 +175,16 @@ final class DeckListRepository {
         return try context.fetch(descriptor)
     }
 
+    /// Fetches PurchaseItems with a specific status (avoids loading entire table).
+    func fetchItemsByStatus(_ status: PurchaseStatus) throws -> [PurchaseItem] {
+        let statusRaw = status.rawValue
+        let descriptor = FetchDescriptor<PurchaseItem>(
+            predicate: #Predicate<PurchaseItem> { $0.statusRaw == statusRaw },
+            sortBy: [SortDescriptor(\.cardName)]
+        )
+        return try context.fetch(descriptor)
+    }
+
     /// Total amount spent on a deck, grouped by currency. Items without a
     /// recorded price are skipped. Items without a currency are bucketed as
     /// "USD" (the legacy default before the field was added).
