@@ -215,6 +215,9 @@ struct LandSectionPagerView: View {
 /// Categories with `setCodes` show ALL printings from those sets.
 struct LandCategoryDetailView: View {
 
+    /// Shared cache: resolved cards persist across navigation.
+    nonisolated(unsafe) private static var cardCache: [String: [String: [Card]]] = [:]
+
     let category: LandCategory
     let viewMode: LandSectionPagerView.ViewMode
     let sortByPrice: Bool
@@ -256,10 +259,18 @@ struct LandCategoryDetailView: View {
             }
         }
         .task {
+            // Load from cache first
+            if let cached = Self.cardCache[category.id] {
+                resolvedCards = cached
+            }
             ownedByName = (try? deckRepository.ownedQuantitiesByName()) ?? [:]
             ownedDetails = (try? deckRepository.ownedDetailsByName()) ?? [:]
             ownedByScryfallID = (try? deckRepository.ownedQuantitiesByScryfallID()) ?? [:]
-            await resolveAll()
+            if resolvedCards.isEmpty {
+                await resolveAll()
+                // Save to cache
+                Self.cardCache[category.id] = resolvedCards
+            }
         }
     }
 
