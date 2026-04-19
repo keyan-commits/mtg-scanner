@@ -519,6 +519,19 @@ struct CollectionScreen: View {
                         } label: {
                             row(item)
                         }
+                        .contextMenu {
+                            Button {
+                                editingItem = item
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            Button(role: .destructive) {
+                                try? deckRepository.deleteCollectionItem(item)
+                                reload()
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
                                 try? deckRepository.deleteCollectionItem(item)
@@ -840,7 +853,7 @@ struct CollectionScreen: View {
                     if let change {
                         Text(change.label)
                             .font(.caption2.weight(.semibold))
-                            .foregroundStyle(change.isUp ? .red : .green)
+                            .foregroundStyle(change.isUp ? .green : .red)
                             .monospacedDigit()
                     }
                 }
