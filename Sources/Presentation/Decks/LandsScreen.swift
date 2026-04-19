@@ -10,9 +10,55 @@ struct LandsScreen: View {
 
     @State private var dynamicReservedList: [LandCategory] = []
     @State private var dynamicSecretLair: [LandCategory] = []
+    @State private var searchText: String = ""
+    @State private var dynamicLoaded: Bool = false
+
+    /// All sections with their categories for search.
+    private var allSections: [(name: String, categories: [LandCategory])] {
+        [
+            ("Lands", LandLists.all),
+            ("Collectible Lands", CollectibleLands.all),
+            ("Secret Lair Lands", dynamicSecretLair.isEmpty ? SecretLairLands.all : dynamicSecretLair),
+            ("Reserved List", dynamicReservedList.isEmpty ? ReservedList.all : dynamicReservedList),
+            ("cEDH Staples", CEDHStaples.all),
+        ]
+    }
+
+    /// Search results: (sectionName, categoryName, cardName) tuples.
+    private var searchResults: [(section: String, category: String, categoryObj: LandCategory, categories: [LandCategory])] {
+        guard !searchText.isEmpty else { return [] }
+        let query = searchText.lowercased()
+        var results: [(section: String, category: String, categoryObj: LandCategory, categories: [LandCategory])] = []
+        for section in allSections {
+            for category in section.categories {
+                let matchesCategory = category.name.lowercased().contains(query)
+                let matchesCard = category.cardNames.contains { $0.lowercased().contains(query) }
+                if matchesCategory || matchesCard {
+                    results.append((section: section.name, category: category.name, categoryObj: category, categories: section.categories))
+                }
+            }
+        }
+        return results
+    }
 
     var body: some View {
         List {
+            if !searchText.isEmpty {
+                if searchResults.isEmpty {
+                    Section {
+                        Text("No results for \"\(searchText)\"")
+                            .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    }
+                } else {
+                    ForEach(Array(Set(searchResults.map(\.section))).sorted(), id: \.self) { sectionName in
+                        Section(sectionName) {
+                            ForEach(searchResults.filter { $0.section == sectionName }, id: \.categoryObj.id) { result in
+                                categoryRow(result.categoryObj, in: result.categories)
+                            }
+                        }
+                    }
+                }
+            } else {
             Section("Price Lists") {
                 NavigationLink {
                     TopBasicLandsScreen(
@@ -64,14 +110,18 @@ struct LandsScreen: View {
                     categoryRow(category, in: CEDHStaples.all)
                 }
             }
+            }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Lists")
         .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $searchText, prompt: "Search cards or categories")
         .task {
+            guard !dynamicLoaded else { return }  // Cache: only load once
             let service = DynamicListService.shared
             dynamicReservedList = await service.reservedList()
             dynamicSecretLair = await service.secretLairDrops()
+            dynamicLoaded = true
         }
     }
 
