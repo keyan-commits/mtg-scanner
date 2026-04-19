@@ -20,6 +20,13 @@ struct LandsScreen: View {
             ("Collectible Lands", CollectibleLands.all),
             ("Secret Lair Lands", dynamicSecretLair.isEmpty ? SecretLairLands.all : dynamicSecretLair),
             ("Reserved List", dynamicReservedList.isEmpty ? ReservedList.all : dynamicReservedList),
+            ("Modern Staples", ModernStaples.all),
+            ("Legacy Staples", LegacyStaples.all),
+            ("Pioneer Staples", PioneerStaples.all),
+            ("Vintage Staples", VintageStaples.all),
+            ("Pauper Staples", PauperStaples.all),
+            ("Standard Staples", StandardStaples.all),
+            ("Premodern Staples", PremodernStaples.all),
             ("cEDH Staples", CEDHStaples.all),
         ]
     }
@@ -103,6 +110,41 @@ struct LandsScreen: View {
                 let rlCategories = dynamicReservedList.isEmpty ? ReservedList.all : dynamicReservedList
                 ForEach(rlCategories) { category in
                     categoryRow(category, in: rlCategories)
+                }
+            }
+            Section("Modern Staples") {
+                ForEach(ModernStaples.all) { category in
+                    categoryRow(category, in: ModernStaples.all)
+                }
+            }
+            Section("Legacy Staples") {
+                ForEach(LegacyStaples.all) { category in
+                    categoryRow(category, in: LegacyStaples.all)
+                }
+            }
+            Section("Pioneer Staples") {
+                ForEach(PioneerStaples.all) { category in
+                    categoryRow(category, in: PioneerStaples.all)
+                }
+            }
+            Section("Vintage Staples") {
+                ForEach(VintageStaples.all) { category in
+                    categoryRow(category, in: VintageStaples.all)
+                }
+            }
+            Section("Pauper Staples") {
+                ForEach(PauperStaples.all) { category in
+                    categoryRow(category, in: PauperStaples.all)
+                }
+            }
+            Section("Standard Staples") {
+                ForEach(StandardStaples.all) { category in
+                    categoryRow(category, in: StandardStaples.all)
+                }
+            }
+            Section("Premodern Staples") {
+                ForEach(PremodernStaples.all) { category in
+                    categoryRow(category, in: PremodernStaples.all)
                 }
             }
             Section("cEDH Staples") {

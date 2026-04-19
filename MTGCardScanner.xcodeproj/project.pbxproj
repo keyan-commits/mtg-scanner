@@ -88,6 +88,13 @@
 		SEC1A1RLAND5BU11DF11E001 /* SecretLairLands.swift in Sources */ = {isa = PBXBuildFile; fileRef = SEC1A1RLAND5F11EREF00001 /* SecretLairLands.swift */; };
 		RE5ERVEDL15TBUILD000001 /* ReservedList.swift in Sources */ = {isa = PBXBuildFile; fileRef = RE5ERVEDL15TF1LEREF0001 /* ReservedList.swift */; };
 		DYNAM1CL15TBUILD000001 /* DynamicListService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DYNAM1CL15TF1LEREF0001 /* DynamicListService.swift */; };
+		M0DERNSTAP1EBUILD00001 /* ModernStaples.swift in Sources */ = {isa = PBXBuildFile; fileRef = M0DERNSTAP1EF1LEREF001 /* ModernStaples.swift */; };
+		LEGACYSTAP1EBUILD00001 /* LegacyStaples.swift in Sources */ = {isa = PBXBuildFile; fileRef = LEGACYSTAP1EF1LEREF001 /* LegacyStaples.swift */; };
+		P10NEERSTAPBUILD000001 /* PioneerStaples.swift in Sources */ = {isa = PBXBuildFile; fileRef = P10NEERSTAPF1LEREF0001 /* PioneerStaples.swift */; };
+		PAUPERSTAP1EBUILD00001 /* PauperStaples.swift in Sources */ = {isa = PBXBuildFile; fileRef = PAUPERSTAP1EF1LEREF001 /* PauperStaples.swift */; };
+		V1NTAGESTAPBUILD000001 /* VintageStaples.swift in Sources */ = {isa = PBXBuildFile; fileRef = V1NTAGESTAPF1LEREF0001 /* VintageStaples.swift */; };
+		STANDARDSTAPBUILD00001 /* StandardStaples.swift in Sources */ = {isa = PBXBuildFile; fileRef = STANDARDSTAPF1LEREF001 /* StandardStaples.swift */; };
+		PREM0DERNSTBUILD000001 /* PremodernStaples.swift in Sources */ = {isa = PBXBuildFile; fileRef = PREM0DERNSTF1LEREF0001 /* PremodernStaples.swift */; };
 		60D4482EF0D3D486972AE0AD /* OrderPasteParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B788E1E30E440FE89F04FF36 /* OrderPasteParser.swift */; };
 		643DDF5C1576B3E3F4C696FB /* DeckGridOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C775E7AACC0161BF1488ECD0 /* DeckGridOverlayView.swift */; };
 		648DD482C451B4DE5E5DBA80 /* CardPrice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C4BF2A8C53CC29CF57DDF17 /* CardPrice.swift */; };
@@ -371,6 +378,13 @@
 		SEC1A1RLAND5F11EREF00001 /* SecretLairLands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecretLairLands.swift; sourceTree = "<group>"; };
 		RE5ERVEDL15TF1LEREF0001 /* ReservedList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReservedList.swift; sourceTree = "<group>"; };
 		DYNAM1CL15TF1LEREF0001 /* DynamicListService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynamicListService.swift; sourceTree = "<group>"; };
+		M0DERNSTAP1EF1LEREF001 /* ModernStaples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModernStaples.swift; sourceTree = "<group>"; };
+		LEGACYSTAP1EF1LEREF001 /* LegacyStaples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyStaples.swift; sourceTree = "<group>"; };
+		P10NEERSTAPF1LEREF0001 /* PioneerStaples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PioneerStaples.swift; sourceTree = "<group>"; };
+		PAUPERSTAP1EF1LEREF001 /* PauperStaples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PauperStaples.swift; sourceTree = "<group>"; };
+		V1NTAGESTAPF1LEREF0001 /* VintageStaples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VintageStaples.swift; sourceTree = "<group>"; };
+		STANDARDSTAPF1LEREF001 /* StandardStaples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StandardStaples.swift; sourceTree = "<group>"; };
+		PREM0DERNSTF1LEREF0001 /* PremodernStaples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremodernStaples.swift; sourceTree = "<group>"; };
 		CD9ED87F3DB0E99B27C7BA5E /* LocalCardRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalCardRepositoryTests.swift; sourceTree = "<group>"; };
 		CDA7ED65F448985D0D0A6A41 /* AppIconManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconManager.swift; sourceTree = "<group>"; };
 		CE4224778C2E7462B40F6D98 /* AppIcon-U@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-U@2x.png"; sourceTree = "<group>"; };
@@ -480,6 +494,13 @@
 				DYNAM1CL15TF1LEREF0001 /* DynamicListService.swift */,
 				C0LLEC71B1E5000000000002 /* CollectibleLands.swift */,
 				4A9AC5520A03343B21F97ECF /* LandLists.swift */,
+				LEGACYSTAP1EF1LEREF001 /* LegacyStaples.swift */,
+				M0DERNSTAP1EF1LEREF001 /* ModernStaples.swift */,
+				PAUPERSTAP1EF1LEREF001 /* PauperStaples.swift */,
+				P10NEERSTAPF1LEREF0001 /* PioneerStaples.swift */,
+				PREM0DERNSTF1LEREF0001 /* PremodernStaples.swift */,
+				STANDARDSTAPF1LEREF001 /* StandardStaples.swift */,
+				V1NTAGESTAPF1LEREF0001 /* VintageStaples.swift */,
 				E14F96F1F692C3A787E1C3D2 /* MajorArchetypes.swift */,
 				RE5ERVEDL15TF1LEREF0001 /* ReservedList.swift */,
 				SEC1A1RLAND5F11EREF00001 /* SecretLairLands.swift */,
@@ -1023,6 +1044,13 @@
 				SEC1A1RLAND5BU11DF11E001 /* SecretLairLands.swift in Sources */,
 				RE5ERVEDL15TBUILD000001 /* ReservedList.swift in Sources */,
 				DYNAM1CL15TBUILD000001 /* DynamicListService.swift in Sources */,
+				M0DERNSTAP1EBUILD00001 /* ModernStaples.swift in Sources */,
+				LEGACYSTAP1EBUILD00001 /* LegacyStaples.swift in Sources */,
+				P10NEERSTAPBUILD000001 /* PioneerStaples.swift in Sources */,
+				PAUPERSTAP1EBUILD00001 /* PauperStaples.swift in Sources */,
+				V1NTAGESTAPBUILD000001 /* VintageStaples.swift in Sources */,
+				STANDARDSTAPBUILD00001 /* StandardStaples.swift in Sources */,
+				PREM0DERNSTBUILD000001 /* PremodernStaples.swift in Sources */,
 				5B0A1234SIDEBOARD000001 /* SideboardGuide.swift in Sources */,
 				3663DA845B59B3F754973C3E /* CameraManager.swift in Sources */,
 				F80154E1D152299F367ACC4B /* CameraPreviewView.swift in Sources */,
