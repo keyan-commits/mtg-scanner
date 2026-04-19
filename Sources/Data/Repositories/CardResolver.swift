@@ -16,6 +16,23 @@ import Foundation
 /// 3. Reverse front-face match when MTGTop8 lists the full DFC name
 struct CardResolver: Sendable {
 
+    /// Process-wide cache: resolved printings by card name.
+    /// Avoids repeated DB lookups for the same card across screens.
+    nonisolated(unsafe) private static var printingsCache: [String: [Card]] = [:]
+    nonisolated(unsafe) private static let cacheLock = NSLock()
+
+    private static func cachedPrintings(for name: String) -> [Card]? {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        return printingsCache[name]
+    }
+
+    private static func storePrintings(_ cards: [Card], for name: String) {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        printingsCache[name] = cards
+    }
+
     let cardRepository: CardRepositoryProtocol
 
     init(cardRepository: CardRepositoryProtocol) {
@@ -77,9 +94,15 @@ struct CardResolver: Sendable {
     /// in `MTGTop8DeckDetailView` — extracted here so every consumer
     /// gets the same behavior.
     private func lookupPrintings(forName name: String, allowFuzzyFallback: Bool = true) async -> [Card] {
+        // 0. Check process-wide cache first
+        if let cached = Self.cachedPrintings(for: name) {
+            return cached
+        }
+
         // 1. Exact match
         if let exact = try? await cardRepository.findAllPrintings(name: name),
            !exact.isEmpty {
+            Self.storePrintings(exact, for: name)
             return exact
         }
 
@@ -92,9 +115,11 @@ struct CardResolver: Sendable {
             }
             if !frontFaceMatches.isEmpty {
                 var seen = Set<String>()
-                return frontFaceMatches.filter { card in
+                let deduped = frontFaceMatches.filter { card in
                     seen.insert(card.scryfallID).inserted
                 }
+                Self.storePrintings(deduped, for: name)
+                return deduped
             }
         }
 
@@ -105,6 +130,7 @@ struct CardResolver: Sendable {
             if frontFace != name,
                let printings = try? await cardRepository.findAllPrintings(name: frontFace),
                !printings.isEmpty {
+                Self.storePrintings(printings, for: name)
                 return printings
             }
         }
@@ -118,6 +144,7 @@ struct CardResolver: Sendable {
            let fuzzy = try? await cardRepository.findFuzzyMatch(name: name),
            let printings = try? await cardRepository.findAllPrintings(name: fuzzy.name),
            !printings.isEmpty {
+            Self.storePrintings(printings, for: name)
             return printings
         }
 

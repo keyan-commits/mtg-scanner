@@ -138,10 +138,22 @@ struct FormatsScreen: View {
         .background(MD3Theme.background)
     }
 
+    /// Pre-grouped and pre-sorted archetypes by format (avoids re-sorting on every format tap).
+    @State private var archetypesByFormat: [MTGTop8Format: [IndexedArchetype]] = [:]
+
     private var archetypesForSelectedFormat: [IndexedArchetype] {
-        allArchetypes
-            .filter { $0.format == selectedFormat }
-            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        archetypesByFormat[selectedFormat] ?? []
+    }
+
+    private func buildFormatIndex() {
+        var grouped: [MTGTop8Format: [IndexedArchetype]] = [:]
+        for arch in allArchetypes {
+            grouped[arch.format, default: []].append(arch)
+        }
+        for key in grouped.keys {
+            grouped[key]?.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        }
+        archetypesByFormat = grouped
     }
 
     @ViewBuilder
@@ -189,6 +201,7 @@ struct FormatsScreen: View {
         defer { isLoadingCatalog = false }
         do {
             allArchetypes = try await archetypeIndex.archetypes(forceRefresh: forceRefresh)
+            buildFormatIndex()
             catalogError = nil
         } catch {
             catalogError = "Could not load archetype catalog from MTGTop8."

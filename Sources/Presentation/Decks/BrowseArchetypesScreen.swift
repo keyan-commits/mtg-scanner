@@ -54,6 +54,15 @@ struct BrowseArchetypesScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .background(MD3Theme.background)
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search archetypes")
+        .onChange(of: searchText) { _, newValue in
+            // Debounce: update filtered list after 200ms
+            Task {
+                try? await Task.sleep(nanoseconds: 200_000_000)
+                if searchText == newValue {
+                    debouncedSearch = newValue
+                }
+            }
+        }
         .task {
             await load()
         }
@@ -90,8 +99,10 @@ struct BrowseArchetypesScreen: View {
 
     // MARK: - Content
 
+    @State private var debouncedSearch: String = ""
+
     private var filteredGroups: [ArchetypeGroup] {
-        let trimmed = searchText.trimmingCharacters(in: .whitespaces).lowercased()
+        let trimmed = debouncedSearch.trimmingCharacters(in: .whitespaces).lowercased()
         guard !trimmed.isEmpty else { return groups }
         return groups.filter { group in
             if group.canonicalName.contains(trimmed) { return true }

@@ -52,11 +52,13 @@ final class DatabaseManager: Sendable {
     func searchCards(name: String) async throws -> [CardRecord] {
         let context = ModelContext(modelContainer)
         let lowercasedName = name.lowercased()
-        let descriptor = FetchDescriptor<CardRecord>(
+        var descriptor = FetchDescriptor<CardRecord>(
             predicate: #Predicate<CardRecord> { record in
                 record.name.localizedStandardContains(lowercasedName)
             }
         )
+        // Limit results to avoid loading entire DB for broad searches
+        descriptor.fetchLimit = 200
         return try context.fetch(descriptor)
     }
 
