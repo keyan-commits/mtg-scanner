@@ -26,14 +26,6 @@ struct HomeView: View {
     /// pre-warm has aggregated at least 2 curated major archetypes.
     @State private var soughtAfterCards: [SoughtAfterCard] = []
     @State private var hotCards: [Card] = []  // Price movers (seller perspective)
-    @State private var marketPerspective: MarketPerspective = .player
-
-    enum MarketPerspective: String, CaseIterable, Identifiable {
-        case player = "Player"
-        case seller = "Seller"
-        case collector = "Collector"
-        var id: String { rawValue }
-    }
     /// Resolved Card per name (via the user's printing strategy) so
     /// the sought-after row can render images.
     @State private var soughtAfterResolved: [String: Card] = [:]
@@ -78,7 +70,9 @@ struct HomeView: View {
                 } else {
                     greeting
                     statsCard
-                    soughtAfterCardsSection
+                    formatStaplesSection
+                    priceMoversSection
+                    collectionHighlightsSection
                     heroScanCard
                     if !recentDecks.isEmpty {
                         recentDecksSection
@@ -546,17 +540,11 @@ struct HomeView: View {
     /// archetype detail page (which populates the aggregation cache).
     /// Each image is resolved through the user's Default Printing
     /// setting via `CardResolver`.
-    @ViewBuilder
-    private var soughtAfterCardsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Perspective picker
-            Picker("", selection: $marketPerspective) {
-                ForEach(MarketPerspective.allCases) { p in
-                    Text(p.rawValue).tag(p)
-                }
-            }
-            .pickerStyle(.segmented)
+    // MARK: - Format Staples (Player)
 
+    @ViewBuilder
+    private var formatStaplesSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
             NavigationLink {
                 SoughtAfterCardsScreen(
                     cardRepository: cardRepository,
@@ -564,49 +552,176 @@ struct HomeView: View {
                 )
             } label: {
                 HStack {
-                    Text(sectionTitle)
+                    Image(systemName: "star.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    Text("Format Staples")
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(MD3Theme.onBackground)
                     Image(systemName: "chevron.right")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(MD3Theme.onSurfaceVariant.opacity(0.5))
                     Spacer()
-                    if !soughtAfterCards.isEmpty {
-                        Text("\(soughtAfterCards.count)")
-                            .font(.caption2)
-                            .foregroundStyle(MD3Theme.onSurfaceVariant)
-                    }
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
-            if !soughtAfterCards.isEmpty {
-                Group {
-                    switch marketPerspective {
-                    case .player:
-                        Text("Cards played across the most competitive archetypes")
-                    case .seller:
-                        Text("Cards with the biggest price movements in the last 24 hours")
-                    case .collector:
-                        Text("Reserved List and high-value cards worth collecting")
-                    }
-                }
+            Text("Most-played cards across competitive archetypes")
                 .font(.caption2)
                 .foregroundStyle(MD3Theme.onSurfaceVariant)
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .top, spacing: 10) {
-                        ForEach(Array(soughtAfterCards.enumerated()), id: \.element.id) { idx, entry in
-                            soughtAfterCardView(entry, index: idx)
+            if !soughtAfterCards.isEmpty {
+                VStack(spacing: 0) {
+                    ForEach(soughtAfterCards.prefix(5)) { entry in
+                        stapleRow(entry)
+                        if entry.id != soughtAfterCards.prefix(5).last?.id {
+                            Divider()
                         }
                     }
                 }
-            } else if let progress = soughtAfterWarmupProgress {
-                soughtAfterWarmupView(loaded: progress.loaded, total: progress.total)
-            } else {
-                soughtAfterPlaceholderView
+                .padding(12)
+                .background(MD3Theme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            } else if soughtAfterWarmupProgress != nil {
+                HStack(spacing: 8) {
+                    ProgressView().scaleEffect(0.7)
+                    Text("Loading archetype data...")
+                        .font(.caption2)
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                }
             }
+        }
+    }
+
+    private func stapleRow(_ entry: SoughtAfterCard) -> some View {
+        let resolved = soughtAfterResolved[entry.cardName]
+        return HStack(spacing: 8) {
+            Text(entry.cardName)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(MD3Theme.onSurface)
+                .lineLimit(1)
+            Spacer()
+            Text("in \(entry.archetypeCount) archetypes")
+                .font(.system(size: 10))
+                .foregroundStyle(MD3Theme.onSurfaceVariant)
+            if let usd = resolved?.prices.usd {
+                Text("$\(usd)")
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(MD3Theme.primary)
+            }
+        }
+        .padding(.vertical, 4)
+        .task { await resolveSoughtAfter(name: entry.cardName) }
+    }
+
+    // MARK: - Price Movers (Seller)
+
+    @ViewBuilder
+    private var priceMoversSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Image(systemName: "flame.fill")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                Text("Price Movers (24h)")
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(MD3Theme.onBackground)
+                Spacer()
+            }
+
+            Text("Biggest price changes in the last 24 hours")
+                .font(.caption2)
+                .foregroundStyle(MD3Theme.onSurfaceVariant)
+
+            if !hotCards.isEmpty {
+                VStack(spacing: 0) {
+                    ForEach(hotCards.prefix(5)) { card in
+                        HStack(spacing: 8) {
+                            Text(card.name)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(MD3Theme.onSurface)
+                                .lineLimit(1)
+                            Spacer()
+                            if let change = card.prices.priceChangePercent {
+                                let isUp = change > 0
+                                Text("\(isUp ? "↑" : "↓") \(String(format: "%.0f", abs(change)))%")
+                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(isUp ? .green : .red)
+                            }
+                            if let usd = card.prices.usd {
+                                Text("$\(usd)")
+                                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                                    .foregroundStyle(MD3Theme.primary)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                        if card.id != hotCards.prefix(5).last?.id {
+                            Divider()
+                        }
+                    }
+                }
+                .padding(12)
+                .background(MD3Theme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            } else {
+                Text("Price movers appear after the second daily price refresh")
+                    .font(.caption2)
+                    .foregroundStyle(MD3Theme.onSurfaceVariant.opacity(0.6))
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(MD3Theme.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+    }
+
+    // MARK: - Collection Highlights (Collector)
+
+    @ViewBuilder
+    private var collectionHighlightsSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Image(systemName: "diamond.fill")
+                    .font(.caption)
+                    .foregroundStyle(.purple)
+                Text("Collection Highlights")
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(MD3Theme.onBackground)
+                Spacer()
+            }
+
+            let preferred = LocalCurrency.current
+            let totalUSD = UserDefaults.standard.double(forKey: "collectionCachedValueUSD")
+
+            VStack(spacing: 8) {
+                HStack {
+                    Text("Estimated Value")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    Spacer()
+                    if totalUSD > 0, let converted = CurrencyService.shared.convert(totalUSD, to: preferred) {
+                        Text(LocalCurrency.format(converted, currency: preferred))
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .foregroundStyle(MD3Theme.onSurface)
+                    } else {
+                        Text("—")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(MD3Theme.onSurfaceVariant.opacity(0.5))
+                    }
+                }
+                Divider()
+                HStack {
+                    Label("\(stats.collectionUniques) unique", systemImage: "rectangle.stack")
+                    Spacer()
+                    Label("\(stats.collectionCopies) copies", systemImage: "square.on.square")
+                }
+                .font(.caption2)
+                .foregroundStyle(MD3Theme.onSurfaceVariant)
+            }
+            .padding(12)
+            .background(MD3Theme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
 
@@ -729,14 +844,6 @@ struct HomeView: View {
         let resolver = CardResolver(cardRepository: cardRepository)
         if let card = await resolver.resolve(name: name) {
             soughtAfterResolved[name] = card
-        }
-    }
-
-    private var sectionTitle: String {
-        switch marketPerspective {
-        case .player: return "Format Staples"
-        case .seller: return "Hot Cards (Price Movers)"
-        case .collector: return "Collector Picks"
         }
     }
 
