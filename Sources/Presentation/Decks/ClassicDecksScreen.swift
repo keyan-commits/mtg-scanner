@@ -8,6 +8,12 @@ struct ClassicDecksScreen: View {
 
     let deckRepository: DeckListRepository
     let cardRepository: CardRepositoryProtocol
+    var archetypes: [ClassicArchetype]? = nil
+    var title: String = "Classic Decks"
+
+    private var sourceArchetypes: [ClassicArchetype] {
+        archetypes ?? ClassicArchetypes.all
+    }
 
     @State private var searchText: String = ""
     @State private var formatFilter: String? = nil
@@ -25,13 +31,13 @@ struct ClassicDecksScreen: View {
 
     /// All formats present in the database, sorted alphabetically.
     private var allFormats: [String] {
-        Array(Set(ClassicArchetypes.all.map(\.format))).sorted()
+        Array(Set(sourceArchetypes.map(\.format))).sorted()
     }
 
     /// Archetypes after applying search + format filter, in display order
     /// determined by `sortMode`.
     private var filteredAndSorted: [ClassicArchetype] {
-        var result = ClassicArchetypes.all
+        var result = sourceArchetypes
 
         // Text filter
         let q = searchText.trimmingCharacters(in: .whitespaces).lowercased()
@@ -54,7 +60,7 @@ struct ClassicDecksScreen: View {
         case .era:
             // Preserve declared era ordering by index in `all`
             let originalIndex: [String: Int] = Dictionary(uniqueKeysWithValues:
-                ClassicArchetypes.all.enumerated().map { ($1.id, $0) })
+                sourceArchetypes.enumerated().map { ($1.id, $0) })
             result.sort { (originalIndex[$0.id] ?? 0) < (originalIndex[$1.id] ?? 0) }
         case .name:
             result.sort { $0.name < $1.name }
@@ -82,7 +88,7 @@ struct ClassicDecksScreen: View {
         List {
             if sortMode == .era && searchText.isEmpty && formatFilter == nil {
                 Section {
-                    Text("\(ClassicArchetypes.all.count) hand-curated tournament decks spanning 30 years of Magic. Tap one to see its decklist with real card printings, or save it as your own deck.")
+                    Text("\(sourceArchetypes.count) hand-curated tournament decks spanning 30 years of Magic. Tap one to see its decklist with real card printings, or save it as your own deck.")
                         .font(.caption)
                         .foregroundStyle(MD3Theme.onSurfaceVariant)
                         .listRowBackground(Color.clear)
@@ -108,7 +114,7 @@ struct ClassicDecksScreen: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("Classic Decks")
+        .navigationTitle(title)
         .navigationBarTitleDisplayMode(.large)
         .searchable(text: $searchText, prompt: "Search by name, era, or format")
         .toolbar {
@@ -255,7 +261,7 @@ struct ClassicDecksScreen: View {
         }
 
         var scores: [String: Double] = [:]
-        for archetype in ClassicArchetypes.all {
+        for archetype in sourceArchetypes {
             var matched = 0
             var total = 0
             for (cardName, qty) in archetype.mainboard {

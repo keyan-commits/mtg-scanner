@@ -1037,6 +1037,18 @@ struct HomeView: View {
                 .buttonStyle(.plain)
                 Divider().padding(.leading, 64)
                 NavigationLink {
+                    ClassicDecksScreen(
+                        deckRepository: deckRepository,
+                        cardRepository: cardRepository,
+                        archetypes: InQuestDecks.all,
+                        title: "InQuest Killer Decks"
+                    )
+                } label: {
+                    moreRow(icon: "magazine.fill", title: "InQuest Killer Decks", subtitle: "Iconic decklists from InQuest Magazine (1995-1998)", color: .orange)
+                }
+                .buttonStyle(.plain)
+                Divider().padding(.leading, 64)
+                NavigationLink {
                     BrowseArchetypesScreen(
                         cardRepository: cardRepository,
                         deckRepository: deckRepository

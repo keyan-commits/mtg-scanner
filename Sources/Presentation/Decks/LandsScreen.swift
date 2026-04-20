@@ -41,7 +41,6 @@ struct LandsScreen: View {
             ("Pauper Most-Played", dynamicPauper),
             ("Standard Most-Played", dynamicStandard),
             ("Premodern Most-Played", dynamicPremodern),
-            ("InQuest Killer Decks", InQuestKillerDecks.all),
             ("cEDH Staples", CEDHStaples.all),
         ]
     }
@@ -158,11 +157,6 @@ struct LandsScreen: View {
                 mostPlayedSection("Pauper Most-Played", categories: dynamicPauper)
                 mostPlayedSection("Standard Most-Played", categories: dynamicStandard)
                 mostPlayedSection("Premodern Most-Played", categories: dynamicPremodern)
-            }
-            Section("InQuest Killer Decks") {
-                ForEach(InQuestKillerDecks.all) { category in
-                    categoryRow(category, in: InQuestKillerDecks.all)
-                }
             }
             Section("cEDH Staples") {
                 ForEach(CEDHStaples.all) { category in

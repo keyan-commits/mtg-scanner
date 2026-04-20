@@ -1,0 +1,320 @@
+import Foundation
+
+// MARK: - InQuest Magazine Killer Decks
+
+/// Actual decklists from InQuest Gamer magazine's "Killer Decks" column
+/// (1995-1996). These are the specific lists published in the magazine,
+/// NOT generic tournament archetypes. InQuest ceased publication in 2007;
+/// these lists are historical and will never change.
+///
+/// Sources: archive.org/details/inquest.001.1995-05 and
+/// archive.org/details/IQ.Gamer.Partial.Collection
+enum InQuestDecks {
+
+    static let all: [ClassicArchetype] = [
+        bayouLightning,
+        fantasticFour,
+        theRack,
+        wrathOfTitania,
+        omeletOnslaught,
+        stormCauldron,
+    ]
+
+    // MARK: - Issue #1 (May 1995) — Bayou Lightning
+
+    static let bayouLightning = ClassicArchetype(
+        id: "inquest-bayou-lightning",
+        name: "Bayou Lightning",
+        era: "1995",
+        format: "Type I",
+        mainboard: [
+            "Llanowar Elves": 4,
+            "Elves of Deep Shadow": 4,
+            "Juggernaut": 3,
+            "Sengir Vampire": 2,
+            "Carrion Ants": 1,
+            "Fallen Angel": 1,
+            "Force of Nature": 1,
+            "Hypnotic Specter": 1,
+            "Juzam Djinn": 1,
+            "Royal Assassin": 1,
+            "Sorceress Queen": 1,
+            "Dark Ritual": 4,
+            "Giant Growth": 4,
+            "Howl from Beyond": 2,
+            "Simulacrum": 2,
+            "Berserk": 1,
+            "Desert Twister": 2,
+            "Hurricane": 2,
+            "Demonic Tutor": 1,
+            "Mind Twist": 1,
+            "Regrowth": 1,
+            "Tranquility": 1,
+            "Fellwar Stone": 3,
+            "Icy Manipulator": 1,
+            "Sol Ring": 1,
+            "Bayou": 4,
+            "Forest": 3,
+            "Swamp": 2,
+            "Strip Mine": 2,
+            "Maze of Ith": 1,
+            "Pendelhaven": 1,
+            "Urborg": 1,
+        ],
+        sideboard: [
+            "Deathgrip": 1,
+            "Island of Wak-Wak": 1,
+            "Lifeforce": 1,
+            "Gloom": 1,
+            "Pestilence": 1,
+            "Simulacrum": 2,
+            "Terror": 3,
+            "Titania's Song": 1,
+            "Tranquility": 2,
+            "Tsunami": 1,
+            "Underworld Dreams": 1,
+        ],
+        source: "InQuest Magazine Issue #1, May 1995. Designer: Michael Searle.",
+        description: "\"To Beat the Moxes\" — a Green/Black speed deck that used mana creatures instead of Power Nine to deploy big threats fast. The first-ever InQuest Killer Deck. Featured Juzam Djinn, Force of Nature, and Sengir Vampire as finishers with Dark Ritual and mana elves for explosive starts."
+    )
+
+    // MARK: - Issue #2 (June 1995) — The Fantastic Four (Stasis Lock)
+
+    static let fantasticFour = ClassicArchetype(
+        id: "inquest-fantastic-four",
+        name: "The Fantastic Four (Stasis Lock)",
+        era: "1995",
+        format: "Type I",
+        mainboard: [
+            "Birds of Paradise": 4,
+            "Serra Angel": 4,
+            "Stasis": 4,
+            "Instill Energy": 4,
+            "Kismet": 3,
+            "Copy Artifact": 1,
+            "Sylvan Library": 1,
+            "Black Vise": 4,
+            "Icy Manipulator": 1,
+            "Ivory Tower": 1,
+            "Meekstone": 1,
+            "Winter Orb": 1,
+            "Ancestral Recall": 1,
+            "Boomerang": 2,
+            "Counterspell": 1,
+            "Disenchant": 2,
+            "Mana Drain": 3,
+            "Power Sink": 1,
+            "Psionic Blast": 2,
+            "Reset": 2,
+            "Twiddle": 2,
+            "Armageddon": 1,
+            "Braingeyser": 1,
+            "Demonic Tutor": 1,
+            "Regrowth": 1,
+            "Time Walk": 1,
+            "Island": 4,
+            "Tropical Island": 4,
+            "Tundra": 4,
+            "Bayou": 1,
+            "Library of Alexandria": 1,
+        ],
+        sideboard: [
+            "Energy Flux": 2,
+            "Gloom": 1,
+            "Blue Elemental Blast": 3,
+            "Disenchant": 2,
+            "Siren's Call": 1,
+            "Acid Rain": 1,
+            "Balance": 1,
+            "Psychic Purge": 3,
+            "Tsunami": 1,
+        ],
+        source: "InQuest Magazine Issue #2, June 1995.",
+        description: "Lock the game with \"The Fantastic Four\" — Birds of Paradise + Instill Energy + Kismet + Stasis. Birds tap for mana through Stasis (via Instill Energy), Kismet prevents opponents from untapping, and Black Vise punishes the hand buildup. Serra Angel finishes while everything stays locked."
+    )
+
+    // MARK: - Issue #3 (July 1995) — The Rack
+
+    static let theRack = ClassicArchetype(
+        id: "inquest-the-rack",
+        name: "The Rack",
+        era: "1995",
+        format: "Type I",
+        mainboard: [
+            "Abyssal Specter": 4,
+            "Hypnotic Specter": 4,
+            "Black Knight": 4,
+            "Dark Ritual": 4,
+            "Hymn to Tourach": 4,
+            "Mind Twist": 1,
+            "Demonic Tutor": 1,
+            "Lightning Bolt": 4,
+            "Incinerate": 4,
+            "The Rack": 4,
+            "Disrupting Scepter": 2,
+            "Zuran Orb": 1,
+            "Disenchant": 3,
+            "Balance": 1,
+            "Scrubland": 2,
+            "Badlands": 4,
+            "Sulfurous Springs": 2,
+            "City of Brass": 2,
+            "Swamp": 6,
+            "Strip Mine": 2,
+            "Mishra's Factory": 1,
+        ],
+        sideboard: [
+            "Land Tax": 2,
+            "Pyroblast": 4,
+            "Disenchant": 1,
+            "Gloom": 2,
+            "Simulacrum": 3,
+            "Ghostly Flame": 1,
+            "Curse of Marit Lage": 2,
+        ],
+        source: "InQuest Magazine Issue #3, July 1995. Designer: Douglas Goldstein.",
+        description: "Discard-based aggro-control. Hymn to Tourach and Hypnotic Specter shred the opponent's hand while The Rack punishes them for having fewer than 3 cards. Lightning Bolt and Incinerate provide removal and reach. A classic InQuest design that combined three colors for maximum disruption."
+    )
+
+    // MARK: - Issue #7 (November 1995) — Wrath of Titania
+
+    static let wrathOfTitania = ClassicArchetype(
+        id: "inquest-wrath-of-titania",
+        name: "Wrath of Titania",
+        era: "1995",
+        format: "Type I",
+        mainboard: [
+            "Titania's Song": 1,
+            "Wrath of God": 3,
+            "Lightning Bolt": 4,
+            "Disenchant": 4,
+            "Armageddon": 1,
+            "Swords to Plowshares": 4,
+            "Fellwar Stone": 4,
+            "Mana Vault": 2,
+            "Icy Manipulator": 2,
+            "Nevinyrral's Disk": 1,
+            "Black Vise": 1,
+            "Jayemdae Tome": 1,
+            "Jade Monolith": 1,
+            "Shield of the Ages": 1,
+            "Iron Star": 1,
+            "Marble Diamond": 2,
+            "Fire Diamond": 2,
+            "Serra Angel": 2,
+            "Karplusan Forest": 4,
+            "Brushland": 4,
+            "City of Brass": 1,
+            "Plains": 6,
+            "Strip Mine": 2,
+            "Mishra's Factory": 4,
+            "Mountain": 2,
+        ],
+        sideboard: [
+            "Pyroblast": 3,
+            "Tsunami": 2,
+            "Energy Storm": 2,
+            "Drought": 2,
+            "Land Tax": 1,
+            "Reverse Damage": 1,
+            "Circle of Protection: Red": 2,
+            "Divine Offering": 2,
+        ],
+        source: "InQuest Magazine Issue #7, November 1995. Designer: Jeff Hannes.",
+        description: "Load artifacts for defense, then Wrath of God + Armageddon + Titania's Song to turn all your artifacts into creatures. Your Fellwar Stones become 2/2s, Mana Vaults become 3/3s, and Icy Manipulators become 4/4s — an instant army after clearing the board."
+    )
+
+    // MARK: - Issue #13 (May 1996) — Omelet Onslaught
+
+    static let omeletOnslaught = ClassicArchetype(
+        id: "inquest-omelet-onslaught",
+        name: "Omelet Onslaught",
+        era: "1996",
+        format: "Type I",
+        mainboard: [
+            "Rukh Egg": 4,
+            "Tinder Wall": 4,
+            "Kjeldoran Dead": 3,
+            "Will-o'-the-Wisp": 2,
+            "Animate Dead": 3,
+            "Jokulhaups": 3,
+            "Fireball": 2,
+            "Wheel of Fortune": 1,
+            "Regrowth": 1,
+            "Tranquility": 1,
+            "Demonic Tutor": 1,
+            "Dark Ritual": 4,
+            "Burnt Offering": 3,
+            "Giant Growth": 2,
+            "Simulacrum": 2,
+            "Mana Vault": 2,
+            "Nevinyrral's Disk": 1,
+            "Zuran Orb": 1,
+            "Despotic Scepter": 1,
+            "Feldon's Cane": 1,
+            "Swamp": 8,
+            "Forest": 6,
+            "Mountain": 3,
+            "Badlands": 2,
+        ],
+        sideboard: [
+            "Red Elemental Blast": 4,
+            "Blood Moon": 2,
+            "Gloom": 2,
+            "Simulacrum": 2,
+            "Flashfires": 2,
+            "Curse of Marit Lage": 1,
+            "Anarchy": 1,
+            "Tranquility": 1,
+        ],
+        source: "InQuest Magazine Issue #13, May 1996.",
+        description: "\"Eggs Over Easy\" — sacrifice Rukh Eggs (via Burnt Offering, Kjeldoran Dead, or Despotic Scepter) to get 4/4 flying Bird tokens, then cast Jokulhaups to destroy all lands, artifacts, and creatures while your Rukh tokens survive. A creative combo that turned breakfast into destruction."
+    )
+
+    // MARK: - Storm Cauldron Combo (~1997-1998)
+
+    static let stormCauldron = ClassicArchetype(
+        id: "inquest-storm-cauldron",
+        name: "Storm Cauldron Combo",
+        era: "1997",
+        format: "Type I",
+        mainboard: [
+            "Storm Cauldron": 4,
+            "Fastbond": 2,
+            "Zuran Orb": 1,
+            "Ivory Tower": 2,
+            "Howling Mine": 4,
+            "Stormbind": 2,
+            "Sylvan Library": 2,
+            "Birds of Paradise": 4,
+            "Black Vise": 2,
+            "Mana Vault": 1,
+            "Sol Ring": 1,
+            "Regrowth": 1,
+            "Demonic Tutor": 1,
+            "Channel": 1,
+            "Fireball": 2,
+            "Lightning Bolt": 4,
+            "Counterspell": 2,
+            "Sheltered Valley": 2,
+            "Taiga": 4,
+            "Tropical Island": 3,
+            "Volcanic Island": 2,
+            "City of Brass": 2,
+            "Forest": 4,
+            "Mountain": 3,
+            "Island": 3,
+        ],
+        sideboard: [
+            "Red Elemental Blast": 3,
+            "Blue Elemental Blast": 2,
+            "Tranquility": 2,
+            "Earthquake": 2,
+            "Pyroblast": 2,
+            "Tormod's Crypt": 2,
+            "Mana Short": 2,
+        ],
+        source: "InQuest Magazine, circa 1997-1998.",
+        description: "Storm Cauldron bounces lands to hand when tapped. Combined with Fastbond (play unlimited lands) and Zuran Orb (sacrifice lands for life), you generate infinite mana and life. Ivory Tower gains life from your huge hand, Howling Mine refills, and Stormbind/Fireball finish the opponent."
+    )
+}

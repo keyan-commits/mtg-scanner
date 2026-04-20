@@ -95,7 +95,7 @@
 		V1NTAGESTAPBUILD000001 /* VintageStaples.swift in Sources */ = {isa = PBXBuildFile; fileRef = V1NTAGESTAPF1LEREF0001 /* VintageStaples.swift */; };
 		STANDARDSTAPBUILD00001 /* StandardStaples.swift in Sources */ = {isa = PBXBuildFile; fileRef = STANDARDSTAPF1LEREF001 /* StandardStaples.swift */; };
 		PREM0DERNSTBUILD000001 /* PremodernStaples.swift in Sources */ = {isa = PBXBuildFile; fileRef = PREM0DERNSTF1LEREF0001 /* PremodernStaples.swift */; };
-		1NQUE5TDECKBUILD000001 /* InQuestKillerDecks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1NQUE5TDECKF1LEREF0001 /* InQuestKillerDecks.swift */; };
+		1NQUE5TDECKBUILD000001 /* InQuestDecks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1NQUE5TDECKF1LEREF0001 /* InQuestDecks.swift */; };
 		60D4482EF0D3D486972AE0AD /* OrderPasteParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B788E1E30E440FE89F04FF36 /* OrderPasteParser.swift */; };
 		643DDF5C1576B3E3F4C696FB /* DeckGridOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C775E7AACC0161BF1488ECD0 /* DeckGridOverlayView.swift */; };
 		648DD482C451B4DE5E5DBA80 /* CardPrice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C4BF2A8C53CC29CF57DDF17 /* CardPrice.swift */; };
@@ -386,7 +386,7 @@
 		V1NTAGESTAPF1LEREF0001 /* VintageStaples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VintageStaples.swift; sourceTree = "<group>"; };
 		STANDARDSTAPF1LEREF001 /* StandardStaples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StandardStaples.swift; sourceTree = "<group>"; };
 		PREM0DERNSTF1LEREF0001 /* PremodernStaples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremodernStaples.swift; sourceTree = "<group>"; };
-		1NQUE5TDECKF1LEREF0001 /* InQuestKillerDecks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InQuestKillerDecks.swift; sourceTree = "<group>"; };
+		1NQUE5TDECKF1LEREF0001 /* InQuestDecks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InQuestDecks.swift; sourceTree = "<group>"; };
 		CD9ED87F3DB0E99B27C7BA5E /* LocalCardRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalCardRepositoryTests.swift; sourceTree = "<group>"; };
 		CDA7ED65F448985D0D0A6A41 /* AppIconManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconManager.swift; sourceTree = "<group>"; };
 		CE4224778C2E7462B40F6D98 /* AppIcon-U@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-U@2x.png"; sourceTree = "<group>"; };
@@ -494,7 +494,7 @@
 				CB4EAD2959D53FFF4EC2D7D9 /* CEDHStaples.swift */,
 				22338BC52E022A617DCE51C7 /* ClassicArchetypes.swift */,
 				DYNAM1CL15TF1LEREF0001 /* DynamicListService.swift */,
-				1NQUE5TDECKF1LEREF0001 /* InQuestKillerDecks.swift */,
+				1NQUE5TDECKF1LEREF0001 /* InQuestDecks.swift */,
 				C0LLEC71B1E5000000000002 /* CollectibleLands.swift */,
 				4A9AC5520A03343B21F97ECF /* LandLists.swift */,
 				LEGACYSTAP1EF1LEREF001 /* LegacyStaples.swift */,
@@ -1054,7 +1054,7 @@
 				V1NTAGESTAPBUILD000001 /* VintageStaples.swift in Sources */,
 				STANDARDSTAPBUILD00001 /* StandardStaples.swift in Sources */,
 				PREM0DERNSTBUILD000001 /* PremodernStaples.swift in Sources */,
-				1NQUE5TDECKBUILD000001 /* InQuestKillerDecks.swift in Sources */,
+				1NQUE5TDECKBUILD000001 /* InQuestDecks.swift in Sources */,
 				5B0A1234SIDEBOARD000001 /* SideboardGuide.swift in Sources */,
 				3663DA845B59B3F754973C3E /* CameraManager.swift in Sources */,
 				F80154E1D152299F367ACC4B /* CameraPreviewView.swift in Sources */,
