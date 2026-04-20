@@ -12,12 +12,17 @@ import Foundation
 enum InQuestDecks {
 
     static let all: [ClassicArchetype] = [
+        // Killer Decks column (competitive 60+15)
         bayouLightning,
         fantasticFour,
         theRack,
         wrathOfTitania,
         omeletOnslaught,
         stormCauldron,
+        // Killer Decks Spotlight insert cards (1995)
+        spotlightDiscard,
+        spotlightLandsEdge,
+        spotlightGoblin,
     ]
 
     // MARK: - Issue #1 (May 1995) — Bayou Lightning
@@ -316,5 +321,120 @@ enum InQuestDecks {
         ],
         source: "InQuest Magazine, circa 1997-1998.",
         description: "Storm Cauldron bounces lands to hand when tapped. Combined with Fastbond (play unlimited lands) and Zuran Orb (sacrifice lands for life), you generate infinite mana and life. Ivory Tower gains life from your huge hand, Howling Mine refills, and Stormbind/Fireball finish the opponent."
+    )
+
+    // MARK: - Spotlight Insert: The Discard Deck (Issue #3, July 1995)
+
+    static let spotlightDiscard = ClassicArchetype(
+        id: "inquest-spotlight-discard",
+        name: "Spotlight: The Discard Deck",
+        era: "1995",
+        format: "Type I",
+        mainboard: [
+            "Gwendlyn Di Corci": 1,
+            "Hypnotic Specter": 4,
+            "Mindstab Thrull": 4,
+            "Cursed Rack": 2,
+            "Disrupting Scepter": 1,
+            "Hymn to Tourach": 4,
+            "Mind Twist": 1,
+            "Copy Artifact": 1,
+            "The Rack": 4,
+            "Storm World": 1,
+            "Badlands": 4,
+            "City of Brass": 1,
+            "Dark Ritual": 4,
+            "Mox Jet": 1,
+            "Mox Pearl": 1,
+            "Mox Ruby": 1,
+            "Mox Sapphire": 1,
+            "Scrubland": 4,
+            "Underground Sea": 4,
+            "Animate Dead": 1,
+            "Demonic Tutor": 1,
+            "Disenchant": 2,
+            "Drain Life": 1,
+            "Lightning Bolt": 3,
+            "Maze of Ith": 1,
+            "Power Sink": 2,
+            "Spell Blast": 1,
+            "Swords to Plowshares": 1,
+            "Terror": 1,
+            "Transmute Artifact": 1,
+            "Underworld Dreams": 1,
+            "Swamp": 1,
+        ],
+        source: "InQuest Magazine Issue #3, July 1995. Killer Decks Spotlight insert card. Source: magiclibrarities.net.",
+        description: "A Spotlight insert card deck focused on shredding the opponent's hand. Hypnotic Specter and Hymn to Tourach strip cards, The Rack and Cursed Rack deal damage for each missing card, and Gwendlyn Di Corci provides repeatable discard. Four-color manabase powered by Moxes."
+    )
+
+    // MARK: - Spotlight Insert: The Land's Edge Deck (Issue #4, August 1995)
+
+    static let spotlightLandsEdge = ClassicArchetype(
+        id: "inquest-spotlight-lands-edge",
+        name: "Spotlight: Land's Edge",
+        era: "1995",
+        format: "Type I",
+        mainboard: [
+            "Land Tax": 4,
+            "Land's Edge": 4,
+            "Circle of Protection: Red": 2,
+            "Serra Angel": 4,
+            "Mountain": 5,
+            "Mox Pearl": 1,
+            "Mox Ruby": 1,
+            "Plains": 12,
+            "Plateau": 4,
+            "Armageddon": 2,
+            "Balance": 1,
+            "Disenchant": 3,
+            "Lightning Bolt": 4,
+            "Swords to Plowshares": 4,
+            "Wrath of God": 2,
+            "Ivory Tower": 1,
+            "Library of Leng": 2,
+            "Reverse Damage": 2,
+            "Skull of Orm": 1,
+            "Wheel of Fortune": 1,
+        ],
+        source: "InQuest Magazine Issue #4, August 1995. Killer Decks Spotlight insert card. Source: magiclibrarities.net.",
+        description: "Land Tax fetches 3 lands per turn, Land's Edge discards them to deal 2 damage each. With Library of Leng you can put discarded lands on top of your library instead of the graveyard, then Land Tax fetches them again — infinite 2-damage pings. Serra Angel and burn provide backup."
+    )
+
+    // MARK: - Spotlight Insert: The Goblin Deck (Issue #5, September 1995)
+
+    static let spotlightGoblin = ClassicArchetype(
+        id: "inquest-spotlight-goblin",
+        name: "Spotlight: Goblin Tribal",
+        era: "1995",
+        format: "Type I",
+        mainboard: [
+            "Goblin Balloon Brigade": 4,
+            "Goblin Chirurgeon": 3,
+            "Goblin Digging Team": 4,
+            "Goblin King": 4,
+            "Goblin Snowman": 1,
+            "Goblins of the Flarg": 4,
+            "Gauntlet of Might": 1,
+            "Goblin Caves": 4,
+            "Goblin Shrine": 4,
+            "Goblin Warrens": 2,
+            "Blood Moon": 2,
+            "Disenchant": 2,
+            "Gravity Sphere": 1,
+            "Fireball": 3,
+            "Lightning Bolt": 3,
+            "Maze of Ith": 1,
+            "Swords to Plowshares": 2,
+            "Dwarven Hold": 1,
+            "Mountain": 9,
+            "Mox Ruby": 1,
+            "Plains": 3,
+            "Plateau": 4,
+            "Sol Ring": 1,
+            "Strip Mine": 2,
+        ],
+        source: "InQuest Magazine Issue #5, September 1995. Killer Decks Spotlight insert card. Source: magiclibrarities.net.",
+        description: "Classic Goblin tribal from 1995. Goblin King makes all Goblins mountainwalk, Goblin Caves and Goblin Shrine pump the team, Gauntlet of Might doubles red mana and gives +1/+1. Goblin Warrens generates tokens for a swarm finish. Blood Moon turns all nonbasics into Mountains for the King's mountainwalk."
     )
 }
