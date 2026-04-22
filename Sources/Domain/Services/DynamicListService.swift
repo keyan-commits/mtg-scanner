@@ -244,8 +244,8 @@ final class DynamicListService {
 
         let cardNames = section.cards.map(\.cardName)
         let category = LandCategory(
-            id: "dynamic-staples-\(formatName.lowercased())",
-            name: "\(formatName) Staples (\(cardNames.count))",
+            id: "dynamic-most-played-\(formatName.lowercased())",
+            name: "\(formatName) Most-Played (\(cardNames.count))",
             iconName: "star.fill",
             description: "Most-played cards in \(formatName) across competitive archetypes. Dynamically updated from MTGTop8 tournament data.",
             cardNames: cardNames

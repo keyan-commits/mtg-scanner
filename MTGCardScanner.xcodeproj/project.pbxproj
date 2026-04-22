@@ -25,6 +25,7 @@
 		0B20116941D55F0D7A7E77BA /* LiveScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 059C7B7229F7FE3FA66A5BF9 /* LiveScannerView.swift */; };
 		0B7773827C86A8BC1D319BCB /* BorderColorDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10EA5138FB681CCADA88DD15 /* BorderColorDetector.swift */; };
 		0BD3C7BFA1572A7D555E99B2 /* MD3Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CD22E600EE58983EE4076F4 /* MD3Theme.swift */; };
+		F10WLAY0UT000000000002 /* FlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10WLAY0UT000000000001 /* FlowLayout.swift */; };
 		0CB10ED93F5A6558D592ED4A /* MajorArchetypeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D792D7540F931FCF2578603 /* MajorArchetypeDetailView.swift */; };
 		0EAAE6F32011A604557C58E4 /* DeckDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0687015B8DCF55E433F027BB /* DeckDetailView.swift */; };
 		107B7B0AC251C8D570E179FD /* ArchetypeDecksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB28C4F3FB99DC762E4E5AEC /* ArchetypeDecksView.swift */; };
@@ -249,6 +250,7 @@
 		1CAF409A809F6F8D47D9C486 /* MTGTop8ArchetypeIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MTGTop8ArchetypeIndex.swift; sourceTree = "<group>"; };
 		1CBBC7E24FE608A866F4FEF4 /* AppIcon-R@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-R@3x.png"; sourceTree = "<group>"; };
 		1CD22E600EE58983EE4076F4 /* MD3Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MD3Theme.swift; sourceTree = "<group>"; };
+		F10WLAY0UT000000000001 /* FlowLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowLayout.swift; sourceTree = "<group>"; };
 		1D3DE5961526665CF7B62C16 /* CardDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardDetector.swift; sourceTree = "<group>"; };
 		1D8CF55E71A7E20780ACAB35 /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraManager.swift; sourceTree = "<group>"; };
 		1F00F6CA17C65A39BDF87E55 /* CollectorInfoExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectorInfoExtractor.swift; sourceTree = "<group>"; };
@@ -794,6 +796,7 @@
 				ACD37EBC2B6F82E3D7CC50A8 /* MD3Shape.swift */,
 				1CD22E600EE58983EE4076F4 /* MD3Theme.swift */,
 				C698A7B0DA3D0C27EA8CA9CA /* MD3Typography.swift */,
+				F10WLAY0UT000000000001 /* FlowLayout.swift */,
 			);
 			path = DesignSystem;
 			sourceTree = "<group>";
@@ -1139,6 +1142,7 @@
 				3109559BB2FD813C11BD9776 /* MD3Elevation.swift in Sources */,
 				4C3AC747718E7A079C353B16 /* MD3Shape.swift in Sources */,
 				0BD3C7BFA1572A7D555E99B2 /* MD3Theme.swift in Sources */,
+				F10WLAY0UT000000000002 /* FlowLayout.swift in Sources */,
 				6CB01F01EDF77F14CBB57B9B /* MD3Typography.swift in Sources */,
 				7FC93F9543476BB5A1D98AEC /* MTGCardScannerApp.swift in Sources */,
 				756F7ADCBA04DB1372116828 /* MTGTop8ArchetypeIndex.swift in Sources */,

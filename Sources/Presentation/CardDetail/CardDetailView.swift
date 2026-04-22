@@ -35,6 +35,13 @@ struct CardDetailView: View {
 
     private let rulingsService: CardRulingsServiceProtocol = CardRulingsService.shared
 
+    /// Shared across all CardDetailView instances so MTGTop8 results
+    /// are cached process-wide instead of re-fetched per card.
+    private static let sharedDeckLookupService: DeckLookupServiceProtocol = DeckLookupService(
+        mtgTop8Service: MTGTop8Service(),
+        edhrecService: EDHRECService()
+    )
+
     /// Creates a card detail view.
     /// - Parameters:
     ///   - card: The card to display.
@@ -61,6 +68,7 @@ struct CardDetailView: View {
             VStack(spacing: 16) {
                 cardImage
                 cardHeader
+                cardListTags
                 PriceComparisonView(card: viewModel.card)
                 phStoresSection
                 otherPrintingsSection
@@ -68,10 +76,7 @@ struct CardDetailView: View {
                 legalitySection
                 DeckCompatibilityView(
                     card: viewModel.card,
-                    deckLookupService: DeckLookupService(
-                        mtgTop8Service: MTGTop8Service(),
-                        edhrecService: EDHRECService()
-                    ),
+                    deckLookupService: Self.sharedDeckLookupService,
                     cardRepository: repository,
                     deckRepository: deckRepository
                 )
@@ -284,6 +289,80 @@ struct CardDetailView: View {
                 )
             }
         }
+    }
+
+    // MARK: - Card List Tags
+
+    /// Compact capsule tags showing which curated lists contain this card.
+    /// Only checks card-name–based lists (not expansion-specific ones like
+    /// Guru Lands or Zendikar Expeditions which filter by set code).
+    @ViewBuilder
+    private var cardListTags: some View {
+        let name = viewModel.card.name
+        let tags = Self.computeListTags(for: name)
+        if !tags.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Appears In")
+                    .font(MD3Typography.titleSmall)
+                    .foregroundStyle(MD3Theme.onSurface)
+                FlowLayout(spacing: 6) {
+                    ForEach(tags, id: \.self) { tag in
+                        Text(tag)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(MD3Theme.onSecondaryContainer)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(MD3Theme.secondaryContainer)
+                            .clipShape(Capsule())
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    /// Computes all list memberships for a card by name.
+    /// Excludes expansion-specific categories (those with non-empty setCodes).
+    private static func computeListTags(for cardName: String) -> [String] {
+        var tags: [String] = []
+        let lowered = cardName.lowercased()
+
+        // Land type categories (Fetch, Shock, Dual, etc.) — no setCodes
+        for cat in LandLists.all where cat.setCodes.isEmpty {
+            if cat.cardNames.contains(where: { $0.lowercased() == lowered }) {
+                tags.append(cat.name)
+            }
+        }
+
+        // Reserved List
+        for cat in ReservedList.all {
+            if cat.cardNames.contains(where: { $0.lowercased() == lowered }) {
+                tags.append("Reserved List")
+                break
+            }
+        }
+
+        // Format Staples (hardcoded curated lists)
+        let stapleFormats: [(String, [LandCategory])] = [
+            ("Modern Staple", ModernStaples.all),
+            ("Legacy Staple", LegacyStaples.all),
+            ("Pioneer Staple", PioneerStaples.all),
+            ("Vintage Staple", VintageStaples.all),
+            ("Pauper Staple", PauperStaples.all),
+            ("Premodern Staple", PremodernStaples.all),
+            ("Standard Staple", StandardStaples.all),
+            ("cEDH Staple", CEDHStaples.all),
+        ]
+        for (label, categories) in stapleFormats {
+            for cat in categories {
+                if cat.cardNames.contains(where: { $0.lowercased() == lowered }) {
+                    tags.append(label)
+                    break
+                }
+            }
+        }
+
+        return tags
     }
 
     // MARK: - Classic Archetypes Section

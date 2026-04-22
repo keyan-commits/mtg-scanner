@@ -119,11 +119,12 @@ struct HomeView: View {
                 archetypeResults = []
             }
         }
-        .onAppear {
-            reload()
-            Task { await loadDeckArt() }
-            Task { await loadSoughtAfterCards() }
-            Task { await loadHotCards() }
+        .task {
+            await reloadAsync()
+            async let art: () = loadDeckArt()
+            async let sought: () = loadSoughtAfterCards()
+            async let hot: () = loadHotCards()
+            _ = await (art, sought, hot)
         }
         .sheet(item: $iconPickerDeck) { deck in
             ChooseDeckIconSheet(
@@ -1273,5 +1274,39 @@ struct HomeView: View {
             spentByCurrency: spent
         )
         recentDecks = decks
+    }
+
+    /// Async wrapper so the heavy DB fetches don't block the main thread.
+    private func reloadAsync() async {
+        await Task.detached(priority: .userInitiated) { @Sendable in
+            let decks = (try? self.deckRepository.fetchAllDecks()) ?? []
+            let allItems = (try? self.deckRepository.fetchAllItems()) ?? []
+            let collection = (try? self.deckRepository.fetchCollection()) ?? []
+            let orders = (try? self.deckRepository.fetchOrders()) ?? []
+            let pendingOrders = orders.filter { order in
+                order.items.contains { $0.status != .arrived }
+            }.count
+
+            var spent: [String: Double] = [:]
+            for item in allItems {
+                guard let price = item.pricePaid else { continue }
+                let key = item.currency ?? "USD"
+                spent[key, default: 0] += price
+            }
+
+            let newStats = HomeStats(
+                deckCount: decks.count,
+                collectionUniques: collection.count,
+                collectionCopies: collection.reduce(0) { $0 + $1.quantity },
+                orderCount: orders.count,
+                pendingOrders: pendingOrders,
+                spentByCurrency: spent
+            )
+
+            await MainActor.run {
+                self.stats = newStats
+                self.recentDecks = decks
+            }
+        }.value
     }
 }

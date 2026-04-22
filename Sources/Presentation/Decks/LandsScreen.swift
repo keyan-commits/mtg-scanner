@@ -391,6 +391,24 @@ struct LandCategoryDetailView: View {
             guard resolvedCards[name] == nil else { continue }
 
             if !category.setCodes.isEmpty {
+                // Fast path: direct indexed lookup by (name + setCode)
+                // instead of searching all printings then filtering
+                var allFiltered: [Card] = []
+                for setCode in category.setCodes {
+                    let variants = (try? await cardRepository.findVariants(name: name, setCode: setCode)) ?? []
+                    allFiltered.append(contentsOf: variants)
+                }
+                if !category.collectorNumbers.isEmpty {
+                    allFiltered = allFiltered.filter { category.collectorNumbers.contains($0.collectorNumber) }
+                }
+                if let artist = category.artistFilter {
+                    allFiltered = allFiltered.filter { $0.artist?.contains(artist) == true }
+                }
+                if !allFiltered.isEmpty {
+                    resolvedCards[name] = allFiltered
+                    continue
+                }
+                // Fallback: slow search if fast path found nothing
                 if let printings = try? await cardRepository.findAllPrintings(name: name) {
                     var filtered = printings.filter { category.setCodes.contains($0.set.code) }
                     if !category.collectorNumbers.isEmpty {
@@ -689,16 +707,35 @@ struct CardListPagerView: View {
 
     @State private var currentIndex: Int = 0
 
+    /// Only render the current card ± 1 neighbor to avoid
+    /// spawning dozens of CardDetailViews (each fires network
+    /// calls for PH stores, rulings, MTGTop8, etc.).
+    private var visibleWindow: [(index: Int, card: Card)] {
+        guard !cards.isEmpty else { return [] }
+        let lo = max(0, currentIndex - 1)
+        let hi = min(cards.count - 1, currentIndex + 1)
+        return (lo...hi).map { (index: $0, card: cards[$0]) }
+    }
+
     var body: some View {
         TabView(selection: $currentIndex) {
-            ForEach(Array(cards.enumerated()), id: \.element.scryfallID) { index, card in
-                CardDetailView(
-                    card: card,
-                    repository: cardRepository,
-                    deckRepository: deckRepository,
-                    onScanAnother: {}
-                )
-                .tag(index)
+            ForEach(cards.indices, id: \.self) { index in
+                if visibleWindow.contains(where: { $0.index == index }) {
+                    CardDetailView(
+                        card: cards[index],
+                        repository: cardRepository,
+                        deckRepository: deckRepository,
+                        onScanAnother: {}
+                    )
+                    .tag(index)
+                } else {
+                    // Lightweight placeholder for distant pages — keeps
+                    // the TabView pagination working without the cost
+                    // of a full CardDetailView.
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .tag(index)
+                }
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .automatic))

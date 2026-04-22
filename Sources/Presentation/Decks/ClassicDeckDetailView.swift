@@ -129,45 +129,48 @@ struct ClassicDeckDetailView: View {
                 }
             }
 
-            if isLoading {
-                Section {
-                    HStack {
-                        ProgressView().scaleEffect(0.8)
-                        Text("Resolving cards…")
-                            .font(.caption)
-                            .foregroundStyle(MD3Theme.onSurfaceVariant)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                }
-            } else {
+            if archetype.cardTypes != nil && resolved.isEmpty {
+                // Hardcoded path: render instantly from hardcoded data
+                hardcodedCardSections
+            } else if !resolved.isEmpty {
                 cardSections
                 if !resolvedSideboard.isEmpty {
                     sideboardSection
                 }
-                if !unresolved.isEmpty {
-                    Section {
-                        ForEach(unresolved, id: \.self) { name in
-                            HStack {
-                                Image(systemName: "questionmark.circle")
-                                    .foregroundStyle(.gray)
-                                Text(name)
-                                    .font(.caption)
-                                    .foregroundStyle(MD3Theme.onSurfaceVariant)
-                            }
-                        }
-                    } header: {
-                        Text("Not in local database")
-                    } footer: {
-                        Text("These cards are part of the canonical list but couldn't be found in the local Scryfall DB. They'll be skipped if you save the deck.")
-                            .font(.caption2)
-                    }
-                }
+            } else if isLoading {
                 Section {
-                    saveButton
-                        .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
-                        .listRowBackground(Color.clear)
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text("Loading cards…")
+                            .font(.caption)
+                            .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 20)
                 }
+            }
+            if !unresolved.isEmpty && !isLoading {
+                Section {
+                    ForEach(unresolved, id: \.self) { name in
+                        HStack {
+                            Image(systemName: "questionmark.circle")
+                                .foregroundStyle(.gray)
+                            Text(name)
+                                .font(.caption)
+                                .foregroundStyle(MD3Theme.onSurfaceVariant)
+                        }
+                    }
+                } header: {
+                    Text("Not in local database")
+                } footer: {
+                    Text("These cards are part of the canonical list but couldn't be found in the local Scryfall DB. They'll be skipped if you save the deck.")
+                        .font(.caption2)
+                }
+            }
+            Section {
+                saveButton
+                    .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+                    .listRowBackground(Color.clear)
             }
         }
         .listStyle(.insetGrouped)
@@ -368,6 +371,172 @@ struct ClassicDeckDetailView: View {
 
     // MARK: - Card sections
 
+    /// Renders the full categorized deck layout entirely from hardcoded data.
+    /// Zero DB queries — card types, mana costs, set codes all come from
+    /// the ClassicArchetype's hardcoded dictionaries. Images load per-row
+    /// in the background once resolution completes.
+    @ViewBuilder
+    private var hardcodedCardSections: some View {
+        let types = archetype.cardTypes ?? [:]
+        let costs = archetype.cardManaCosts ?? [:]
+        let sets = archetype.cardSets ?? [:]
+
+        let allCards = archetype.mainboard
+            .map { (name: $0.key, qty: $0.value, type: types[$0.key] ?? "Other", cost: costs[$0.key], set: sets[$0.key]) }
+
+        let categories = ["Creature", "Instant", "Sorcery", "Enchantment", "Artifact", "Land", "Other"]
+        ForEach(categories, id: \.self) { category in
+            let cards = allCards.filter { $0.type == category }.sorted { $0.name < $1.name }
+            if !cards.isEmpty {
+                Section {
+                    ForEach(cards, id: \.name) { card in
+                        HStack(spacing: 12) {
+                            Text("\(card.qty)")
+                                .font(.system(.body, design: .monospaced))
+                                .foregroundStyle(MD3Theme.primary)
+                                .frame(width: 24, alignment: .trailing)
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 4) {
+                                    Text(card.name)
+                                        .font(MD3Typography.bodyMedium)
+                                        .foregroundStyle(MD3Theme.onSurface)
+                                    if let cost = card.cost, !cost.isEmpty {
+                                        Text(cost)
+                                            .font(.caption2)
+                                            .foregroundStyle(MD3Theme.onSurfaceVariant)
+                                    }
+                                }
+                                if let setCode = card.set {
+                                    Text(setCode.uppercased())
+                                        .font(.caption2)
+                                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                                }
+                            }
+                            Spacer()
+                        }
+                        .padding(.vertical, 4)
+                    }
+                } header: {
+                    HStack {
+                        Text(category == "Creature" ? "CREATURES" :
+                             category == "Instant" ? "INSTANTS" :
+                             category == "Sorcery" ? "SORCERIES" :
+                             category == "Enchantment" ? "ENCHANTMENTS" :
+                             category == "Artifact" ? "ARTIFACTS" :
+                             category == "Land" ? "LANDS" : category.uppercased())
+                        Spacer()
+                        Text("\(cards.reduce(0) { $0 + $1.qty })")
+                            .font(.caption.weight(.semibold))
+                    }
+                }
+            }
+        }
+
+        if let sb = archetype.sideboard {
+            let sbCards = sb.map { (name: $0.key, qty: $0.value, set: sets[$0.key]) }.sorted { $0.name < $1.name }
+            Section {
+                ForEach(sbCards, id: \.name) { card in
+                    HStack(spacing: 12) {
+                        Text("\(card.qty)")
+                            .font(.system(.body, design: .monospaced))
+                            .foregroundStyle(MD3Theme.secondary)
+                            .frame(width: 24, alignment: .trailing)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(card.name)
+                                .font(MD3Typography.bodyMedium)
+                                .foregroundStyle(MD3Theme.onSurface)
+                            if let setCode = card.set {
+                                Text(setCode.uppercased())
+                                    .font(.caption2)
+                                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+                            }
+                        }
+                        Spacer()
+                    }
+                    .padding(.vertical, 4)
+                }
+            } header: {
+                HStack {
+                    Text("SIDEBOARD")
+                    Spacer()
+                    Text("\(archetype.sideboardCount)")
+                        .font(.caption.weight(.semibold))
+                }
+            }
+        }
+    }
+
+    /// Shows card names, quantities, and set codes instantly from
+    /// hardcoded data. No loading indicators — images appear when resolved.
+    @ViewBuilder
+    private var unresolvedCardSections: some View {
+        let sets = archetype.cardSets ?? [:]
+        let sorted = archetype.mainboard
+            .map { (name: $0.key, qty: $0.value, set: sets[$0.key]) }
+            .sorted { $0.name < $1.name }
+        Section {
+            ForEach(sorted, id: \.name) { entry in
+                HStack(spacing: 12) {
+                    Text("\(entry.qty)")
+                        .font(.system(.body, design: .monospaced))
+                        .foregroundStyle(MD3Theme.primary)
+                        .frame(width: 24, alignment: .trailing)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.name)
+                            .font(MD3Typography.bodyMedium)
+                            .foregroundStyle(MD3Theme.onSurface)
+                        if let setCode = entry.set {
+                            Text(setCode.uppercased())
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(MD3Theme.onSurfaceVariant)
+                        }
+                    }
+                    Spacer()
+                }
+                .padding(.vertical, 4)
+            }
+        } header: {
+            HStack {
+                Text("MAINBOARD")
+                Spacer()
+                Text("\(archetype.totalCards)")
+                    .font(.caption.weight(.semibold))
+            }
+        }
+        if let sb = archetype.sideboard {
+            let sortedSB = sb.map { (name: $0.key, qty: $0.value, set: sets[$0.key]) }.sorted { $0.name < $1.name }
+            Section {
+                ForEach(sortedSB, id: \.name) { entry in
+                    HStack(spacing: 12) {
+                        Text("\(entry.qty)")
+                            .font(.system(.body, design: .monospaced))
+                            .foregroundStyle(MD3Theme.secondary)
+                            .frame(width: 24, alignment: .trailing)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(entry.name)
+                                .font(MD3Typography.bodyMedium)
+                                .foregroundStyle(MD3Theme.onSurface)
+                            if let setCode = entry.set {
+                                Text(setCode.uppercased())
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+                            }
+                        }
+                        Spacer()
+                    }
+                    .padding(.vertical, 4)
+                }
+            } header: {
+                HStack {
+                    Text("SIDEBOARD")
+                    Spacer()
+                    Text("\(archetype.sideboardCount)")
+                        .font(.caption.weight(.semibold))
+                }
+            }
+        }
+    }
+
     @ViewBuilder
     private var cardSections: some View {
         let groups = groupedByCategory(resolved)
@@ -554,7 +723,7 @@ struct ClassicDeckDetailView: View {
             .map { (name: $0.key, qty: $0.value) }
             .sorted { $0.name < $1.name }
         for entry in sortedMain {
-            if let card = await pickOldestPrinting(name: entry.name) {
+            if let card = await pickPrinting(name: entry.name) {
                 resolvedList.append(ResolvedEntry(card: card, quantity: entry.qty))
             } else {
                 missing.append(entry.name)
@@ -567,7 +736,7 @@ struct ClassicDeckDetailView: View {
                 .map { (name: $0.key, qty: $0.value) }
                 .sorted { $0.name < $1.name }
             for entry in sortedSide {
-                if let card = await pickOldestPrinting(name: entry.name) {
+                if let card = await pickPrinting(name: entry.name) {
                     resolvedSide.append(ResolvedEntry(card: card, quantity: entry.qty))
                 } else {
                     missing.append(entry.name)
@@ -590,18 +759,31 @@ struct ClassicDeckDetailView: View {
         )
     }
 
-    private func pickOldestPrinting(name: String) async -> Card? {
-        // Try findAllPrintings first so we can prefer the oldest release
-        if let printings = try? await cardRepository.findAllPrintings(name: name), !printings.isEmpty {
-            let sorted = printings.sorted { (a, b) -> Bool in
-                let aDate = a.releasedAt ?? "9999"
-                let bDate = b.releasedAt ?? "9999"
-                return aDate < bDate
-            }
-            return sorted.first
+    private func pickPrinting(name: String) async -> Card? {
+        // Fast path: when a preferred set code is hardcoded, do a direct
+        // indexed lookup by (name + setCode) instead of searching all printings.
+        // Scryfall stores set codes as lowercase, so lowercase before querying.
+        if let preferredSet = archetype.cardSets?[name] {
+            let variants = (try? await cardRepository.findVariants(name: name, setCode: preferredSet.lowercased())) ?? []
+            if let match = variants.first { return match }
         }
-        // Fall back to fuzzy identify
-        return try? await cardRepository.identifyCard(name: name)
+
+        // Slow path fallback: search all printings by name
+        guard let printings = try? await cardRepository.findAllPrintings(name: name),
+              !printings.isEmpty else {
+            return try? await cardRepository.identifyCard(name: name)
+        }
+
+        // InQuest decks (have cardSets): newest printing within the deck's era
+        if archetype.cardSets != nil {
+            let eraCutoff = "\(archetype.era)-12-31"
+            let eraPrintings = printings.filter { ($0.releasedAt ?? "9999") <= eraCutoff }
+            let pool = eraPrintings.isEmpty ? printings : eraPrintings
+            return pool.sorted { ($0.releasedAt ?? "0000") > ($1.releasedAt ?? "0000") }.first
+        }
+
+        // Classic decks: prefer oldest printing for authenticity
+        return printings.sorted { ($0.releasedAt ?? "9999") < ($1.releasedAt ?? "9999") }.first
     }
 
     // MARK: - Save as new deck

@@ -25,9 +25,14 @@ protocol DeckLookupServiceProtocol: Sendable {
 
 // MARK: - Implementation
 
-struct DeckLookupService: DeckLookupServiceProtocol, @unchecked Sendable {
+final class DeckLookupService: DeckLookupServiceProtocol, @unchecked Sendable {
     private let mtgTop8Service: MTGTop8ServiceProtocol
     private let edhrecService: EDHRECServiceProtocol
+
+    /// Process-wide cache keyed by card name. MTGTop8 data changes
+    /// slowly (weekly at most), so caching for the session is safe.
+    private static let cacheLock = NSLock()
+    private static var resultCache: [String: DeckLookupResult] = [:]
 
     /// Format display names mapped to MTGTop8 codes, in importance order.
     private static let formatMappings: [(name: String, code: String, key: String)] = [
@@ -48,6 +53,14 @@ struct DeckLookupService: DeckLookupServiceProtocol, @unchecked Sendable {
     }
 
     func lookupDecks(for card: Card) async -> DeckLookupResult {
+        let key = card.name.lowercased()
+
+        // Check cache first
+        Self.cacheLock.lock()
+        let cached = Self.resultCache[key]
+        Self.cacheLock.unlock()
+        if let cached { return cached }
+
         let legalFormats = Self.formatMappings.filter { mapping in
             card.legalities.status(for: mapping.key) == .legal
         }
@@ -55,11 +68,17 @@ struct DeckLookupService: DeckLookupServiceProtocol, @unchecked Sendable {
         // Fetch MTGTop8 data for all legal formats in parallel
         let formatResults = await fetchFormatResults(for: card.name, legalFormats: legalFormats)
 
-        return DeckLookupResult(
+        let result = DeckLookupResult(
             cardName: card.name,
             formatResults: formatResults,
             commanderData: nil
         )
+
+        Self.cacheLock.lock()
+        Self.resultCache[key] = result
+        Self.cacheLock.unlock()
+
+        return result
     }
 
     // MARK: - Private
@@ -72,7 +91,7 @@ struct DeckLookupService: DeckLookupServiceProtocol, @unchecked Sendable {
             for format in legalFormats {
                 group.addTask {
                     do {
-                        let data = try await mtgTop8Service.fetchCardData(name: cardName, format: format.code)
+                        let data = try await self.mtgTop8Service.fetchCardData(name: cardName, format: format.code)
                         return FormatDeckData(
                             format: format.name,
                             formatCode: format.code,

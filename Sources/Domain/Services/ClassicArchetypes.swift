@@ -17,6 +17,16 @@ struct ClassicArchetype: Identifiable, Sendable {
     /// Optional 15-card sideboard. Nil for archetypes where the canonical
     /// sideboard isn't well-documented.
     let sideboard: [String: Int]?
+    /// Maps card name → preferred set code (e.g. "Lightning Bolt": "LEA").
+    /// When provided, the detail view uses this for direct DB lookup
+    /// instead of searching all printings.
+    let cardSets: [String: String]?
+    /// Maps card name → card type category for instant categorization
+    /// without DB queries (e.g. "Lightning Bolt": "Instant").
+    let cardTypes: [String: String]?
+    /// Maps card name → mana cost string for instant display
+    /// (e.g. "Lightning Bolt": "{R}").
+    let cardManaCosts: [String: String]?
     let source: String
     let description: String
 
@@ -27,6 +37,9 @@ struct ClassicArchetype: Identifiable, Sendable {
         format: String,
         mainboard: [String: Int],
         sideboard: [String: Int]? = nil,
+        cardSets: [String: String]? = nil,
+        cardTypes: [String: String]? = nil,
+        cardManaCosts: [String: String]? = nil,
         source: String,
         description: String
     ) {
@@ -36,6 +49,9 @@ struct ClassicArchetype: Identifiable, Sendable {
         self.format = format
         self.mainboard = mainboard
         self.sideboard = sideboard
+        self.cardSets = cardSets
+        self.cardTypes = cardTypes
+        self.cardManaCosts = cardManaCosts
         self.source = source
         self.description = description
     }
