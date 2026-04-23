@@ -117,6 +117,7 @@ struct ArchetypeDecksView: View {
                                 deckID: deck.deckID,
                                 deckName: deck.name,
                                 player: deck.player,
+                                format: format,
                                 cardRepository: cardRepository,
                                 deckRepository: deckRepository,
                                 service: service

@@ -87,6 +87,7 @@ struct MTGTop8DeckDetailView: View {
     let deckID: String
     let deckName: String
     let player: String
+    let format: String?
 
     private let service: MTGTop8ServiceProtocol
     private let cardRepository: CardRepositoryProtocol
@@ -103,6 +104,7 @@ struct MTGTop8DeckDetailView: View {
     @State private var unresolvedNames: [String] = []
     @State private var viewMode: DeckViewMode = .list
     @State private var strategy: PrintingStrategy
+    @State private var createdDeck: DeckList?
 
     /// Resolution cache: name → strategy → resolved card. Switching
     /// strategies twice doesn't re-hit the DB.
@@ -114,6 +116,7 @@ struct MTGTop8DeckDetailView: View {
         deckID: String,
         deckName: String,
         player: String,
+        format: String? = nil,
         cardRepository: CardRepositoryProtocol,
         deckRepository: DeckListRepository,
         service: MTGTop8ServiceProtocol = MTGTop8Service()
@@ -121,6 +124,7 @@ struct MTGTop8DeckDetailView: View {
         self.deckID = deckID
         self.deckName = deckName
         self.player = player
+        self.format = format
         self.cardRepository = cardRepository
         self.deckRepository = deckRepository
         self.service = service
@@ -133,7 +137,13 @@ struct MTGTop8DeckDetailView: View {
 
     var body: some View {
         Group {
-            if isLoading {
+            if let deck = createdDeck {
+                DeckDetailView(
+                    deck: deck,
+                    repository: deckRepository,
+                    cardRepository: cardRepository
+                )
+            } else if isLoading {
                 loadingState
             } else if let error {
                 errorState(error)
@@ -141,35 +151,43 @@ struct MTGTop8DeckDetailView: View {
                 content
             }
         }
-        .navigationTitle(deckName)
+        .navigationTitle(createdDeck != nil ? "" : deckName)
         .navigationBarTitleDisplayMode(.inline)
         .background(MD3Theme.background)
         .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                viewModeMenu
-                strategyMenu
-                NavigationLink {
-                    SampleHandView(
-                        deckName: deckName,
-                        cards: handCards
-                    )
-                } label: {
-                    Image(systemName: "play.rectangle")
-                }
-                .disabled(resolvedMain.isEmpty)
-                Menu {
-                    Button {
-                        copyDecklist()
+            if createdDeck == nil {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    viewModeMenu
+                    strategyMenu
+                    NavigationLink {
+                        SampleHandView(
+                            deckName: deckName,
+                            cards: handCards
+                        )
                     } label: {
-                        Label("Copy Decklist", systemImage: "doc.on.doc")
+                        Image(systemName: "play.rectangle")
                     }
-                    Button {
-                        openOnMTGTop8()
+                    .disabled(resolvedMain.isEmpty)
+                    Menu {
+                        Button {
+                            Task { await createDeck() }
+                        } label: {
+                            Label("Create Deck", systemImage: "square.stack.3d.up")
+                        }
+                        .disabled(resolvedMain.isEmpty)
+                        Button {
+                            copyDecklist()
+                        } label: {
+                            Label("Copy Decklist", systemImage: "doc.on.doc")
+                        }
+                        Button {
+                            openOnMTGTop8()
+                        } label: {
+                            Label("View on MTGTop8", systemImage: "safari")
+                        }
                     } label: {
-                        Label("View on MTGTop8", systemImage: "safari")
+                        Image(systemName: "ellipsis.circle")
                     }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
                 }
             }
         }
@@ -666,6 +684,54 @@ struct MTGTop8DeckDetailView: View {
     }
 
     // MARK: - Actions
+
+    private func createDeck() async {
+        guard createdDeck == nil else { return }
+        guard let deck = try? deckRepository.createDeck(
+            name: deckName,
+            format: format
+        ) else { return }
+
+        deck.referenceURL = "https://mtgtop8.com/event?d=\(deckID)"
+
+        // Mainboard — resolved cards
+        for entry in resolvedMain {
+            if let item = try? deckRepository.addItem(
+                card: entry.card, quantity: entry.quantity, to: deck, zone: "mainboard"
+            ) {
+                item.statusRaw = "needed"
+            }
+        }
+
+        // Sideboard — resolved cards
+        for entry in resolvedSide {
+            if let item = try? deckRepository.addItem(
+                card: entry.card, quantity: entry.quantity, to: deck, zone: "sideboard"
+            ) {
+                item.statusRaw = "needed"
+            }
+        }
+
+        // Unresolved cards — add by name so nothing is lost
+        if let decklist {
+            let resolvedMainNames = Set(resolvedMain.map { $0.card.name.lowercased() })
+            let resolvedSideNames = Set(resolvedSide.map { $0.card.name.lowercased() })
+            for entry in decklist.mainboard where !resolvedMainNames.contains(entry.cardName.lowercased()) {
+                _ = try? deckRepository.addItemByName(
+                    cardName: entry.cardName, quantity: entry.quantity,
+                    status: .needed, zone: "mainboard", to: deck
+                )
+            }
+            for entry in decklist.sideboard where !resolvedSideNames.contains(entry.cardName.lowercased()) {
+                _ = try? deckRepository.addItemByName(
+                    cardName: entry.cardName, quantity: entry.quantity,
+                    status: .needed, zone: "sideboard", to: deck
+                )
+            }
+        }
+
+        createdDeck = deck
+    }
 
     private func copyDecklist() {
         guard let decklist else { return }

@@ -253,6 +253,7 @@ private struct ArchetypeRow: View {
                     deckID: topDeck.deckID,
                     deckName: topDeck.name,
                     player: topDeck.player,
+                    format: archetype.format.displayName,
                     cardRepository: cardRepository,
                     deckRepository: deckRepository
                 )
