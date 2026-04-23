@@ -121,10 +121,15 @@ struct HomeView: View {
         }
         .task {
             await reloadAsync()
-            async let art: () = loadDeckArt()
-            async let sought: () = loadSoughtAfterCards()
-            async let hot: () = loadHotCards()
-            _ = await (art, sought, hot)
+        }
+        .task {
+            await loadSoughtAfterCards()
+        }
+        .task {
+            await loadDeckArt()
+        }
+        .task {
+            await loadHotCards()
         }
         .sheet(item: $iconPickerDeck) { deck in
             ChooseDeckIconSheet(
@@ -849,6 +854,8 @@ struct HomeView: View {
     }
 
     private func loadHotCards() async {
+        // Skip if price refresh hasn't completed yet (no previousPriceUSD data)
+        guard PriceRefreshService.shared != nil else { return }
         guard let dbManager = try? DatabaseManager() else { return }
         let movers = (try? await dbManager.fetchPriceMovers(limit: 10)) ?? []
         hotCards = movers.map { $0.toDomain() }
@@ -862,12 +869,16 @@ struct HomeView: View {
             soughtAfterCards = Array(soughtAfterService.seedFromStaples().prefix(10))
         }
 
-        // Daily auto-refresh from MTGTop8 (background, non-blocking)
-        if soughtAfterService.needsDailyRefresh,
+        // Daily auto-refresh from MTGTop8 (background, non-blocking).
+        // Skip on first launch — let the user explore the app first before
+        // kicking off heavy network requests that compete with price refresh.
+        let isFirstLaunch = UserDefaults.standard.string(forKey: "soughtAfterLastRefresh") == nil
+        if !isFirstLaunch,
+           soughtAfterService.needsDailyRefresh,
            soughtAfterWarmupProgress == nil {
-            Task {
-                await prewarmSoughtAfter()
-                soughtAfterService.markRefreshed()
+            Task.detached(priority: .utility) {
+                await self.prewarmSoughtAfter()
+                self.soughtAfterService.markRefreshed()
             }
         }
     }
