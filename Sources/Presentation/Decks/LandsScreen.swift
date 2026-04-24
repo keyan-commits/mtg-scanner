@@ -233,7 +233,7 @@ struct LandSectionPagerView: View {
     let deckRepository: DeckListRepository
 
     @State private var currentIndex: Int = 0
-    @State private var viewMode: ViewMode = .grid
+    @State private var viewMode: ViewMode = .list
     @State private var sortByPrice: Bool = false
 
     enum ViewMode: String, CaseIterable, Hashable {
