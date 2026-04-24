@@ -20,6 +20,7 @@ struct ClassicDeckDetailView: View {
     @State private var unresolved: [String] = []
     @State private var isLoading: Bool = true
     @State private var createdDeck: DeckList?
+    @State private var navigateToDeck: Bool = false
     @State private var viewMode: ViewMode = .list
     @State private var ownedQuantities: [String: Int] = [:]
     @Bindable private var currencyService = CurrencyService.shared
@@ -67,26 +68,26 @@ struct ClassicDeckDetailView: View {
 
     var body: some View {
         Group {
+            switch viewMode {
+            case .list:
+                listBody
+            case .grid:
+                gridBody
+            }
+        }
+        .navigationTitle(archetype.name)
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(isPresented: $navigateToDeck) {
             if let deck = createdDeck {
                 DeckDetailView(
                     deck: deck,
                     repository: deckRepository,
                     cardRepository: cardRepository
                 )
-            } else {
-                switch viewMode {
-                case .list:
-                    listBody
-                case .grid:
-                    gridBody
-                }
             }
         }
-        .navigationTitle(createdDeck != nil ? "" : archetype.name)
-        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if createdDeck == nil {
-                ToolbarItemGroup(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
                     NavigationLink {
                         SampleHandView(
                             deckName: archetype.name,
@@ -109,12 +110,11 @@ struct ClassicDeckDetailView: View {
                         } label: {
                             Label("Create Deck", systemImage: "square.stack.3d.up")
                         }
-                        .disabled(resolved.isEmpty)
+                        .disabled(resolved.isEmpty || createdDeck != nil)
                     } label: {
                         Image(systemName: "ellipsis.circle")
                     }
                 }
-            }
         }
         .task {
             ownedQuantities = (try? deckRepository.ownedQuantitiesByName()) ?? [:]
@@ -781,5 +781,6 @@ struct ClassicDeckDetailView: View {
         }
 
         createdDeck = deck
+        navigateToDeck = true
     }
 }
