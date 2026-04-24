@@ -10,6 +10,11 @@ struct PriceComparisonView: View {
 
     @Environment(\.openURL) private var openURL
     @Bindable private var currencyService = CurrencyService.shared
+    @State private var priceHistory: MTGStocksPriceHistory?
+    @State private var mtgStocksCard: MTGStocksCard?
+    @State private var mtgStocksID: Int?
+    @State private var historyTimeRange: PriceSparklineView.TimeRange = .year
+    @State private var isLoadingHistory: Bool = false
 
     var body: some View {
         let preferred = LocalCurrency.current
@@ -97,9 +102,107 @@ struct PriceComparisonView: View {
                         }
                     }
                 }
+
+                // MARK: - Price History Chart (MTGStocks)
+
+                if isLoadingHistory {
+                    HStack(spacing: 8) {
+                        ProgressView().scaleEffect(0.7)
+                        Text("Loading price history…")
+                            .font(.caption2)
+                            .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    }
+                    .padding(.top, 4)
+                } else if let history = priceHistory, !history.averagePrices.isEmpty {
+                    Divider()
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Price History")
+                                .font(MD3Typography.titleSmall)
+                                .foregroundStyle(MD3Theme.onSurface)
+                            Spacer()
+                            Picker("", selection: $historyTimeRange) {
+                                ForEach(PriceSparklineView.TimeRange.allCases) { range in
+                                    Text(range.rawValue).tag(range)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .frame(width: 180)
+                        }
+
+                        PriceSparklineView(
+                            dataPoints: history.averagePrices,
+                            timeRange: historyTimeRange
+                        )
+
+                        // All-time high/low from MTGStocks
+                        if let detail = mtgStocksCard {
+                            HStack(spacing: 16) {
+                                if let ath = detail.allTimeHigh {
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text("ATH")
+                                            .font(.system(size: 9, weight: .semibold))
+                                            .foregroundStyle(.secondary)
+                                        Text(String(format: "$%.2f", ath))
+                                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                            .foregroundStyle(.green)
+                                    }
+                                }
+                                if let atl = detail.allTimeLow {
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text("ATL")
+                                            .font(.system(size: 9, weight: .semibold))
+                                            .foregroundStyle(.secondary)
+                                        Text(String(format: "$%.2f", atl))
+                                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                            .foregroundStyle(.red)
+                                    }
+                                }
+                                Spacer()
+                                if let id = mtgStocksID,
+                                   let url = MTGStocksService.shared.webURL(id: id) {
+                                    Link(destination: url) {
+                                        HStack(spacing: 4) {
+                                            Text("MTGStocks")
+                                                .font(.caption.weight(.medium))
+                                            Image(systemName: "arrow.up.right.square")
+                                                .font(.caption2)
+                                        }
+                                        .foregroundStyle(MD3Theme.primary)
+                                    }
+                                }
+                            }
+                        }
+
+                        Text("Price data from MTGStocks.com")
+                            .font(.system(size: 9))
+                            .foregroundStyle(MD3Theme.onSurfaceVariant.opacity(0.6))
+                    }
+                }
             }
             .padding(16)
         }
+        .task {
+            await loadMTGStocksData()
+        }
+    }
+
+    // MARK: - MTGStocks Loading
+
+    private func loadMTGStocksData() async {
+        isLoadingHistory = true
+        defer { isLoadingHistory = false }
+
+        let service = MTGStocksService.shared
+        guard let id = await service.lookupID(cardName: card.name) else { return }
+        mtgStocksID = id
+
+        async let historyTask = service.fetchPriceHistory(id: id)
+        async let detailTask = service.fetchCard(id: id)
+        let (history, detail) = await (historyTask, detailTask)
+        priceHistory = history
+        mtgStocksCard = detail
     }
 
     // MARK: - TCG Range
