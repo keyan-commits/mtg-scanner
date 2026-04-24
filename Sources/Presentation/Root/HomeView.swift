@@ -643,24 +643,37 @@ struct HomeView: View {
             if !hotCards.isEmpty {
                 VStack(spacing: 0) {
                     ForEach(hotCards.prefix(5)) { card in
-                        HStack(spacing: 8) {
-                            Text(card.name)
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(MD3Theme.onSurface)
-                                .lineLimit(1)
-                            Spacer()
-                            if let change = card.prices.priceChangePercent {
-                                let isUp = change > 0
-                                Text("\(isUp ? "↑" : "↓") \(String(format: "%.0f", abs(change)))%")
-                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(isUp ? .green : .red)
-                            }
-                            if let usd = card.prices.usd {
-                                Text("$\(usd)")
-                                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                                    .foregroundStyle(MD3Theme.primary)
+                        NavigationLink {
+                            CardDetailView(
+                                card: card,
+                                repository: cardRepository,
+                                deckRepository: deckRepository,
+                                onScanAnother: {}
+                            )
+                        } label: {
+                            HStack(spacing: 8) {
+                                Text(card.name)
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(MD3Theme.onSurface)
+                                    .lineLimit(1)
+                                Spacer()
+                                if let change = card.prices.priceChangePercent {
+                                    let isUp = change > 0
+                                    Text("\(isUp ? "↑" : "↓") \(String(format: "%.0f", abs(change)))%")
+                                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(isUp ? .green : .red)
+                                }
+                                if let usd = card.prices.usd {
+                                    Text("$\(usd)")
+                                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                                        .foregroundStyle(MD3Theme.primary)
+                                }
+                                Image(systemName: "chevron.right")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(MD3Theme.onSurfaceVariant.opacity(0.5))
                             }
                         }
+                        .buttonStyle(.plain)
                         .padding(.vertical, 4)
                         if card.id != hotCards.prefix(5).last?.id {
                             Divider()
