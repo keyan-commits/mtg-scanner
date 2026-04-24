@@ -136,31 +136,18 @@ actor MTGStocksService {
 struct MTGStocksCard: Decodable {
     let id: Int
     let name: String
-    let setName: String?
-    let allTimeHigh: Double?
-    let allTimeLow: Double?
-    let allTimeHighDate: String?
-    let allTimeLowDate: String?
-    let latestPrice: Double?
-    let latestPriceFoil: Double?
-    let cardKingdomPrice: Double?
-    let cardKingdomPriceFoil: Double?
-    let cardMarketPrice: Double?
-    let cardMarketPriceFoil: Double?
+    let allTimeHigh: ATRecord?
+    let allTimeLow: ATRecord?
+
+    struct ATRecord: Decodable {
+        let avg: Double?
+        let date: Double? // timestamp_ms
+    }
 
     enum CodingKeys: String, CodingKey {
         case id, name
-        case setName = "set_name"
         case allTimeHigh = "all_time_high"
         case allTimeLow = "all_time_low"
-        case allTimeHighDate = "all_time_high_date"
-        case allTimeLowDate = "all_time_low_date"
-        case latestPrice = "latest_price"
-        case latestPriceFoil = "latest_price_foil"
-        case cardKingdomPrice = "card_kingdom_price"
-        case cardKingdomPriceFoil = "card_kingdom_price_foil"
-        case cardMarketPrice = "card_market_price"
-        case cardMarketPriceFoil = "card_market_price_foil"
     }
 }
 
@@ -174,12 +161,8 @@ struct MTGStocksPriceHistory: Decodable {
     let marketFoil: [[Double]]?
 
     enum CodingKeys: String, CodingKey {
-        case low = "LOW"
-        case avg = "AVG"
-        case high = "HIGH"
-        case foil = "FOIL"
-        case market = "MARKET"
-        case marketFoil = "MARKET_FOIL"
+        case low, avg, high, foil, market
+        case marketFoil = "market_foil"
     }
 
     /// Returns the average price data points as (date, price) tuples.

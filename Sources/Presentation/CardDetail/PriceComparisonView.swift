@@ -139,7 +139,7 @@ struct PriceComparisonView: View {
                         // All-time high/low from MTGStocks
                         if let detail = mtgStocksCard {
                             HStack(spacing: 16) {
-                                if let ath = detail.allTimeHigh {
+                                if let ath = detail.allTimeHigh?.avg {
                                     VStack(alignment: .leading, spacing: 1) {
                                         Text("ATH")
                                             .font(.system(size: 9, weight: .semibold))
@@ -149,7 +149,7 @@ struct PriceComparisonView: View {
                                             .foregroundStyle(.green)
                                     }
                                 }
-                                if let atl = detail.allTimeLow {
+                                if let atl = detail.allTimeLow?.avg {
                                     VStack(alignment: .leading, spacing: 1) {
                                         Text("ATL")
                                             .font(.system(size: 9, weight: .semibold))
