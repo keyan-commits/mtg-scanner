@@ -19,8 +19,7 @@ struct ClassicDeckDetailView: View {
     @State private var resolvedSideboard: [ResolvedEntry] = []
     @State private var unresolved: [String] = []
     @State private var isLoading: Bool = true
-    @State private var savedDeckID: UUID?
-    @State private var saveError: String?
+    @State private var createdDeck: DeckList?
     @State private var viewMode: ViewMode = .list
     @State private var ownedQuantities: [String: Int] = [:]
     @Bindable private var currencyService = CurrencyService.shared
@@ -68,33 +67,53 @@ struct ClassicDeckDetailView: View {
 
     var body: some View {
         Group {
-            switch viewMode {
-            case .list:
-                listBody
-            case .grid:
-                gridBody
+            if let deck = createdDeck {
+                DeckDetailView(
+                    deck: deck,
+                    repository: deckRepository,
+                    cardRepository: cardRepository
+                )
+            } else {
+                switch viewMode {
+                case .list:
+                    listBody
+                case .grid:
+                    gridBody
+                }
             }
         }
-        .navigationTitle(archetype.name)
+        .navigationTitle(createdDeck != nil ? "" : archetype.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                NavigationLink {
-                    SampleHandView(
-                        deckName: archetype.name,
-                        cards: handCards
-                    )
-                } label: {
-                    Image(systemName: "play.rectangle")
-                }
-                .disabled(resolved.isEmpty)
-                Picker("", selection: $viewMode) {
-                    ForEach(ViewMode.allCases, id: \.self) { mode in
-                        Image(systemName: mode.icon).tag(mode)
+            if createdDeck == nil {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    NavigationLink {
+                        SampleHandView(
+                            deckName: archetype.name,
+                            cards: handCards
+                        )
+                    } label: {
+                        Image(systemName: "play.rectangle")
+                    }
+                    .disabled(resolved.isEmpty)
+                    Picker("", selection: $viewMode) {
+                        ForEach(ViewMode.allCases, id: \.self) { mode in
+                            Image(systemName: mode.icon).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 100)
+                    Menu {
+                        Button {
+                            createDeck()
+                        } label: {
+                            Label("Create Deck", systemImage: "square.stack.3d.up")
+                        }
+                        .disabled(resolved.isEmpty)
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
                     }
                 }
-                .pickerStyle(.segmented)
-                .frame(width: 100)
             }
         }
         .task {
@@ -167,11 +186,6 @@ struct ClassicDeckDetailView: View {
                         .font(.caption2)
                 }
             }
-            Section {
-                saveButton
-                    .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
-                    .listRowBackground(Color.clear)
-            }
         }
         .listStyle(.insetGrouped)
     }
@@ -220,9 +234,6 @@ struct ClassicDeckDetailView: View {
                         }
                         .padding(.top, 8)
                     }
-                    saveButton
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
                 }
                 Color.clear.frame(height: 24)
             }
@@ -653,39 +664,7 @@ struct ClassicDeckDetailView: View {
             .sorted { $0.category.sortOrder < $1.category.sortOrder }
     }
 
-    // MARK: - Save button
-
-    @ViewBuilder
-    private var saveButton: some View {
-        if savedDeckID != nil {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                    Text("Saved as a new deck")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(MD3Theme.onSurface)
-                    Spacer()
-                }
-                if !resolvedSideboard.isEmpty {
-                    Text("Sideboard cards were not included (decks don't track sideboards yet).")
-                        .font(.caption2)
-                        .foregroundStyle(MD3Theme.onSurfaceVariant)
-                }
-            }
-            .padding(12)
-            .background(Color.green.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-        } else if let saveError {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(saveError)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                MD3FilledButton("Try Again") { saveAsNewDeck() }
-            }
-        } else {
-            MD3FilledButton("Save as new deck") { saveAsNewDeck() }
-        }
-    }
+    // MARK: - Create Deck
 
     // MARK: - Resolve
 
@@ -786,25 +765,21 @@ struct ClassicDeckDetailView: View {
         return printings.sorted { ($0.releasedAt ?? "9999") < ($1.releasedAt ?? "9999") }.first
     }
 
-    // MARK: - Save as new deck
+    private func createDeck() {
+        guard createdDeck == nil else { return }
+        guard let deck = try? deckRepository.createDeck(
+            name: "\(archetype.name) (\(archetype.era))",
+            format: archetype.format
+        ) else { return }
 
-    private func saveAsNewDeck() {
-        do {
-            let deck = try deckRepository.createDeck(
-                name: "\(archetype.name) (\(archetype.era))",
-                format: archetype.format
+        for entry in resolved {
+            _ = try? deckRepository.addItem(
+                card: entry.card,
+                quantity: entry.quantity,
+                to: deck
             )
-            for entry in resolved {
-                _ = try deckRepository.addItem(
-                    card: entry.card,
-                    quantity: entry.quantity,
-                    to: deck
-                )
-            }
-            savedDeckID = deck.id
-            saveError = nil
-        } catch {
-            saveError = "Couldn't save: \(error.localizedDescription)"
         }
+
+        createdDeck = deck
     }
 }
