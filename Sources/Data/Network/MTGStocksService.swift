@@ -32,8 +32,11 @@ actor MTGStocksService {
     // MARK: - Public API
 
     /// Search for a card by name and return its MTGStocks print ID.
-    func lookupID(cardName: String) async -> Int? {
-        if let cached = idCache[cardName.lowercased()] { return cached }
+    /// When setCode and collectorNumber are provided, matches the exact
+    /// printing from the card's `sets` array on MTGStocks.
+    func lookupID(cardName: String, setCode: String? = nil, collectorNumber: String? = nil) async -> Int? {
+        let cacheKey = "\(cardName.lowercased())|\(setCode ?? "")|\(collectorNumber ?? "")"
+        if let cached = idCache[cacheKey] { return cached }
 
         let encoded = cardName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? cardName
         guard let data = await fetch("/search/autocomplete/\(encoded)") else { return nil }
@@ -45,13 +48,42 @@ actor MTGStocksService {
 
         guard let results = try? JSONDecoder().decode([SearchResult].self, from: data) else { return nil }
 
-        // Prefer exact match, fall back to first result
+        // Find the card-level entry (exact name match or first result)
         let match = results.first(where: { $0.name.lowercased() == cardName.lowercased() })
             ?? results.first
-        guard let id = match?.id else { return nil }
+        guard let cardID = match?.id else { return nil }
 
-        idCache[cardName.lowercased()] = id
-        return id
+        // If set code provided, fetch the card detail to find the exact printing
+        if let setCode, let collectorNumber,
+           let detailData = await fetch("/prints/\(cardID)"),
+           let json = try? JSONSerialization.jsonObject(with: detailData) as? [String: Any],
+           let sets = json["sets"] as? [[String: Any]] {
+            let lowerSet = setCode.lowercased()
+            // Match by set abbreviation/icon_class + collector number
+            if let printing = sets.first(where: { entry in
+                let abbr = (entry["abbreviation"] as? String)?.lowercased()
+                let icon = (entry["icon_class"] as? String)?.lowercased()
+                let cn = entry["collector_number"] as? Int
+                let cnStr = cn.map(String.init)
+                return (abbr == lowerSet || icon == lowerSet) && cnStr == collectorNumber
+            }), let printID = printing["id"] as? Int {
+                idCache[cacheKey] = printID
+                return printID
+            }
+            // Fallback: match by set only (first printing in that set)
+            if let printing = sets.first(where: { entry in
+                let abbr = (entry["abbreviation"] as? String)?.lowercased()
+                let icon = (entry["icon_class"] as? String)?.lowercased()
+                return abbr == lowerSet || icon == lowerSet
+            }), let printID = printing["id"] as? Int {
+                idCache[cacheKey] = printID
+                return printID
+            }
+        }
+
+        // No set match — use the card-level default
+        idCache[cacheKey] = cardID
+        return cardID
     }
 
     /// Fetch full card detail (multi-vendor prices, ATH/ATL, all printings).

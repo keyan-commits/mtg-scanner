@@ -195,7 +195,11 @@ struct PriceComparisonView: View {
         defer { isLoadingHistory = false }
 
         let service = MTGStocksService.shared
-        guard let id = await service.lookupID(cardName: card.name) else { return }
+        guard let id = await service.lookupID(
+            cardName: card.name,
+            setCode: card.set.code,
+            collectorNumber: card.collectorNumber
+        ) else { return }
         mtgStocksID = id
 
         async let historyTask = service.fetchPriceHistory(id: id)
