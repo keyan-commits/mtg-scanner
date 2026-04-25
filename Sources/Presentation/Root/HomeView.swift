@@ -368,11 +368,33 @@ struct HomeView: View {
                             .background(Color.red)
                             .clipShape(Capsule())
                     }
+                    ForEach(card.frameEffects.filter { $0 != "inverted" }, id: \.self) { effect in
+                        Text(effect.replacingOccurrences(of: "extendedart", with: "extended art").capitalized)
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(Color.purple)
+                            .clipShape(Capsule())
+                    }
                 }
-                Text("\(card.setNameWithYear) · #\(card.collectorNumber)")
-                    .font(.caption2)
-                    .foregroundStyle(MD3Theme.onSurfaceVariant)
-                    .lineLimit(1)
+                if let printedName = card.printedName, printedName != card.name {
+                    Text(printedName)
+                        .font(.system(size: 12))
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                        .lineLimit(1)
+                }
+                HStack(spacing: 4) {
+                    Text("\(card.setNameWithYear) · #\(card.collectorNumber)")
+                        .font(.caption2)
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                        .lineLimit(1)
+                    if let usd = card.prices.usd {
+                        Text("· $\(usd)")
+                            .font(.caption2)
+                            .foregroundStyle(MD3Theme.primary)
+                    }
+                }
             }
             Spacer(minLength: 8)
             Image(systemName: "chevron.right")
