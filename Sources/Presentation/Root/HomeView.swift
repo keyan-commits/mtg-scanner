@@ -658,10 +658,16 @@ struct HomeView: View {
                             )
                         } label: {
                             HStack(spacing: 8) {
-                                Text(card.name)
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundStyle(MD3Theme.onSurface)
-                                    .lineLimit(1)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(card.name)
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundStyle(MD3Theme.onSurface)
+                                        .lineLimit(1)
+                                    Text(card.setNameWithYear)
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                                        .lineLimit(1)
+                                }
                                 Spacer()
                                 if let change = card.prices.priceChangePercent {
                                     let isUp = change > 0

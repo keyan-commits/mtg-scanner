@@ -386,6 +386,8 @@ final class DatabaseManager: Sendable {
     // MARK: - Price Movers
 
     /// Returns cards with the biggest price increases (previous → current).
+    /// Filters out low-value noise and deduplicates by card name (keeps
+    /// the printing with the highest absolute dollar change).
     func fetchPriceMovers(limit: Int = 50) async throws -> [CardRecord] {
         let context = ModelContext(modelContainer)
         let descriptor = FetchDescriptor<CardRecord>(
@@ -394,18 +396,40 @@ final class DatabaseManager: Sendable {
             }
         )
         let records = try context.fetch(descriptor)
-        // Sort by price change % descending in-memory
-        // (SwiftData predicates can't do arithmetic)
-        return records
-            .compactMap { record -> (record: CardRecord, change: Double)? in
+
+        struct Mover {
+            let record: CardRecord
+            let pct: Double
+            let absDelta: Double
+        }
+
+        let candidates = records
+            .compactMap { record -> Mover? in
                 guard let curr = Double(record.priceUSD ?? ""),
                       let prev = Double(record.previousPriceUSD ?? ""),
-                      prev > 0.50, curr > 1.0 else { return nil } // Filter out penny cards
+                      prev >= 1.0, curr >= 2.0 else { return nil }
                 let pct = ((curr - prev) / prev) * 100
-                guard pct > 5.0 else { return nil } // Only meaningful changes
-                return (record: record, change: pct)
+                guard pct > 5.0 else { return nil }
+                return Mover(record: record, pct: pct, absDelta: curr - prev)
             }
-            .sorted { $0.change > $1.change }
+
+        // Deduplicate by card name: keep the printing with the highest
+        // absolute dollar change so a $150 Guru land moving $10 beats
+        // a $2 common land moving $0.65.
+        var bestByName: [String: Mover] = [:]
+        for mover in candidates {
+            let key = mover.record.name.lowercased()
+            if let existing = bestByName[key] {
+                if mover.absDelta > existing.absDelta {
+                    bestByName[key] = mover
+                }
+            } else {
+                bestByName[key] = mover
+            }
+        }
+
+        return bestByName.values
+            .sorted { $0.pct > $1.pct }
             .prefix(limit)
             .map(\.record)
     }
