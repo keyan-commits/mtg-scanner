@@ -15,6 +15,7 @@ struct PriceComparisonView: View {
     @State private var mtgStocksID: Int?
     @State private var historyTimeRange: PriceSparklineView.TimeRange = .year
     @State private var isLoadingHistory: Bool = false
+    @State private var hareruyaPrice: HareruyaPrice?
 
     var body: some View {
         let preferred = LocalCurrency.current
@@ -92,6 +93,19 @@ struct PriceComparisonView: View {
                 Text("Check NM Prices")
                     .font(MD3Typography.titleSmall)
                     .foregroundStyle(MD3Theme.onSurface)
+
+                // Hareruya inline price (fetched from API)
+                if let hp = hareruyaPrice {
+                    HStack {
+                        Text("Hareruya")
+                            .font(MD3Typography.bodyMedium)
+                            .foregroundStyle(MD3Theme.onSurface)
+                        Spacer()
+                        Text(hp.formattedPrice)
+                            .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(MD3Theme.primary)
+                    }
+                }
 
                 HStack(spacing: 12) {
                     storeButton(name: "Card Kingdom") {
@@ -217,6 +231,14 @@ struct PriceComparisonView: View {
         .task {
             await loadMTGStocksData()
         }
+        .task {
+            await loadHareruyaPrice()
+        }
+    }
+
+    private func loadHareruyaPrice() async {
+        let service = HareruyaPriceService()
+        hareruyaPrice = try? await service.fetchNMPrice(cardName: card.name)
     }
 
     // MARK: - MTGStocks Loading

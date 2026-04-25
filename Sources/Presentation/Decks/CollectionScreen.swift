@@ -350,6 +350,12 @@ struct CollectionScreen: View {
                         Label("Set Store (All Visible)", systemImage: "storefront")
                     }
                     .disabled(filtered.isEmpty)
+                    Button {
+                        exportSellSheet()
+                    } label: {
+                        Label("Export Sell Sheet", systemImage: "square.and.arrow.up")
+                    }
+                    .disabled(filtered.isEmpty)
                 } label: {
                     Image(systemName: groupMode == .none
                           ? "rectangle.3.group"
@@ -866,10 +872,21 @@ struct CollectionScreen: View {
                             .monospacedDigit()
                     }
                     if let change {
-                        Text(change.label)
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(change.isUp ? .green : .red)
-                            .monospacedDigit()
+                        HStack(spacing: 4) {
+                            Text(change.label)
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(change.isUp ? .green : .red)
+                                .monospacedDigit()
+                            if abs(change.percent) >= 20 {
+                                Text(change.isUp ? "SELL" : "BUY")
+                                    .font(.system(size: 8, weight: .heavy))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 1)
+                                    .background(change.isUp ? Color.green : Color.red)
+                                    .clipShape(Capsule())
+                            }
+                        }
                     }
                 }
             }
@@ -937,7 +954,7 @@ struct CollectionScreen: View {
     /// Computes the percentage change from the at-add price snapshot to
     /// the current Scryfall USD price. Returns nil if either side is
     /// unknown or the change is < 5%.
-    private func priceChange(item: CollectionItem, currentUSD: Double?) -> (label: String, isUp: Bool)? {
+    private func priceChange(item: CollectionItem, currentUSD: Double?) -> (label: String, isUp: Bool, percent: Double)? {
         guard let currentUSD,
               let snapshot = item.priceAtAddUSD,
               snapshot > 0 else { return nil }
@@ -945,13 +962,37 @@ struct CollectionScreen: View {
         if abs(percent) < 5 { return nil }
         let arrow = percent > 0 ? "↑" : "↓"
         let label = String(format: "%@ %.0f%%", arrow, abs(percent))
-        return (label: label, isUp: percent > 0)
+        return (label: label, isUp: percent > 0, percent: percent)
     }
 
     // MARK: - Actions
 
     private func reload() {
         items = (try? deckRepository.fetchCollection()) ?? []
+    }
+
+    // MARK: - Sell Sheet Export
+
+    private func exportSellSheet() {
+        let preferred = LocalCurrency.current
+        var lines: [String] = ["Card Name\tSet\t#\tQty\tFoil Qty\tCurrent USD\tPaid\tP&L"]
+        for item in filtered {
+            let currentUSD = item.currentValueUSD ?? 0
+            let foilUSD = item.currentValueFoilUSD ?? currentUSD
+            let nonFoilCount = item.quantity - item.foilQuantity
+            let totalValue = currentUSD * Double(nonFoilCount) + foilUSD * Double(item.foilQuantity)
+            let paid = item.purchasePrice.map { String(format: "%.2f", $0) } ?? "—"
+            let pnl: String
+            if let purchase = item.purchasePrice, purchase > 0 {
+                let diff = totalValue - purchase
+                pnl = String(format: "%@%.2f", diff >= 0 ? "+" : "", diff)
+            } else {
+                pnl = "—"
+            }
+            lines.append("\(item.cardName)\t\(item.setName)\t#\(item.collectorNumber)\t\(item.quantity)\t\(item.foilQuantity)\t$\(String(format: "%.2f", totalValue))\t\(paid)\t\(pnl)")
+        }
+        let text = lines.joined(separator: "\n")
+        UIPasteboard.general.string = text
     }
 
 }
