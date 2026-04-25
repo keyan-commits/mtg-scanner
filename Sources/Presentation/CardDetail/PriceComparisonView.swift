@@ -36,7 +36,10 @@ struct PriceComparisonView: View {
                        let realLow = detail.tcgLow,
                        let realMarket = detail.tcgMarket,
                        let realHigh = detail.tcgHigh {
-                        tcgRangeReal(low: realLow, market: realMarket, high: realHigh, preferred: preferred)
+                        // Cap High at 3x Market to filter outlier listings
+                        // (e.g. $1,000 listing on a $0.88 card)
+                        let cappedHigh = min(realHigh, realMarket * 3)
+                        tcgRangeReal(low: realLow, market: realMarket, high: cappedHigh, preferred: preferred)
                     } else {
                         tcgRange(marketUSD: rangeUSD, preferred: preferred)
                     }
