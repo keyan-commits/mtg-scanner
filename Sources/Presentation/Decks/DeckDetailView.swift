@@ -1203,6 +1203,11 @@ struct DeckDetailView: View {
                     if let manaCost = item.manaCost, !manaCost.isEmpty {
                         ManaCostView(cost: manaCost, size: 13)
                     }
+                    if item.isFoil {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.orange)
+                    }
                 }
                 Text("\(item.setName) · #\(item.collectorNumber)")
                     .font(.caption2)
@@ -1258,6 +1263,21 @@ struct DeckDetailView: View {
                     reload()
                 } label: {
                     Label(moveAllLabel, systemImage: "arrow.right.square.fill")
+                }
+            }
+            Divider()
+            // Foil toggle
+            Button {
+                let newFoil = !(group.items.first?.isFoil ?? false)
+                for copy in group.items {
+                    copy.isFoil = newFoil
+                }
+                reload()
+            } label: {
+                if group.items.first?.isFoil == true {
+                    Label("Mark as Non-Foil", systemImage: "sparkles")
+                } else {
+                    Label("Mark as Foil", systemImage: "sparkles")
                 }
             }
             Divider()

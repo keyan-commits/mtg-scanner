@@ -118,7 +118,7 @@ actor GeminiVisionService {
 
         let prompt = """
         Identify this Magic: The Gathering card. Return ONLY a JSON object with these fields:
-        {"card_name": "exact English card name", "set_code": "3-letter Scryfall set code or null", "collector_number": "collector number or null"}
+        {"card_name": "exact English card name", "set_code": "3-letter Scryfall set code or null", "collector_number": "collector number or null", "printed_name": "card name as printed on the card if non-English, or null", "lang": "2-letter language code (en, ja, zhs, zht, de, fr, it, es, pt, ko, ru) or null"}
         Do not include any other text, explanation, or markdown. Just the raw JSON object.
         """
 
@@ -178,15 +178,20 @@ actor GeminiVisionService {
 
             let setCode = result["set_code"] as? String
             let collectorNumber = result["collector_number"] as? String
+            let printedName = result["printed_name"] as? String
+            let lang = result["lang"] as? String
 
             Self.lastError = nil
-            print("[Gemini] Identified: \(cardName) [\(setCode ?? "?")] #\(collectorNumber ?? "?")")
+            let langLabel = lang != nil && lang != "en" ? " lang=\(lang!)" : ""
+            print("[Gemini] Identified: \(cardName) [\(setCode ?? "?")] #\(collectorNumber ?? "?")\(langLabel)")
             return GeminiCardResult(
                 cardName: cardName,
                 setCode: setCode,
                 collectorNumber: collectorNumber,
                 quantity: 1,
-                boundingBox: nil
+                boundingBox: nil,
+                printedName: printedName,
+                lang: lang
             )
         } catch {
             print("[Gemini] Request failed: \(error.localizedDescription)")
@@ -348,4 +353,20 @@ struct GeminiCardResult {
     /// Bounding box as fractional coordinates (0-1) relative to image dimensions.
     /// (x, y) is top-left corner; (w, h) is width and height.
     let boundingBox: (x: Double, y: Double, w: Double, h: Double)?
+    /// Localized card name as printed (e.g. Japanese name). Nil for English cards.
+    let printedName: String?
+    /// Language code (e.g. "ja", "zhs"). Nil for English.
+    let lang: String?
+
+    init(cardName: String, setCode: String?, collectorNumber: String?,
+         quantity: Int, boundingBox: (x: Double, y: Double, w: Double, h: Double)?,
+         printedName: String? = nil, lang: String? = nil) {
+        self.cardName = cardName
+        self.setCode = setCode
+        self.collectorNumber = collectorNumber
+        self.quantity = quantity
+        self.boundingBox = boundingBox
+        self.printedName = printedName
+        self.lang = lang
+    }
 }

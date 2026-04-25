@@ -188,6 +188,7 @@
 		E24B88D8B2AF032D0BF69D49 /* CardAnalysisDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC79A594FDB370D846C61CB8 /* CardAnalysisDetailView.swift */; };
 		E360F742A744E9947A297E70 /* LocalCardRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85BC48258F31DAEFAC3A28BF /* LocalCardRepository.swift */; };
 		E3C1399D4EC466AFD74E4D61 /* CardDetectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC66736C738E0BF35A8058F /* CardDetectorTests.swift */; };
+		E6421E7A60AFD759970849FC /* JapaneseCollectibles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D573136AAB39536AE9FE3ED /* JapaneseCollectibles.swift */; };
 		E6B9946A84C9501B2BF18AE6 /* AppIcon-B@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = C30373848B40036E08034C2B /* AppIcon-B@2x.png */; };
 		E7C79EA37838BDBACAF04751 /* DeckCompatibilityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A7C35212583880D76FB71A5 /* DeckCompatibilityView.swift */; };
 		E8092F55E35EBB27B39DD4B6 /* EditOrderItemSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66A563065D22921CD26B863B /* EditOrderItemSheet.swift */; };
@@ -268,6 +269,7 @@
 		2A1BFD0F4CFB4B9E44414742 /* QuickAddToCollectionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAddToCollectionSheet.swift; sourceTree = "<group>"; };
 		2AE27AA61979FCF281B92756 /* CardRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardRepository.swift; sourceTree = "<group>"; };
 		2C850B1F2A8C60B0BFC57C48 /* MultiCardDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiCardDetector.swift; sourceTree = "<group>"; };
+		2D573136AAB39536AE9FE3ED /* JapaneseCollectibles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JapaneseCollectibles.swift; sourceTree = "<group>"; };
 		2E9A896E4F241EF819F2E946 /* PremodernStaples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremodernStaples.swift; sourceTree = "<group>"; };
 		2F4AAD7AD6AC090BFA3D94A6 /* HareruyaPriceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HareruyaPriceService.swift; sourceTree = "<group>"; };
 		31C20EF780B773AFFB05E4A1 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
@@ -497,6 +499,7 @@
 				FDC066DBAB6DCF086E7D7132 /* CollectibleLands.swift */,
 				595AAA98AAACE44BD9A0D55E /* DynamicListService.swift */,
 				23EB7BC1F513D2082672F034 /* InQuestDecks.swift */,
+				2D573136AAB39536AE9FE3ED /* JapaneseCollectibles.swift */,
 				4A9AC5520A03343B21F97ECF /* LandLists.swift */,
 				328D969AE79F7A8452060BAB /* LegacyStaples.swift */,
 				E14F96F1F692C3A787E1C3D2 /* MajorArchetypes.swift */,
@@ -1120,6 +1123,7 @@
 				0410C46D6DDBE810DD1CD9CD /* ImageSplitterViewModel.swift in Sources */,
 				84648A41011F10B6D94A8E70 /* ImportDecklistSheet.swift in Sources */,
 				14988D9F2AC4BE23B6627DF4 /* InQuestDecks.swift in Sources */,
+				E6421E7A60AFD759970849FC /* JapaneseCollectibles.swift in Sources */,
 				37A76A1309703806B3DCDD33 /* LandLists.swift in Sources */,
 				1A35F76350C34622679746C7 /* LandsScreen.swift in Sources */,
 				E8EED731F7C61FF1A8209312 /* LatestTopFinishesCache.swift in Sources */,

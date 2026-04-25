@@ -642,9 +642,10 @@ struct HomeView: View {
         }
     }
 
+    @ViewBuilder
     private func stapleRow(_ entry: SoughtAfterCard) -> some View {
         let resolved = soughtAfterResolved[entry.cardName]
-        return HStack(spacing: 8) {
+        let rowContent = HStack(spacing: 8) {
             Text(entry.cardName)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(MD3Theme.onSurface)
@@ -658,9 +659,30 @@ struct HomeView: View {
                     .font(.system(size: 12, weight: .semibold, design: .monospaced))
                     .foregroundStyle(MD3Theme.primary)
             }
+            if resolved != nil {
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(MD3Theme.onSurfaceVariant.opacity(0.5))
+            }
         }
         .padding(.vertical, 4)
         .task { await resolveSoughtAfter(name: entry.cardName) }
+
+        if let card = resolved {
+            NavigationLink {
+                CardDetailView(
+                    card: card,
+                    repository: cardRepository,
+                    deckRepository: deckRepository,
+                    onScanAnother: {}
+                )
+            } label: {
+                rowContent
+            }
+            .buttonStyle(.plain)
+        } else {
+            rowContent
+        }
     }
 
     // MARK: - Price Movers (Seller)

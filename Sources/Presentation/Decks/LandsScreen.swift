@@ -42,6 +42,7 @@ struct LandsScreen: View {
             ("Standard Most-Played", dynamicStandard),
             ("Premodern Most-Played", dynamicPremodern),
             ("cEDH Staples", CEDHStaples.all),
+            ("Japanese Collectibles", JapaneseCollectibles.all),
         ]
     }
 
