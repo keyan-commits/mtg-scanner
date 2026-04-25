@@ -29,6 +29,7 @@ struct HomeView: View {
     @State private var hotCards: [Card] = []  // Price movers (local DB)
     @State private var hotInterests: [MTGStocksInterest] = []  // Price movers (MTGStocks fallback)
     @State private var hotCardsLoaded: Bool = false
+    @State private var hotInterestsResolved: [Int: Card] = [:]
     /// Resolved Card per name (via the user's printing strategy) so
     /// the sought-after row can render images.
     @State private var soughtAfterResolved: [String: Card] = [:]
@@ -759,33 +760,7 @@ struct HomeView: View {
                 // MTGStocks interests fallback (no local DB needed)
                 VStack(spacing: 0) {
                     ForEach(hotInterests.prefix(5), id: \.id) { interest in
-                        HStack(spacing: 8) {
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(interest.name)
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundStyle(MD3Theme.onSurface)
-                                    .lineLimit(1)
-                                if let setName = interest.setName {
-                                    Text(setName)
-                                        .font(.system(size: 10))
-                                        .foregroundStyle(MD3Theme.onSurfaceVariant)
-                                        .lineLimit(1)
-                                }
-                            }
-                            Spacer()
-                            if let pct = interest.percentageChange {
-                                let isUp = pct > 0
-                                Text("\(isUp ? "↑" : "↓") \(String(format: "%.0f", abs(pct)))%")
-                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(isUp ? .green : .red)
-                            }
-                            if let price = interest.currentPrice {
-                                Text(String(format: "$%.2f", price))
-                                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                                    .foregroundStyle(MD3Theme.primary)
-                            }
-                        }
-                        .padding(.vertical, 4)
+                        interestRow(interest)
                         if interest.id != hotInterests.prefix(5).last?.id {
                             Divider()
                         }
@@ -978,6 +953,69 @@ struct HomeView: View {
                     .padding(4)
                     .foregroundStyle(MD3Theme.onSurfaceVariant)
             )
+    }
+
+    // MARK: - Interest Row (MTGStocks fallback)
+
+    @ViewBuilder
+    private func interestRow(_ interest: MTGStocksInterest) -> some View {
+        let rowContent = HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(interest.name)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(MD3Theme.onSurface)
+                    .lineLimit(1)
+                if let setName = interest.setName {
+                    Text(setName)
+                        .font(.system(size: 10))
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                        .lineLimit(1)
+                }
+            }
+            Spacer()
+            if let pct = interest.percentageChange {
+                let isUp = pct > 0
+                Text("\(isUp ? "↑" : "↓") \(String(format: "%.0f", abs(pct)))%")
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundStyle(isUp ? .green : .red)
+            }
+            if let price = interest.currentPrice {
+                Text(String(format: "$%.2f", price))
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(MD3Theme.primary)
+            }
+            if hotInterestsResolved[interest.id] != nil {
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(MD3Theme.onSurfaceVariant.opacity(0.5))
+            }
+        }
+        .padding(.vertical, 4)
+        .task { await resolveInterest(interest) }
+
+        if let card = hotInterestsResolved[interest.id] {
+            NavigationLink {
+                CardDetailView(
+                    card: card,
+                    repository: cardRepository,
+                    deckRepository: deckRepository,
+                    onScanAnother: {}
+                )
+            } label: {
+                rowContent
+            }
+            .buttonStyle(.plain)
+        } else {
+            rowContent
+        }
+    }
+
+    private func resolveInterest(_ interest: MTGStocksInterest) async {
+        guard hotInterestsResolved[interest.id] == nil else { return }
+        let resolver = CardResolver(cardRepository: cardRepository)
+        if let card = await resolver.resolve(name: interest.name, strategy: .cheapest) {
+            hotInterestsResolved[interest.id] = card
+        }
     }
 
     private func resolveSoughtAfter(name: String) async {
