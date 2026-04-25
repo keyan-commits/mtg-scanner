@@ -645,7 +645,7 @@ struct HomeView: View {
                 .foregroundStyle(MD3Theme.onSurface)
                 .lineLimit(1)
             Spacer()
-            Text("in \(entry.archetypeCount) archetypes")
+            Text("in \(entry.archetypeCount) formats")
                 .font(.system(size: 10))
                 .foregroundStyle(MD3Theme.onSurfaceVariant)
             if let usd = resolved?.prices.usd {
@@ -915,7 +915,9 @@ struct HomeView: View {
     private func resolveSoughtAfter(name: String) async {
         guard soughtAfterResolved[name] == nil else { return }
         let resolver = CardResolver(cardRepository: cardRepository)
-        if let card = await resolver.resolve(name: name) {
+        // Use cheapest strategy so prices reflect what a player would
+        // actually pay, not Alpha/Beta collector prices.
+        if let card = await resolver.resolve(name: name, strategy: .cheapest) {
             soughtAfterResolved[name] = card
         }
     }

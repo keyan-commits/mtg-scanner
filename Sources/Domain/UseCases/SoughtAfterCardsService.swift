@@ -366,10 +366,10 @@ struct SoughtAfterCardsService: SoughtAfterCardsServiceProtocol {
     func seedFromStaples() -> [SoughtAfterCard] {
         // Collect all card names across all format staple lists
         var cardCounts: [String: Int] = [:]
+        // CEDH excluded: user plays competitive constructed, not Commander.
         let allStapleLists: [[LandCategory]] = [
             ModernStaples.all, LegacyStaples.all, PioneerStaples.all,
             VintageStaples.all, PauperStaples.all, PremodernStaples.all,
-            CEDHStaples.all
         ]
         for list in allStapleLists {
             for category in list {
