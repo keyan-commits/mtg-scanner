@@ -552,7 +552,7 @@ struct HomeView: View {
     /// archetype detail page (which populates the aggregation cache).
     /// Each image is resolved through the user's Default Printing
     /// setting via `CardResolver`.
-    // MARK: - Format Staples (Player)
+    // MARK: - Most Sought-After
 
     @ViewBuilder
     private var formatStaplesSection: some View {
@@ -564,10 +564,10 @@ struct HomeView: View {
                 )
             } label: {
                 HStack {
-                    Image(systemName: "star.fill")
+                    Image(systemName: "chart.line.uptrend.xyaxis")
                         .font(.caption)
                         .foregroundStyle(.orange)
-                    Text("Format Staples")
+                    Text("Most Sought-After")
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(MD3Theme.onBackground)
                     Image(systemName: "chevron.right")
@@ -579,7 +579,7 @@ struct HomeView: View {
             }
             .buttonStyle(.plain)
 
-            Text("Most-played cards across competitive archetypes")
+            Text("Cards with the highest demand across competitive archetypes")
                 .font(.caption2)
                 .foregroundStyle(MD3Theme.onSurfaceVariant)
 
