@@ -47,9 +47,13 @@ struct MTGCardScannerApp: App {
                     let service = PriceRefreshService(downloader: downloader, databaseManager: databaseManager)
                     PriceRefreshService.shared = service
                     priceRefreshService = service
-                    await service.refreshIfStale()
-                    // Invalidate cached lists after price/data refresh
-                    DynamicListService.shared.invalidateCache()
+                    // Fire-and-forget: don't block home screen with price refresh
+                    Task.detached(priority: .utility) {
+                        await service.refreshIfStale()
+                        await MainActor.run {
+                            DynamicListService.shared.invalidateCache()
+                        }
+                    }
                 }
             }
             .task {

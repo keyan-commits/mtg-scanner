@@ -23,6 +23,8 @@ protocol CardRepositoryProtocol: Sendable {
     func fetchAllSets() async throws -> [SetInfo]
     /// Returns all cards in a given set.
     func fetchCardsBySet(setCode: String) async throws -> [Card]
+    /// Returns cards with the biggest 24h price changes.
+    func fetchPriceMovers(limit: Int) async throws -> [Card]
 }
 
 extension CardRepositoryProtocol {
@@ -32,4 +34,5 @@ extension CardRepositoryProtocol {
     func fetchBasicLands() async throws -> [Card] { [] }
     func fetchAllSets() async throws -> [SetInfo] { [] }
     func fetchCardsBySet(setCode: String) async throws -> [Card] { [] }
+    func fetchPriceMovers(limit: Int) async throws -> [Card] { [] }
 }

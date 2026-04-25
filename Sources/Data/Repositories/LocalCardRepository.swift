@@ -62,4 +62,9 @@ final class LocalCardRepository: CardRepositoryProtocol {
         let records = try await databaseManager.fetchCards(setCode: setCode)
         return records.map { $0.toDomain() }
     }
+
+    nonisolated func fetchPriceMovers(limit: Int) async throws -> [Card] {
+        let records = try await databaseManager.fetchPriceMovers(limit: limit)
+        return records.map { $0.toDomain() }
+    }
 }

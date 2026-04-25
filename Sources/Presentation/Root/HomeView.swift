@@ -12,6 +12,7 @@ struct HomeView: View {
     let onScanTap: () -> Void
 
     @State private var stats: HomeStats = .empty
+    @State private var isLoadingStats: Bool = true
     @State private var recentDecks: [DeckList] = []
     /// Cached `art_crop` URL per deck.id for the signature card background.
     @State private var deckArtURLs: [UUID: URL] = [:]
@@ -491,6 +492,11 @@ struct HomeView: View {
                     .foregroundStyle(MD3Theme.onPrimaryContainer.opacity(0.8))
                     .textCase(.uppercase)
                 Spacer()
+                if isLoadingStats {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                        .tint(MD3Theme.onPrimaryContainer.opacity(0.6))
+                }
             }
             HStack(alignment: .top, spacing: 0) {
                 statTile(value: "\(stats.deckCount)", label: "Decks", icon: "rectangle.stack.fill")
@@ -683,6 +689,17 @@ struct HomeView: View {
                 .padding(12)
                 .background(MD3Theme.surface)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
+            } else if PriceRefreshService.shared?.isRefreshing == true {
+                HStack(spacing: 8) {
+                    ProgressView().scaleEffect(0.7)
+                    Text("Updating prices…")
+                        .font(.caption2)
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(MD3Theme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             } else {
                 Text("Price movers appear after the second daily price refresh")
                     .font(.caption2)
@@ -869,9 +886,8 @@ struct HomeView: View {
     private func loadHotCards() async {
         // Skip if price refresh hasn't completed yet (no previousPriceUSD data)
         guard PriceRefreshService.shared != nil else { return }
-        guard let dbManager = try? DatabaseManager() else { return }
-        let movers = (try? await dbManager.fetchPriceMovers(limit: 10)) ?? []
-        hotCards = movers.map { $0.toDomain() }
+        let movers = (try? await cardRepository.fetchPriceMovers(limit: 10)) ?? []
+        hotCards = movers
     }
 
     private func loadSoughtAfterCards() async {
@@ -1330,6 +1346,7 @@ struct HomeView: View {
             await MainActor.run {
                 self.stats = newStats
                 self.recentDecks = decks
+                self.isLoadingStats = false
             }
         }.value
     }
