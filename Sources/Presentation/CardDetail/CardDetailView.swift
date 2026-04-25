@@ -269,6 +269,16 @@ struct CardDetailView: View {
                         .background(Color.red)
                         .clipShape(Capsule())
                 }
+
+                ForEach(viewModel.card.displayBadges, id: \.self) { badge in
+                    Text(badge)
+                        .font(MD3Typography.labelMedium)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(Color.purple)
+                        .clipShape(Capsule())
+                }
             }
 
             if let artist = viewModel.artistLabel {
