@@ -116,17 +116,20 @@ enum LocalCurrency {
         ("CNY", "Chinese Yuan", "¥"),
     ]
 
+    private static let autoDetectKey = "currencyAutoDetected_v1"
+
     static var current: String {
         get {
-            if let saved = UserDefaults.standard.string(forKey: key) {
-                return saved
+            // One-time auto-detect from device locale. Runs once per install,
+            // even for existing users who had the old hardcoded USD default.
+            if !UserDefaults.standard.bool(forKey: autoDetectKey) {
+                let deviceCode = Locale.current.currency?.identifier ?? "USD"
+                let code = supported.contains(where: { $0.code == deviceCode }) ? deviceCode : "USD"
+                UserDefaults.standard.set(code, forKey: key)
+                UserDefaults.standard.set(true, forKey: autoDetectKey)
+                return code
             }
-            // First launch: detect currency from device locale and persist it.
-            // Only runs once — after this the user's manual choice takes over.
-            let deviceCode = Locale.current.currency?.identifier ?? "USD"
-            let code = supported.contains(where: { $0.code == deviceCode }) ? deviceCode : "USD"
-            UserDefaults.standard.set(code, forKey: key)
-            return code
+            return UserDefaults.standard.string(forKey: key) ?? "USD"
         }
         set { UserDefaults.standard.set(newValue, forKey: key) }
     }
