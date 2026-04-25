@@ -123,20 +123,35 @@ actor MTGStocksService {
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let rawInterests = json["interests"] as? [[String: Any]] else { return [] }
 
-        // Filter to meaningful movers: current price >= $2, skip penny cards
+        // Filter to meaningful movers:
+        // - Tournament-legal cards only (no Art Cards, tokens, etc.)
+        // - Current price >= $2, previous price >= $1 (skip penny cards)
+        // - Cap percentage at 500% to filter data glitches
         let interests = rawInterests.compactMap { entry -> MTGStocksInterest? in
             guard let printObj = entry["print"] as? [String: Any],
                   let id = printObj["id"] as? Int,
                   let name = printObj["name"] as? String else { return nil }
+            // Skip non-tournament cards (art cards, tokens, etc.)
+            let isTournamentLegal = printObj["tournamentLegal"] as? Bool ?? false
+            guard isTournamentLegal else { return nil }
+            // Skip art series, tokens, and special sets
+            let setType = printObj["set_type"] as? String ?? ""
+            let skipSetTypes: Set<String> = ["art_series", "token", "memorabilia", "minigame"]
+            guard !skipSetTypes.contains(setType) else { return nil }
+            // Skip if name contains "Art Card"
+            guard !name.contains("Art Card") else { return nil }
             let currentPrice = entry["present_price"] as? Double
             let previousPrice = entry["past_price"] as? Double
             let pct = entry["percentage"] as? Double
-            guard let current = currentPrice, current >= 2.0 else { return nil }
+            guard let current = currentPrice, current >= 2.0,
+                  let previous = previousPrice, previous >= 1.0 else { return nil }
+            // Cap at 500% to filter data glitches
+            guard let percent = pct, abs(percent) <= 500 else { return nil }
             let setName = printObj["set_name"] as? String
             return MTGStocksInterest(
                 id: id, name: name, setName: setName,
-                currentPrice: currentPrice, previousPrice: previousPrice,
-                percentageChange: pct
+                currentPrice: current, previousPrice: previous,
+                percentageChange: percent
             )
         }
 
