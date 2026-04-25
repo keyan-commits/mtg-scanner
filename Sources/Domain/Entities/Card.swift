@@ -44,6 +44,10 @@ struct Card: Identifiable, Equatable, Hashable, Sendable {
     let legalities: FormatLegality
     let imageURIs: [String: String]
     let relatedPrintingsURI: String?
+    /// Scryfall language code (e.g. "en", "ja", "zhs"). Nil for legacy records.
+    let lang: String?
+    /// Localized card name as printed (e.g. Japanese name). Nil for English cards.
+    let printedName: String?
 
     // MARK: - Identifiable
 

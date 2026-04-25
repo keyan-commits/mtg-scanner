@@ -220,6 +220,13 @@ struct CardDetailView: View {
                 .font(MD3Typography.headlineMedium)
                 .foregroundStyle(MD3Theme.onBackground)
 
+            if let printedName = viewModel.card.printedName,
+               printedName != viewModel.card.name {
+                Text(printedName)
+                    .font(MD3Typography.bodyMedium)
+                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+            }
+
             HStack(spacing: 6) {
                 Text("\(viewModel.card.setNameWithYear) \u{2022} #\(viewModel.card.collectorNumber)")
                     .font(MD3Typography.bodyMedium)
@@ -250,6 +257,16 @@ struct CardDetailView: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
                         .background(Color.blue)
+                        .clipShape(Capsule())
+                }
+
+                if let lang = viewModel.card.lang, lang != "en" {
+                    Text(lang.uppercased())
+                        .font(MD3Typography.labelMedium)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(Color.red)
                         .clipShape(Capsule())
                 }
             }

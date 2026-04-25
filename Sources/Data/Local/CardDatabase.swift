@@ -100,6 +100,10 @@ extension CardRecord {
     /// Sentinel key used inside the persisted `imageURIsJSON` dict to
     /// hold a comma-separated list of frame effects.
     static let frameEffectsKey = "__frame_effects"
+    /// Sentinel keys for language metadata — piggybacked on imageURIsJSON
+    /// to avoid a SwiftData schema migration.
+    static let langKey = "__lang"
+    static let printedNameKey = "__printed_name"
 
     /// Encodes frame effects into the imageURIs dict before JSON
     /// serialization. Empty effects are not written.
@@ -158,6 +162,8 @@ extension CardRecord {
             imageURIs = dict
         }
         let frameEffectsList = Self.extractFrameEffects(from: &imageURIs)
+        let lang = imageURIs.removeValue(forKey: Self.langKey)
+        let printedName = imageURIs.removeValue(forKey: Self.printedNameKey)
 
         let cardRarity = CardRarity(rawValue: rarity) ?? .common
 
@@ -180,7 +186,9 @@ extension CardRecord {
             prices: cardPrices,
             legalities: formatLegality,
             imageURIs: imageURIs,
-            relatedPrintingsURI: printsSearchURI
+            relatedPrintingsURI: printsSearchURI,
+            lang: lang,
+            printedName: printedName
         )
     }
 }
@@ -302,6 +310,14 @@ extension CardRecord {
         // variants whose borderColor is "black".
         let frameEffects = json["frame_effects"] as? [String] ?? []
         Self.encodeFrameEffects(frameEffects, into: &imageURIs)
+
+        // Encode language metadata via sentinel keys (same pattern).
+        if let lang = json["lang"] as? String {
+            imageURIs[Self.langKey] = lang
+        }
+        if let printedName = json["printed_name"] as? String {
+            imageURIs[Self.printedNameKey] = printedName
+        }
 
         let imageURIsJSON: String
         if let data = try? JSONSerialization.data(withJSONObject: imageURIs),

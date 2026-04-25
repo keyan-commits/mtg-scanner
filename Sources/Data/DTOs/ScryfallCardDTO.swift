@@ -106,7 +106,9 @@ extension ScryfallCardDTO {
             prices: cardPrices,
             legalities: formatLegality,
             imageURIs: imageURIs ?? [:],
-            relatedPrintingsURI: printsSearchURI
+            relatedPrintingsURI: printsSearchURI,
+            lang: nil,
+            printedName: nil
         )
     }
 }
