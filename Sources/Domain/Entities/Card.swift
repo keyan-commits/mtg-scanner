@@ -50,6 +50,8 @@ struct Card: Identifiable, Equatable, Hashable, Sendable {
     let printedName: String?
     /// Scryfall promo types (e.g. "silverscroll", "judgegift", "boosterfun").
     let promoTypes: [String]
+    /// Scryfall finishes (e.g. "nonfoil", "foil", "etched").
+    let finishes: [String]
 
     // MARK: - Identifiable
 
@@ -114,6 +116,17 @@ struct Card: Identifiable, Equatable, Hashable, Sendable {
             if let label = frameLabels[fe] {
                 badges.append(label)
             }
+        }
+        // Finish info — show "Foil" for foil-only, "Etched" for etched-only
+        let hasNonfoil = finishes.contains("nonfoil")
+        let hasFoil = finishes.contains("foil")
+        let hasEtched = finishes.contains("etched")
+        if hasFoil && !hasNonfoil && !hasEtched {
+            badges.append("Foil")
+        } else if hasEtched && !hasNonfoil && !hasFoil {
+            badges.append("Etched")
+        } else if hasEtched && hasFoil && !hasNonfoil {
+            badges.append("Foil / Etched")
         }
         return badges
     }

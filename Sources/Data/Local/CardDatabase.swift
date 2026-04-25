@@ -106,6 +106,8 @@ extension CardRecord {
     static let printedNameKey = "__printed_name"
     /// Sentinel key for promo types (silverscroll, judgegift, etc.)
     static let promoTypesKey = "__promo_types"
+    /// Sentinel key for finishes (nonfoil, foil, etched)
+    static let finishesKey = "__finishes"
 
     /// Encodes frame effects into the imageURIs dict before JSON
     /// serialization. Empty effects are not written.
@@ -168,6 +170,8 @@ extension CardRecord {
         let printedName = imageURIs.removeValue(forKey: Self.printedNameKey)
         let promoTypesRaw = imageURIs.removeValue(forKey: Self.promoTypesKey)
         let promoTypes = promoTypesRaw?.split(separator: ",").map(String.init) ?? []
+        let finishesRaw = imageURIs.removeValue(forKey: Self.finishesKey)
+        let finishes = finishesRaw?.split(separator: ",").map(String.init) ?? []
 
         let cardRarity = CardRarity(rawValue: rarity) ?? .common
 
@@ -193,7 +197,8 @@ extension CardRecord {
             relatedPrintingsURI: printsSearchURI,
             lang: lang,
             printedName: printedName,
-            promoTypes: promoTypes
+            promoTypes: promoTypes,
+            finishes: finishes
         )
     }
 }
@@ -326,6 +331,10 @@ extension CardRecord {
         let promoTypes = json["promo_types"] as? [String] ?? []
         if !promoTypes.isEmpty {
             imageURIs[Self.promoTypesKey] = promoTypes.joined(separator: ",")
+        }
+        let finishes = json["finishes"] as? [String] ?? []
+        if !finishes.isEmpty {
+            imageURIs[Self.finishesKey] = finishes.joined(separator: ",")
         }
 
         let imageURIsJSON: String

@@ -95,7 +95,8 @@ struct MTGCardScannerApp: App {
             let dbVersion = UserDefaults.standard.integer(forKey: "dbVersion")
             // Version 9 = language metadata (lang, printed_name).
             // Version 10 = promo_types (silverscroll, judgegift, etc.)
-            let currentVersion = 10
+            // Version 11 = finishes (foil, nonfoil, etched)
+            let currentVersion = 11
             let cardCount = try await databaseManager.cardCount()
 
             if cardCount > 0 && dbVersion >= currentVersion {
