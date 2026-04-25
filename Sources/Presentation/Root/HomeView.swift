@@ -921,10 +921,27 @@ struct HomeView: View {
     }
 
     private func loadHotCards() async {
-        // Skip if price refresh hasn't completed yet (no previousPriceUSD data)
-        guard PriceRefreshService.shared != nil else { return }
-        let movers = (try? await cardRepository.fetchPriceMovers(limit: 10)) ?? []
-        hotCards = movers
+        // Try local price movers first (requires two price refreshes for previousPriceUSD)
+        if PriceRefreshService.shared != nil {
+            let movers = (try? await cardRepository.fetchPriceMovers(limit: 10)) ?? []
+            if !movers.isEmpty {
+                hotCards = movers
+                return
+            }
+        }
+
+        // Fallback: use MTGStocks interests when local data is empty
+        // (fresh install, or only one price refresh so far)
+        let interests = await MTGStocksService.shared.fetchInterests()
+        guard !interests.isEmpty else { return }
+        let resolver = CardResolver(cardRepository: cardRepository)
+        var resolved: [Card] = []
+        for interest in interests.prefix(10) {
+            if let card = await resolver.resolve(name: interest.name) {
+                resolved.append(card)
+            }
+        }
+        hotCards = resolved
     }
 
     private func loadSoughtAfterCards() async {

@@ -221,6 +221,10 @@ struct SoughtAfterCardsScreen: View {
         isLoading = true
         defer { isLoading = false }
         sections = await service.topCardsByFormat(limit: 10)
+        // Fall back to hardcoded staples when aggregation cache is empty
+        if sections.isEmpty {
+            sections = service.seedTopCardsByFormat(limit: 10)
+        }
         // Don't bulk-resolve here — every CardResolver.resolve call
         // hops to the @MainActor-isolated DatabaseManager and 100+
         // parallel calls would freeze the UI for seconds. Each row's

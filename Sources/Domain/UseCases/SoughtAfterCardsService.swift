@@ -54,6 +54,10 @@ protocol SoughtAfterCardsServiceProtocol: Sendable {
     /// dedicated `SoughtAfterCardsScreen` accessible from the home
     /// section header.
     func topCardsByFormat(limit: Int) async -> [FormatTopCards]
+
+    /// Seed data grouped by format from hardcoded staple lists.
+    /// Fallback for the detail screen when aggregation cache is empty.
+    func seedTopCardsByFormat(limit: Int) -> [FormatTopCards]
 }
 
 /// Computes the home page's "Top 10 Most Sought-After Cards" by
@@ -319,6 +323,41 @@ struct SoughtAfterCardsService: SoughtAfterCardsServiceProtocol {
     /// Records that a refresh just completed.
     func markRefreshed() {
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.lastRefreshKey)
+    }
+
+    /// Builds seed data grouped by format from hardcoded staple lists.
+    /// Used as fallback for the detail screen when aggregation cache is empty.
+    func seedTopCardsByFormat(limit: Int = 10) -> [FormatTopCards] {
+        let formatLists: [(name: String, code: String, staples: [LandCategory])] = [
+            ("Modern", "MO", ModernStaples.all),
+            ("Legacy", "LE", LegacyStaples.all),
+            ("Pioneer", "PI", PioneerStaples.all),
+            ("Vintage", "VI", VintageStaples.all),
+            ("Pauper", "PA", PauperStaples.all),
+            ("Premodern", "PM", PremodernStaples.all),
+        ]
+        // Overall: cards appearing in multiple formats
+        let overall = seedFromStaples()
+        var sections: [FormatTopCards] = [
+            FormatTopCards(formatCode: nil, formatName: "Overall", cards: Array(overall.prefix(limit)))
+        ]
+        for fmt in formatLists {
+            var names: [String: Int] = [:]
+            for category in fmt.staples {
+                for name in category.cardNames {
+                    names[name, default: 0] += 1
+                }
+            }
+            let cards = names
+                .map { SoughtAfterCard(cardName: $0.key, archetypeCount: $0.value, totalCopies: $0.value) }
+                .sorted { ($0.archetypeCount, $0.cardName) > ($1.archetypeCount, $1.cardName) }
+                .prefix(limit)
+                .map { $0 }
+            if !cards.isEmpty {
+                sections.append(FormatTopCards(formatCode: fmt.code, formatName: fmt.name, cards: cards))
+            }
+        }
+        return sections
     }
 
     /// Builds seed data from hardcoded format staple lists.
