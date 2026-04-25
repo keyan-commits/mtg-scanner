@@ -116,26 +116,62 @@ struct MTGCardScannerApp: App {
 
             setupState = .importing(progress: 0)
 
-            // Import in background, updating progress
-            let data = try Data(contentsOf: fileURL)
-            guard let jsonArray = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-                setupState = .error("Downloaded data is invalid.")
-                return
-            }
-
+            // Memory-map the file to avoid loading ~200MB into heap.
+            // Parse individual JSON objects (not the whole array) to
+            // keep peak memory low on older devices.
+            let data = try Data(contentsOf: fileURL, options: .mappedIfSafe)
             let context = ModelContext(databaseManager.modelContainer)
-            let total = jsonArray.count
             let batchSize = 500
             var count = 0
+            let totalBytes = data.count
+            var i = data.startIndex
 
-            for json in jsonArray {
-                guard let record = CardRecord.fromBulkJSON(json) else { continue }
-                context.insert(record)
-                count += 1
+            while i < data.endIndex {
+                // Skip to next '{'
+                while i < data.endIndex && data[i] != UInt8(ascii: "{") { i = data.index(after: i) }
+                guard i < data.endIndex else { break }
 
-                if count % batchSize == 0 {
+                // Find matching '}' — properly handle braces inside strings
+                let start = i
+                var depth = 0
+                var inString = false
+                var escaped = false
+
+                while i < data.endIndex {
+                    let b = data[i]
+                    if escaped {
+                        escaped = false
+                    } else if b == UInt8(ascii: "\\") && inString {
+                        escaped = true
+                    } else if b == UInt8(ascii: "\"") {
+                        inString = !inString
+                    } else if !inString {
+                        if b == UInt8(ascii: "{") { depth += 1 }
+                        else if b == UInt8(ascii: "}") {
+                            depth -= 1
+                            if depth == 0 {
+                                i = data.index(after: i)
+                                break
+                            }
+                        }
+                    }
+                    i = data.index(after: i)
+                }
+
+                // Parse this single card object
+                let objectSlice = data[start..<i]
+                autoreleasepool {
+                    if let json = try? JSONSerialization.jsonObject(with: Data(objectSlice)) as? [String: Any],
+                       let record = CardRecord.fromBulkJSON(json) {
+                        context.insert(record)
+                        count += 1
+                    }
+                }
+
+                if count > 0 && count % batchSize == 0 {
                     try context.save()
-                    setupState = .importing(progress: Double(count) / Double(total))
+                    let byteOffset = data.distance(from: data.startIndex, to: i)
+                    setupState = .importing(progress: Double(byteOffset) / Double(totalBytes))
                 }
             }
 
