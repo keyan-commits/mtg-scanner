@@ -394,6 +394,11 @@ struct HomeView: View {
                             .font(.caption2)
                             .foregroundStyle(MD3Theme.primary)
                     }
+                    if let foil = card.prices.usdFoil {
+                        Text("· Foil $\(foil)")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                    }
                 }
             }
             Spacer(minLength: 8)
