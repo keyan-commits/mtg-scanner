@@ -28,6 +28,7 @@ struct HomeView: View {
     @State private var soughtAfterCards: [SoughtAfterCard] = []
     @State private var hotCards: [Card] = []  // Price movers (local DB)
     @State private var hotInterests: [MTGStocksInterest] = []  // Price movers (MTGStocks fallback)
+    @State private var hotCardsLoaded: Bool = false
     /// Resolved Card per name (via the user's printing strategy) so
     /// the sought-after row can render images.
     @State private var soughtAfterResolved: [String: Card] = [:]
@@ -793,18 +794,7 @@ struct HomeView: View {
                 .padding(12)
                 .background(MD3Theme.surface)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
-            } else if PriceRefreshService.shared?.isRefreshing == true {
-                HStack(spacing: 8) {
-                    ProgressView().scaleEffect(0.7)
-                    Text("Updating prices…")
-                        .font(.caption2)
-                        .foregroundStyle(MD3Theme.onSurfaceVariant)
-                }
-                .padding(12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(MD3Theme.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            } else {
+            } else if !hotCardsLoaded {
                 HStack(spacing: 8) {
                     ProgressView().scaleEffect(0.7)
                     Text("Loading price movers…")
@@ -814,6 +804,14 @@ struct HomeView: View {
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(MD3Theme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            } else {
+                Text("Price movers unavailable — check your connection")
+                    .font(.caption2)
+                    .foregroundStyle(MD3Theme.onSurfaceVariant.opacity(0.6))
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(MD3Theme.surface)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
@@ -993,6 +991,8 @@ struct HomeView: View {
     }
 
     private func loadHotCards() async {
+        defer { hotCardsLoaded = true }
+
         // Try local price movers first (requires two price refreshes for previousPriceUSD)
         if PriceRefreshService.shared != nil {
             let movers = (try? await cardRepository.fetchPriceMovers(limit: 10)) ?? []
