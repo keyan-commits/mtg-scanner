@@ -172,6 +172,10 @@ struct MTGCardScannerApp: App {
                     try context.save()
                     let byteOffset = data.distance(from: data.startIndex, to: i)
                     setupState = .importing(progress: Double(byteOffset) / Double(totalBytes))
+                    // Yield to the main run loop so SwiftUI can render
+                    // the progress bar update. Without this the parsing
+                    // loop monopolises the main thread and the UI freezes.
+                    await Task.yield()
                 }
             }
 
