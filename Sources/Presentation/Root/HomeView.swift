@@ -1012,13 +1012,27 @@ struct HomeView: View {
 
     private func resolveInterest(_ interest: MTGStocksInterest) async {
         guard hotInterestsResolved[interest.id] == nil else { return }
-        let resolver = CardResolver(cardRepository: cardRepository)
         // Strip MTGStocks variant suffixes like "(JP Alternate Art)",
         // "(Extended Art)", "(Borderless)" — Scryfall uses plain names.
         var name = interest.name
         if let parenRange = name.range(of: " (") {
             name = String(name[..<parenRange.lowerBound])
         }
+        // Try to match the exact set from MTGStocks first
+        if let setName = interest.setName,
+           let printings = try? await cardRepository.findAllPrintings(name: name),
+           !printings.isEmpty {
+            let lowerSet = setName.lowercased()
+            // Match by set name (fuzzy — MTGStocks and Scryfall names differ slightly)
+            if let match = printings.first(where: {
+                $0.set.name.lowercased().contains(lowerSet) || lowerSet.contains($0.set.name.lowercased())
+            }) {
+                hotInterestsResolved[interest.id] = match
+                return
+            }
+        }
+        // Fallback: cheapest printing
+        let resolver = CardResolver(cardRepository: cardRepository)
         if let card = await resolver.resolve(name: name, strategy: .cheapest) {
             hotInterestsResolved[interest.id] = card
         }
