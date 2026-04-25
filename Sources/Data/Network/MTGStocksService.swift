@@ -258,9 +258,11 @@ struct MTGStocksPriceHistory: Decodable {
         case marketFoil = "market_foil"
     }
 
-    /// Returns the average price data points as (date, price) tuples.
+    /// Returns price data points as (date, price) tuples.
+    /// Tries avg → market → foil → marketFoil for foil-only printings.
     var averagePrices: [(date: Date, price: Double)] {
-        (avg ?? market ?? []).compactMap { point in
+        let source = avg ?? market ?? foil ?? marketFoil ?? []
+        return source.compactMap { point in
             guard point.count >= 2 else { return nil }
             return (Date(timeIntervalSince1970: point[0] / 1000), point[1])
         }
