@@ -172,6 +172,10 @@ struct MTGStocksCard {
     let allTimeHigh: ATRecord?
     let allTimeLow: ATRecord?
     let vendorPrices: [VendorPrice]
+    /// Real TCGPlayer tier prices (low/market/high) from MTGStocks.
+    let tcgLow: Double?
+    let tcgMarket: Double?
+    let tcgHigh: Double?
 
     struct ATRecord {
         let avg: Double?
@@ -223,10 +227,19 @@ extension MTGStocksCard {
             }
         }
 
+        // Extract real TCGPlayer Low/Market/High tier prices
+        let tcgLatest = (json["tcgplayer"] as? [String: Any])?["latestPrice"] as? [String: Any]
+        let tcgLow = tcgLatest?["low"] as? Double
+        let tcgHigh = tcgLatest?["high"] as? Double
+        // Market: try regular first, then foil
+        let tcgMarket = (tcgLatest?["market"] as? Double)
+            ?? (tcgLatest?["market_foil"] as? Double)
+
         return MTGStocksCard(
             id: id, name: name,
             allTimeHigh: ath, allTimeLow: atl,
-            vendorPrices: vendors
+            vendorPrices: vendors,
+            tcgLow: tcgLow, tcgMarket: tcgMarket, tcgHigh: tcgHigh
         )
     }
 }

@@ -27,11 +27,18 @@ struct PriceComparisonView: View {
                     .font(MD3Typography.titleMedium)
                     .foregroundStyle(MD3Theme.onSurface)
 
-                // Estimated TCGPlayer range — synthesised because Scryfall
-                // only exposes the market (mid) price, not real low/high.
-                // Falls back to foil price for foil-only printings.
+                // TCGPlayer Low / Market / High range.
+                // Uses real data from MTGStocks when available,
+                // otherwise estimates from Scryfall market price.
                 if let rangeUSD = marketUSD ?? foilUSD {
-                    tcgRange(marketUSD: rangeUSD, preferred: preferred)
+                    if let detail = mtgStocksCard,
+                       let realLow = detail.tcgLow,
+                       let realMarket = detail.tcgMarket,
+                       let realHigh = detail.tcgHigh {
+                        tcgRangeReal(low: realLow, market: realMarket, high: realHigh, preferred: preferred)
+                    } else {
+                        tcgRange(marketUSD: rangeUSD, preferred: preferred)
+                    }
                 }
 
                 if marketUSD != nil || foilUSD != nil || eurAmount != nil {
@@ -239,6 +246,31 @@ struct PriceComparisonView: View {
     /// only exposes the market price, so the low and high are synthesized
     /// from typical TCGPlayer spreads (-15% / +20%) and clearly labeled
     /// as approximations in the footer caption.
+    /// Real TCGPlayer Low / Market / High from MTGStocks data.
+    @ViewBuilder
+    private func tcgRangeReal(low: Double, market: Double, high: Double, preferred: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("TCGPlayer range")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    .textCase(.uppercase)
+                Spacer()
+            }
+            HStack(alignment: .top, spacing: 0) {
+                tier(label: "Low", amount: low, preferred: preferred, color: .green)
+                Divider().frame(height: 36)
+                tier(label: "Market", amount: market, preferred: preferred, color: MD3Theme.primary, emphasized: true)
+                Divider().frame(height: 36)
+                tier(label: "High", amount: high, preferred: preferred, color: .red)
+            }
+            .padding(10)
+            .background(MD3Theme.surfaceVariant.opacity(0.4))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+    }
+
+    /// Fallback estimated range when MTGStocks data isn't available.
     @ViewBuilder
     private func tcgRange(marketUSD: Double, preferred: String) -> some View {
         let low = marketUSD * 0.85
@@ -296,7 +328,11 @@ struct PriceComparisonView: View {
         let conversionNote = preferred == "USD"
             ? ""
             : " · converted to \(preferred) via frankfurter.app"
-        return "Market price from TCGPlayer via Scryfall. Low/high are estimated (-15% / +20%) since Scryfall doesn't expose tier prices.\(conversionNote)"
+        let hasRealPrices = mtgStocksCard?.tcgLow != nil
+        if hasRealPrices {
+            return "Low/Market/High from TCGPlayer via MTGStocks.\(conversionNote)"
+        }
+        return "Market price from TCGPlayer via Scryfall. Low/high are estimated (-15% / +20%).\(conversionNote)"
     }
 
     // MARK: - Subviews
