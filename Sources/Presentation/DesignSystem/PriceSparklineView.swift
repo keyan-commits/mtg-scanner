@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Interactive sparkline chart for price history. Drag across the chart
 /// to scrub through data points and see date + price at that position.
+/// Shows prices in the user's preferred currency with USD equivalent.
 struct PriceSparklineView: View {
 
     let dataPoints: [(date: Date, price: Double)]
@@ -26,6 +27,10 @@ struct PriceSparklineView: View {
     }
 
     @State private var scrubIndex: Int?
+    @Bindable private var currencyService = CurrencyService.shared
+
+    private var preferred: String { LocalCurrency.current }
+    private var isLocalCurrency: Bool { preferred != "USD" }
 
     private var filteredPoints: [(date: Date, price: Double)] {
         let cutoff = timeRange.cutoff
@@ -64,6 +69,19 @@ struct PriceSparklineView: View {
         }
     }
 
+    // MARK: - Price formatting
+
+    private func formatPrice(_ usd: Double) -> String {
+        if isLocalCurrency, let converted = currencyService.convert(usd, to: preferred) {
+            return LocalCurrency.format(converted, currency: preferred)
+        }
+        return String(format: "$%.2f", usd)
+    }
+
+    private func usdLabel(_ usd: Double) -> String {
+        String(format: "$%.2f USD", usd)
+    }
+
     // MARK: - Header
 
     @ViewBuilder
@@ -76,9 +94,16 @@ struct PriceSparklineView: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.primary)
                 Spacer()
-                Text(String(format: "$%.2f", point.price))
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundStyle(lineColor)
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text(formatPrice(point.price))
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundStyle(lineColor)
+                    if isLocalCurrency {
+                        Text(usdLabel(point.price))
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
         } else {
             // Default: show percentage change + range
@@ -91,9 +116,16 @@ struct PriceSparklineView: View {
                         .foregroundStyle(lineColor)
                 }
                 Spacer()
-                Text(String(format: "$%.2f – $%.2f", minPrice, maxPrice))
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text("\(formatPrice(minPrice)) – \(formatPrice(maxPrice))")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                    if isLocalCurrency {
+                        Text("\(usdLabel(minPrice)) – \(usdLabel(maxPrice))")
+                            .font(.system(size: 8, design: .monospaced))
+                            .foregroundStyle(.secondary.opacity(0.7))
+                    }
+                }
             }
         }
     }
