@@ -108,77 +108,100 @@ struct PriceComparisonView: View {
                 if isLoadingHistory {
                     HStack(spacing: 8) {
                         ProgressView().scaleEffect(0.7)
-                        Text("Loading price history…")
+                        Text("Loading price data…")
                             .font(.caption2)
                             .foregroundStyle(MD3Theme.onSurfaceVariant)
                     }
                     .padding(.top, 4)
-                } else if let history = priceHistory, !history.averagePrices.isEmpty {
+                } else if mtgStocksCard != nil || priceHistory != nil {
                     Divider()
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("Price History")
-                                .font(MD3Typography.titleSmall)
-                                .foregroundStyle(MD3Theme.onSurface)
-                            Spacer()
-                            Picker("", selection: $historyTimeRange) {
-                                ForEach(PriceSparklineView.TimeRange.allCases) { range in
-                                    Text(range.rawValue).tag(range)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                            .frame(width: 180)
-                        }
-
-                        PriceSparklineView(
-                            dataPoints: history.averagePrices,
-                            timeRange: historyTimeRange
-                        )
-
-                        // All-time high/low from MTGStocks
-                        if let detail = mtgStocksCard {
-                            HStack(spacing: 16) {
-                                if let ath = detail.allTimeHigh?.avg {
-                                    VStack(alignment: .leading, spacing: 1) {
-                                        Text("ATH")
-                                            .font(.system(size: 9, weight: .semibold))
-                                            .foregroundStyle(.secondary)
-                                        Text(String(format: "$%.2f", ath))
-                                            .font(.system(size: 12, weight: .bold, design: .monospaced))
-                                            .foregroundStyle(.green)
-                                    }
-                                }
-                                if let atl = detail.allTimeLow?.avg {
-                                    VStack(alignment: .leading, spacing: 1) {
-                                        Text("ATL")
-                                            .font(.system(size: 9, weight: .semibold))
-                                            .foregroundStyle(.secondary)
-                                        Text(String(format: "$%.2f", atl))
-                                            .font(.system(size: 12, weight: .bold, design: .monospaced))
-                                            .foregroundStyle(.red)
-                                    }
-                                }
+                    // Price History Chart
+                    if let history = priceHistory, !history.averagePrices.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Price History")
+                                    .font(MD3Typography.titleSmall)
+                                    .foregroundStyle(MD3Theme.onSurface)
                                 Spacer()
-                                if let id = mtgStocksID,
-                                   let url = MTGStocksService.shared.webURL(id: id) {
-                                    Link(destination: url) {
-                                        HStack(spacing: 4) {
-                                            Text("MTGStocks")
-                                                .font(.caption.weight(.medium))
-                                            Image(systemName: "arrow.up.right.square")
-                                                .font(.caption2)
-                                        }
-                                        .foregroundStyle(MD3Theme.primary)
+                                Picker("", selection: $historyTimeRange) {
+                                    ForEach(PriceSparklineView.TimeRange.allCases) { range in
+                                        Text(range.rawValue).tag(range)
                                     }
+                                }
+                                .pickerStyle(.segmented)
+                                .frame(width: 180)
+                            }
+
+                            PriceSparklineView(
+                                dataPoints: history.averagePrices,
+                                timeRange: historyTimeRange
+                            )
+                        }
+                    }
+
+                    // ATH/ATL + MTGStocks link
+                    if let detail = mtgStocksCard {
+                        HStack(spacing: 16) {
+                            if let ath = detail.allTimeHigh?.avg {
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text("ATH")
+                                        .font(.system(size: 9, weight: .semibold))
+                                        .foregroundStyle(.secondary)
+                                    Text(String(format: "$%.2f", ath))
+                                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(.green)
+                                }
+                            }
+                            if let atl = detail.allTimeLow?.avg {
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text("ATL")
+                                        .font(.system(size: 9, weight: .semibold))
+                                        .foregroundStyle(.secondary)
+                                    Text(String(format: "$%.2f", atl))
+                                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(.red)
+                                }
+                            }
+                            Spacer()
+                            if let id = mtgStocksID,
+                               let url = MTGStocksService.shared.webURL(id: id) {
+                                Link(destination: url) {
+                                    HStack(spacing: 4) {
+                                        Text("MTGStocks")
+                                            .font(.caption.weight(.medium))
+                                        Image(systemName: "arrow.up.right.square")
+                                            .font(.caption2)
+                                    }
+                                    .foregroundStyle(MD3Theme.primary)
                                 }
                             }
                         }
 
-                        Text("Price data from MTGStocks.com")
-                            .font(.system(size: 9))
-                            .foregroundStyle(MD3Theme.onSurfaceVariant.opacity(0.6))
+                        // Multi-vendor prices
+                        if !detail.vendorPrices.isEmpty {
+                            Divider()
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Compare Prices")
+                                    .font(MD3Typography.titleSmall)
+                                    .foregroundStyle(MD3Theme.onSurface)
+                                ForEach(detail.vendorPrices, id: \.vendor) { vp in
+                                    if let url = vp.url {
+                                        Link(destination: url) {
+                                            vendorRow(vp)
+                                        }
+                                        .buttonStyle(.plain)
+                                    } else {
+                                        vendorRow(vp)
+                                    }
+                                }
+                            }
+                        }
                     }
+
+                    Text("Price data from MTGStocks.com")
+                        .font(.system(size: 9))
+                        .foregroundStyle(MD3Theme.onSurfaceVariant.opacity(0.6))
                 }
             }
             .padding(16)
@@ -313,5 +336,28 @@ struct PriceComparisonView: View {
                 )
         }
         .buttonStyle(.plain)
+    }
+
+    private func vendorRow(_ vp: MTGStocksCard.VendorPrice) -> some View {
+        HStack {
+            Text(vp.vendor)
+                .font(MD3Typography.bodyMedium)
+                .foregroundStyle(MD3Theme.onSurface)
+            if vp.isFoil {
+                Text("Foil")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.orange)
+            }
+            Spacer()
+            Text(String(format: "$%.2f", vp.price))
+                .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                .foregroundStyle(MD3Theme.primary)
+            if vp.url != nil {
+                Image(systemName: "arrow.up.right.square")
+                    .font(.caption2)
+                    .foregroundStyle(MD3Theme.onSurfaceVariant.opacity(0.5))
+            }
+        }
+        .padding(.vertical, 4)
     }
 }

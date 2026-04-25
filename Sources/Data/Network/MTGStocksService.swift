@@ -92,8 +92,9 @@ actor MTGStocksService {
             return cached.detail
         }
 
-        guard let data = await fetch("/prints/\(id)") else { return nil }
-        guard let card = try? JSONDecoder().decode(MTGStocksCard.self, from: data) else { return nil }
+        guard let data = await fetch("/prints/\(id)"),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let card = MTGStocksCard.from(json: json) else { return nil }
 
         detailCache[id] = (card, Date())
         return card
@@ -165,21 +166,68 @@ actor MTGStocksService {
 
 // MARK: - Response Models
 
-struct MTGStocksCard: Decodable {
+struct MTGStocksCard {
     let id: Int
     let name: String
     let allTimeHigh: ATRecord?
     let allTimeLow: ATRecord?
+    let vendorPrices: [VendorPrice]
 
-    struct ATRecord: Decodable {
+    struct ATRecord {
         let avg: Double?
-        let date: Double? // timestamp_ms
     }
 
-    enum CodingKeys: String, CodingKey {
-        case id, name
-        case allTimeHigh = "all_time_high"
-        case allTimeLow = "all_time_low"
+    struct VendorPrice {
+        let vendor: String
+        let price: Double
+        let isFoil: Bool
+        let url: URL?
+    }
+}
+
+extension MTGStocksCard {
+    /// Parse from raw JSON since the vendor structures are irregular.
+    static func from(json: [String: Any]) -> MTGStocksCard? {
+        guard let id = json["id"] as? Int,
+              let name = json["name"] as? String else { return nil }
+
+        let ath: ATRecord? = (json["all_time_high"] as? [String: Any]).flatMap {
+            ATRecord(avg: $0["avg"] as? Double)
+        }
+        let atl: ATRecord? = (json["all_time_low"] as? [String: Any]).flatMap {
+            ATRecord(avg: $0["avg"] as? Double)
+        }
+
+        let vendorKeys: [(key: String, label: String)] = [
+            ("tcgplayer", "TCGPlayer"),
+            ("cardkingdom", "Card Kingdom"),
+            ("starcitygames", "Star City Games"),
+            ("cardmarket", "Cardmarket"),
+            ("cardtrader", "CardTrader"),
+            ("manapool", "ManaPool"),
+        ]
+
+        var vendors: [VendorPrice] = []
+        for (key, label) in vendorKeys {
+            guard let vendor = json[key] as? [String: Any],
+                  let latest = vendor["latestPrice"] as? [String: Any] else { continue }
+            let url = (vendor["url"] as? String).flatMap(URL.init(string:))
+                   ?? (vendor["urlFoil"] as? String).flatMap(URL.init(string:))
+            // Try avg first, then foil, then low
+            if let avg = latest["avg"] as? Double, avg > 0 {
+                vendors.append(VendorPrice(vendor: label, price: avg, isFoil: false, url: url))
+            } else if let foil = latest["foil"] as? Double, foil > 0 {
+                vendors.append(VendorPrice(vendor: label, price: foil, isFoil: true, url: url))
+            } else if let low = latest["low"] as? Double, low > 0 {
+                vendors.append(VendorPrice(vendor: label, price: low, isFoil: false, url: url))
+            }
+        }
+
+        return MTGStocksCard(
+            id: id, name: name,
+            allTimeHigh: ath, allTimeLow: atl,
+            vendorPrices: vendors
+        )
     }
 }
 
