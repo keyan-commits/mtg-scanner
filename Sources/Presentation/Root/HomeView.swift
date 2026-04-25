@@ -1013,7 +1013,13 @@ struct HomeView: View {
     private func resolveInterest(_ interest: MTGStocksInterest) async {
         guard hotInterestsResolved[interest.id] == nil else { return }
         let resolver = CardResolver(cardRepository: cardRepository)
-        if let card = await resolver.resolve(name: interest.name, strategy: .cheapest) {
+        // Strip MTGStocks variant suffixes like "(JP Alternate Art)",
+        // "(Extended Art)", "(Borderless)" — Scryfall uses plain names.
+        var name = interest.name
+        if let parenRange = name.range(of: " (") {
+            name = String(name[..<parenRange.lowerBound])
+        }
+        if let card = await resolver.resolve(name: name, strategy: .cheapest) {
             hotInterestsResolved[interest.id] = card
         }
     }
