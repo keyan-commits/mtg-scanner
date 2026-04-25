@@ -117,7 +117,17 @@ enum LocalCurrency {
     ]
 
     static var current: String {
-        get { UserDefaults.standard.string(forKey: key) ?? "USD" }
+        get {
+            if let saved = UserDefaults.standard.string(forKey: key) {
+                return saved
+            }
+            // First launch: detect currency from device locale and persist it.
+            // Only runs once — after this the user's manual choice takes over.
+            let deviceCode = Locale.current.currency?.identifier ?? "USD"
+            let code = supported.contains(where: { $0.code == deviceCode }) ? deviceCode : "USD"
+            UserDefaults.standard.set(code, forKey: key)
+            return code
+        }
         set { UserDefaults.standard.set(newValue, forKey: key) }
     }
 
