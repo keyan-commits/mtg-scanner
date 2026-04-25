@@ -29,8 +29,9 @@ struct PriceComparisonView: View {
 
                 // Estimated TCGPlayer range — synthesised because Scryfall
                 // only exposes the market (mid) price, not real low/high.
-                if let marketUSD {
-                    tcgRange(marketUSD: marketUSD, preferred: preferred)
+                // Falls back to foil price for foil-only printings.
+                if let rangeUSD = marketUSD ?? foilUSD {
+                    tcgRange(marketUSD: rangeUSD, preferred: preferred)
                 }
 
                 if marketUSD != nil || foilUSD != nil || eurAmount != nil {
