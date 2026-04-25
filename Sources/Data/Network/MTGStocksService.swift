@@ -119,11 +119,45 @@ actor MTGStocksService {
             return cached.entries
         }
 
-        guard let data = await fetch("/interests/average/regular") else { return [] }
-        guard let interests = try? JSONDecoder().decode([MTGStocksInterest].self, from: data) else { return [] }
+        guard let data = await fetch("/interests/average/regular"),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let rawInterests = json["interests"] as? [[String: Any]] else { return [] }
 
-        interestsCache = (interests, Date())
-        return interests
+        // Filter to meaningful movers: current price >= $2, skip penny cards
+        let interests = rawInterests.compactMap { entry -> MTGStocksInterest? in
+            guard let printObj = entry["print"] as? [String: Any],
+                  let id = printObj["id"] as? Int,
+                  let name = printObj["name"] as? String else { return nil }
+            let currentPrice = entry["present_price"] as? Double
+            let previousPrice = entry["past_price"] as? Double
+            let pct = entry["percentage"] as? Double
+            guard let current = currentPrice, current >= 2.0 else { return nil }
+            let setName = printObj["set_name"] as? String
+            return MTGStocksInterest(
+                id: id, name: name, setName: setName,
+                currentPrice: currentPrice, previousPrice: previousPrice,
+                percentageChange: pct
+            )
+        }
+
+        // Deduplicate by card name, keep highest absolute change
+        var bestByName: [String: MTGStocksInterest] = [:]
+        for interest in interests {
+            let key = interest.name.lowercased()
+            if let existing = bestByName[key] {
+                let existingDelta = abs((existing.currentPrice ?? 0) - (existing.previousPrice ?? 0))
+                let newDelta = abs((interest.currentPrice ?? 0) - (interest.previousPrice ?? 0))
+                if newDelta > existingDelta { bestByName[key] = interest }
+            } else {
+                bestByName[key] = interest
+            }
+        }
+
+        let sorted = bestByName.values
+            .sorted { abs($0.percentageChange ?? 0) > abs($1.percentageChange ?? 0) }
+
+        interestsCache = (sorted, Date())
+        return sorted
     }
 
     /// Convenience: look up a card by name and return its price history.
@@ -269,19 +303,11 @@ struct MTGStocksPriceHistory: Decodable {
     }
 }
 
-struct MTGStocksInterest: Decodable {
+struct MTGStocksInterest: Sendable {
     let id: Int
     let name: String
     let setName: String?
     let currentPrice: Double?
     let previousPrice: Double?
     let percentageChange: Double?
-
-    enum CodingKeys: String, CodingKey {
-        case id, name
-        case setName = "set_name"
-        case currentPrice = "current_price"
-        case previousPrice = "previous_price"
-        case percentageChange = "percentage"
-    }
 }
