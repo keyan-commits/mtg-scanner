@@ -48,6 +48,8 @@ struct Card: Identifiable, Equatable, Hashable, Sendable {
     let lang: String?
     /// Localized card name as printed (e.g. Japanese name). Nil for English cards.
     let printedName: String?
+    /// Scryfall promo types (e.g. "silverscroll", "judgegift", "boosterfun").
+    let promoTypes: [String]
 
     // MARK: - Identifiable
 
@@ -72,6 +74,48 @@ struct Card: Identifiable, Equatable, Hashable, Sendable {
         let year = String(releasedAt.prefix(4))
         // Sanity check: must be all digits.
         return year.allSatisfy(\.isNumber) ? year : nil
+    }
+
+    /// Combined display badges from frame effects and promo types.
+    /// Used in search result rows and card detail for variant identification.
+    var displayBadges: [String] {
+        let promoLabels: [String: String] = [
+            "silverscroll": "Silver Scroll",
+            "judgegift": "Judge Promo",
+            "buyabox": "Buy-a-Box",
+            "prerelease": "Prerelease",
+            "promopacks": "Promo Pack",
+            "bundle": "Bundle",
+            "gameday": "Game Day",
+            "datestamped": "Date Stamped",
+            "setpromo": "Set Promo",
+            "boosterfun": "Booster Fun",
+            "fracturefoil": "Fracture Foil",
+        ]
+        let frameLabels: [String: String] = [
+            "showcase": "Showcase",
+            "extendedart": "Extended Art",
+            "borderless": "Borderless",
+            "etched": "Etched",
+            "fullart": "Full Art",
+        ]
+        var badges: [String] = []
+        // Promo types first (more specific)
+        for pt in promoTypes {
+            if let label = promoLabels[pt] {
+                badges.append(label)
+            }
+        }
+        // Frame effects (skip "inverted" and skip "showcase" if Silver Scroll already shown)
+        let hasSilverScroll = promoTypes.contains("silverscroll")
+        for fe in frameEffects {
+            if fe == "inverted" { continue }
+            if fe == "showcase" && hasSilverScroll { continue }
+            if let label = frameLabels[fe] {
+                badges.append(label)
+            }
+        }
+        return badges
     }
 
     /// "Onslaught (2003)" — set name with the printing's release year

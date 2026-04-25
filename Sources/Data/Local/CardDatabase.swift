@@ -104,6 +104,8 @@ extension CardRecord {
     /// to avoid a SwiftData schema migration.
     static let langKey = "__lang"
     static let printedNameKey = "__printed_name"
+    /// Sentinel key for promo types (silverscroll, judgegift, etc.)
+    static let promoTypesKey = "__promo_types"
 
     /// Encodes frame effects into the imageURIs dict before JSON
     /// serialization. Empty effects are not written.
@@ -164,6 +166,8 @@ extension CardRecord {
         let frameEffectsList = Self.extractFrameEffects(from: &imageURIs)
         let lang = imageURIs.removeValue(forKey: Self.langKey)
         let printedName = imageURIs.removeValue(forKey: Self.printedNameKey)
+        let promoTypesRaw = imageURIs.removeValue(forKey: Self.promoTypesKey)
+        let promoTypes = promoTypesRaw?.split(separator: ",").map(String.init) ?? []
 
         let cardRarity = CardRarity(rawValue: rarity) ?? .common
 
@@ -188,7 +192,8 @@ extension CardRecord {
             imageURIs: imageURIs,
             relatedPrintingsURI: printsSearchURI,
             lang: lang,
-            printedName: printedName
+            printedName: printedName,
+            promoTypes: promoTypes
         )
     }
 }
@@ -317,6 +322,10 @@ extension CardRecord {
         }
         if let printedName = json["printed_name"] as? String {
             imageURIs[Self.printedNameKey] = printedName
+        }
+        let promoTypes = json["promo_types"] as? [String] ?? []
+        if !promoTypes.isEmpty {
+            imageURIs[Self.promoTypesKey] = promoTypes.joined(separator: ",")
         }
 
         let imageURIsJSON: String

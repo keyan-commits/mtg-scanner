@@ -93,9 +93,9 @@ struct MTGCardScannerApp: App {
             // (without this, double-faced cards render as gray
             // placeholders in the deck grid view).
             let dbVersion = UserDefaults.standard.integer(forKey: "dbVersion")
-            // Version 9 = language metadata (lang, printed_name) encoded
-            // in imageURIsJSON sentinel keys for Japanese card support.
-            let currentVersion = 9
+            // Version 9 = language metadata (lang, printed_name).
+            // Version 10 = promo_types (silverscroll, judgegift, etc.)
+            let currentVersion = 10
             let cardCount = try await databaseManager.cardCount()
 
             if cardCount > 0 && dbVersion >= currentVersion {

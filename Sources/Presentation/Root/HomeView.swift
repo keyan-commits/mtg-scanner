@@ -368,8 +368,8 @@ struct HomeView: View {
                             .background(Color.red)
                             .clipShape(Capsule())
                     }
-                    ForEach(card.frameEffects.filter { $0 != "inverted" }, id: \.self) { effect in
-                        Text(effect.replacingOccurrences(of: "extendedart", with: "extended art").capitalized)
+                    ForEach(card.displayBadges, id: \.self) { badge in
+                        Text(badge)
                             .font(.system(size: 9, weight: .bold))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 5)

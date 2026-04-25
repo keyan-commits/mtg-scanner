@@ -108,7 +108,8 @@ extension ScryfallCardDTO {
             imageURIs: imageURIs ?? [:],
             relatedPrintingsURI: printsSearchURI,
             lang: nil,
-            printedName: nil
+            printedName: nil,
+            promoTypes: []
         )
     }
 }
