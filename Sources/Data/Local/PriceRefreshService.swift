@@ -109,17 +109,23 @@ final class PriceRefreshService {
             let collectionDescriptor = FetchDescriptor<CollectionItem>()
             let collectionItems = (try? context.fetch(collectionDescriptor)) ?? []
             for item in collectionItems {
-                if let prices = priceLookup[item.scryfallID],
-                   let usdString = prices.usd,
-                   let usd = Double(usdString) {
-                    item.currentValueUSD = usd
+                if let prices = priceLookup[item.scryfallID] {
+                    if let usdString = prices.usd, let usd = Double(usdString) {
+                        item.currentValueUSD = usd
+                    }
+                    if let foilString = prices.usdFoil, let foil = Double(foilString) {
+                        item.currentValueFoilUSD = foil
+                    }
                 }
             }
             if !collectionItems.isEmpty { try context.save() }
 
-            // Compute and cache total collection value
+            // Compute and cache total collection value (foil + non-foil)
             let totalValue = collectionItems.reduce(0.0) { sum, item in
-                sum + (item.currentValueUSD ?? 0) * Double(item.quantity)
+                let nonFoilCount = item.quantity - item.foilQuantity
+                let nonFoilValue = (item.currentValueUSD ?? 0) * Double(max(0, nonFoilCount))
+                let foilValue = (item.currentValueFoilUSD ?? item.currentValueUSD ?? 0) * Double(item.foilQuantity)
+                return sum + nonFoilValue + foilValue
             }
             UserDefaults.standard.set(totalValue, forKey: "collectionCachedValueUSD")
             UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "collectionCachedValueAt")

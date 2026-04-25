@@ -206,6 +206,10 @@ final class PurchaseItem {
     /// without an explicit migration).
     var zone: String = "mainboard"
 
+    /// Whether this copy is foil. Affects which price (usd vs usdFoil)
+    /// is used for valuation. Defaults to false for existing items.
+    var isFoil: Bool = false
+
     // Quantity & status
     var quantity: Int
     var statusRaw: String // PurchaseStatus.rawValue
@@ -266,7 +270,7 @@ final class PurchaseItem {
 // MARK: - Factory from Card
 
 extension PurchaseItem {
-    static func from(card: Card, quantity: Int = 1, deck: DeckList? = nil, zone: String = "mainboard") -> PurchaseItem {
+    static func from(card: Card, quantity: Int = 1, deck: DeckList? = nil, zone: String = "mainboard", isFoil: Bool = false) -> PurchaseItem {
         let item = PurchaseItem(
             cardName: card.name,
             setCode: card.set.code,
@@ -279,10 +283,11 @@ extension PurchaseItem {
             deck: deck
         )
         item.zone = zone
-        // Snapshot the Scryfall USD price at add-time so we can detect
-        // price drops vs. the live price later.
-        if let usdString = card.prices.usd, let usd = Double(usdString) {
-            item.priceAtAddUSD = usd
+        item.isFoil = isFoil
+        // Snapshot the correct price based on foil status.
+        let priceStr = isFoil ? (card.prices.usdFoil ?? card.prices.usd) : card.prices.usd
+        if let priceStr, let price = Double(priceStr) {
+            item.priceAtAddUSD = price
             item.priceAtAddDate = Date()
         }
         return item
@@ -325,8 +330,10 @@ final class CollectionItem {
     var purchasePrice: Double?
     /// Where the card was purchased (store name, seller, event, etc.).
     var purchaseSource: String?
-    /// Current market price per copy in USD (updated during daily price refresh).
+    /// Current market price per non-foil copy in USD (updated during daily price refresh).
     var currentValueUSD: Double?
+    /// Current market price per foil copy in USD (updated during daily price refresh).
+    var currentValueFoilUSD: Double?
 
     init(
         cardName: String,
