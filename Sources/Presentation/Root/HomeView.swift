@@ -359,6 +359,15 @@ struct HomeView: View {
                     if let manaCost = card.manaCost, !manaCost.isEmpty {
                         ManaCostView(cost: manaCost, size: 12)
                     }
+                    if let lang = card.lang, lang != "en" {
+                        Text(lang.uppercased())
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(Color.red)
+                            .clipShape(Capsule())
+                    }
                 }
                 Text("\(card.setNameWithYear) · #\(card.collectorNumber)")
                     .font(.caption2)
