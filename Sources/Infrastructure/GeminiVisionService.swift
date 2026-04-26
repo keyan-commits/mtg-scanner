@@ -411,24 +411,37 @@ actor GeminiVisionService {
     /// Which key was used for the last insight call.
     static var lastUsedKey: String = "primary"
 
-    /// Generates a card insight using Gemini text model (no image).
-    /// Tries primary key first, retries with alt on rate limit.
-    static func generateInsight(prompt: String) async -> String? {
-        // Try primary first, then alt on failure
-        let keysToTry: [(key: String, label: String)] = {
-            var keys: [(String, String)] = []
-            if let primary = apiKey, !primary.isEmpty { keys.append((primary, "primary")) }
-            if let alt = altApiKey, !alt.isEmpty { keys.append((alt, "alt")) }
-            return keys
-        }()
+    /// Tracks which key to try first (persists across calls).
+    /// Starts with "primary", swaps to "alt" on failure, and back.
+    private static let preferredKeyKey = "geminiPreferredKey"
+    static var preferredKey: String {
+        get { UserDefaults.standard.string(forKey: preferredKeyKey) ?? "primary" }
+        set { UserDefaults.standard.set(newValue, forKey: preferredKeyKey) }
+    }
 
-        for (key, label) in keysToTry {
+    /// Generates a card insight using Gemini text model (no image).
+    /// Uses the preferred key first. On rate limit/failure, swaps to
+    /// the other key and retries. Loops between keys on errors.
+    static func generateInsight(prompt: String) async -> String? {
+        var allKeys: [(key: String, label: String)] = []
+        if let primary = apiKey, !primary.isEmpty { allKeys.append((primary, "primary")) }
+        if let alt = altApiKey, !alt.isEmpty { allKeys.append((alt, "alt")) }
+        guard !allKeys.isEmpty else { return nil }
+
+        // Put preferred key first
+        let sorted = allKeys.sorted { a, _ in a.label == preferredKey }
+
+        for (key, label) in sorted {
             if let result = await callGemini(prompt: prompt, apiKey: key) {
                 lastUsedKey = label
+                preferredKey = label // Stick with working key
                 if label == "primary" { recordUsage() }
                 else { recordAltUsage() }
                 return result
             }
+            // This key failed — swap preference to the other
+            preferredKey = (label == "primary") ? "alt" : "primary"
+            lastUsedKey = label + " (failed)"
         }
         return nil
     }
