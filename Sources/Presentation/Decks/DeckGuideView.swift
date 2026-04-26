@@ -16,8 +16,8 @@ struct DeckGuideView: View {
     @State private var isGenerating: Bool = false
     @State private var error: String?
     @State private var showFullGuide: Bool = false
-    @State private var referencedCards: [String] = []
-    @State private var resolvedRefs: [String: Card] = [:]
+    /// Lookup of deck card names → resolved Card for correct version matching.
+    @State private var deckCardLookup: [String: Card] = [:]
 
     private var isConfigured: Bool { GeminiVisionService.isConfigured }
     private var remainingQuota: Int { max(0, 1000 - GeminiVisionService.dailyUsage) }
@@ -61,10 +61,12 @@ struct DeckGuideView: View {
 
                 // Content
                 if let guide {
-                    Text(guide)
-                        .font(MD3Typography.bodySmall)
-                        .foregroundStyle(MD3Theme.onSurface)
-                        .lineLimit(6)
+                    LinkedCardText(
+                        text: String(guide.prefix(300)),
+                        cardRepository: cardRepository,
+                        deckCards: deckCardLookup,
+                        font: MD3Typography.bodySmall
+                    )
                     Button {
                         showFullGuide = true
                     } label: {
@@ -117,8 +119,8 @@ struct DeckGuideView: View {
         .sheet(isPresented: $showFullGuide) {
             guideFullScreen
         }
-        .onAppear {
-            loadCachedGuide()
+        .task {
+            await loadCachedGuide()
         }
     }
 
@@ -129,20 +131,11 @@ struct DeckGuideView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     if let guide {
-                        Text(guide)
-                            .font(.body)
-                            .foregroundStyle(MD3Theme.onSurface)
-                            .textSelection(.enabled)
-                    }
-
-                    if !referencedCards.isEmpty {
-                        Divider()
-                        Text("Referenced Cards")
-                            .font(.headline)
-                            .foregroundStyle(MD3Theme.onSurface)
-                        ForEach(referencedCards, id: \.self) { name in
-                            referencedCardRow(name)
-                        }
+                        LinkedCardText(
+                            text: guide,
+                            cardRepository: cardRepository,
+                            deckCards: deckCardLookup
+                        )
                     }
                 }
                 .padding(20)
@@ -158,76 +151,26 @@ struct DeckGuideView: View {
         }
     }
 
-    @ViewBuilder
-    private func referencedCardRow(_ name: String) -> some View {
-        let rowContent = HStack {
-            Text(name)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(MD3Theme.onSurface)
-            Spacer()
-            if resolvedRefs[name] != nil {
-                Image(systemName: "chevron.right")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(MD3Theme.onSurfaceVariant.opacity(0.5))
-            }
-        }
-        .padding(.vertical, 3)
-        .task { await resolveRef(name) }
-
-        if let card = resolvedRefs[name] {
-            NavigationLink {
-                CardDetailView(
-                    card: card,
-                    repository: cardRepository,
-                    deckRepository: nil,
-                    onScanAnother: {}
-                )
-            } label: {
-                rowContent
-            }
-            .buttonStyle(.plain)
-        } else {
-            rowContent
-        }
-    }
-
-    private func resolveRef(_ name: String) async {
-        guard resolvedRefs[name] == nil, let repo = cardRepository else { return }
+    /// Pre-resolve deck card names so LinkedCardText can match the correct version.
+    private func resolveDeckCards() async {
+        guard let repo = cardRepository else { return }
         let resolver = CardResolver(cardRepository: repo)
-        if let card = await resolver.resolve(name: name, strategy: .cheapest) {
-            resolvedRefs[name] = card
+        let allNames = Set(mainboard.map(\.name) + sideboard.map(\.name))
+        for name in allNames {
+            if deckCardLookup[name.lowercased()] == nil {
+                if let card = await resolver.resolve(name: name, strategy: .cheapest) {
+                    deckCardLookup[name.lowercased()] = card
+                }
+            }
         }
-    }
-
-    /// Extracts card names from **bold** markers in the guide text.
-    private func parseReferencedCards(from text: String) -> [String] {
-        var names: [String] = []
-        var seen = Set<String>()
-        let pattern = /\*\*([^*]+)\*\*/
-        for match in text.matches(of: pattern) {
-            let name = String(match.1).trimmingCharacters(in: .whitespacesAndNewlines)
-            // Skip section headers
-            let headers: Set<String> = ["How to Play", "Key Cards & Synergies", "Matchups to Watch",
-                                         "Sideboard Strategy", "Improvement Suggestions",
-                                         "Competitive Playability", "Price Outlook", "Collectibility"]
-            guard !headers.contains(name),
-                  !name.contains(":"),
-                  name.count >= 3,
-                  !seen.contains(name.lowercased()) else { continue }
-            seen.insert(name.lowercased())
-            names.append(name)
-        }
-        return names
     }
 
     // MARK: - Cache
 
-    private func loadCachedGuide() {
+    private func loadCachedGuide() async {
         guide = UserDefaults.standard.string(forKey: storageKey)
         guideDate = UserDefaults.standard.string(forKey: dateKey)
-        if let guide {
-            referencedCards = parseReferencedCards(from: guide)
-        }
+        await resolveDeckCards()
     }
 
     private func saveGuide(_ text: String, date: String) {
@@ -283,7 +226,6 @@ struct DeckGuideView: View {
         }
 
         guide = result
-        referencedCards = parseReferencedCards(from: result)
         let dateStr = Self.dateFormatter.string(from: Date())
         guideDate = dateStr
         saveGuide(result, date: dateStr)

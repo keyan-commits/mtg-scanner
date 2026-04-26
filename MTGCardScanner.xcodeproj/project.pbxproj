@@ -170,6 +170,7 @@
 		C49461BA8496472ED9C4FBC7 /* ArchetypeSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63D27D71B79B4CBC9574B5E0 /* ArchetypeSearchService.swift */; };
 		C53DE592C5B3069C3196F55B /* DeckScanScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6332C4FF25E76AC27433C40 /* DeckScanScreen.swift */; };
 		C6A2BFED024400871FABD042 /* ScannedCardsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2157A607C173ABCE8A4350 /* ScannedCardsListView.swift */; };
+		C766C2C62594AB5DC349654E /* LinkedCardText.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFCCF695E9136532274E9FE3 /* LinkedCardText.swift */; };
 		C7CAA465B1B88DAB451BB470 /* MTGStocksService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCF7F46AF24CC5AD002FA39C /* MTGStocksService.swift */; };
 		C7D310E59E0414F9724F59DA /* ArtVerificationIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 254158237A4E16E577D203D1 /* ArtVerificationIntegrationTests.swift */; };
 		C920833A3586C4372287F381 /* SoughtAfterCardsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44BC05551F5EFE289A2C9CFB /* SoughtAfterCardsScreen.swift */; };
@@ -408,6 +409,7 @@
 		D9F24550C923BCBB8F5AB1E6 /* EDHRECServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EDHRECServiceTests.swift; sourceTree = "<group>"; };
 		DCF7F46AF24CC5AD002FA39C /* MTGStocksService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MTGStocksService.swift; sourceTree = "<group>"; };
 		DE57AD5A1CECE9BAF56CC887 /* ArchetypeMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchetypeMatcher.swift; sourceTree = "<group>"; };
+		DFCCF695E9136532274E9FE3 /* LinkedCardText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkedCardText.swift; sourceTree = "<group>"; };
 		E00A71B39EA6EEBFDA46EB41 /* TCGPHService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TCGPHService.swift; sourceTree = "<group>"; };
 		E00CC5B63598B175A590CCD2 /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
 		E04D7EF05D11224F9316FE28 /* CameraPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreviewView.swift; sourceTree = "<group>"; };
@@ -800,6 +802,7 @@
 			isa = PBXGroup;
 			children = (
 				0A39FB312A533927BB7FE668 /* FlowLayout.swift */,
+				DFCCF695E9136532274E9FE3 /* LinkedCardText.swift */,
 				6F76910A48CF0B514083CCED /* MD3Components.swift */,
 				C1FF5CCB4517D927FE946345 /* MD3Elevation.swift */,
 				ACD37EBC2B6F82E3D7CC50A8 /* MD3Shape.swift */,
@@ -1136,6 +1139,7 @@
 				1A35F76350C34622679746C7 /* LandsScreen.swift in Sources */,
 				E8EED731F7C61FF1A8209312 /* LatestTopFinishesCache.swift in Sources */,
 				37ECDA5450CF9E1C7985581C /* LegacyStaples.swift in Sources */,
+				C766C2C62594AB5DC349654E /* LinkedCardText.swift in Sources */,
 				0B20116941D55F0D7A7E77BA /* LiveScannerView.swift in Sources */,
 				E360F742A744E9947A297E70 /* LocalCardRepository.swift in Sources */,
 				B621DC7DAAA2CA950028286F /* MD3Components.swift in Sources */,
