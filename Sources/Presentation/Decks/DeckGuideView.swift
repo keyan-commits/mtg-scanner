@@ -268,26 +268,26 @@ struct DeckGuideSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     if let guide {
-                        // Render with proper markdown (bold headers) + tappable card links
-                        let md = (try? AttributedString(markdown: guide, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(guide)
-                        Text(md)
-                            .font(.body)
-                            .foregroundStyle(.primary)
-                            .textSelection(.enabled)
-
-                        // Card chips
-                        let cardNames = extractCardNames(from: guide)
-                        if !cardNames.isEmpty {
-                            Divider()
-                            Text("Tap to view card details:")
+                        if let guideDate {
+                            Text("Generated \(guideDate)")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                            FlowLayout(spacing: 6) {
-                                ForEach(cardNames, id: \.self) { name in
-                                    cardChip(name)
-                                }
-                            }
                         }
+                        // Render with AttributedString + card names as tappable links
+                        Text(buildLinkedText(from: guide))
+                            .font(.body)
+                            .textSelection(.enabled)
+                            .environment(\.openURL, OpenURLAction { url in
+                                if url.scheme == "mtgcard",
+                                   let name = url.host?.removingPercentEncoding {
+                                    let key = name.lowercased()
+                                    if let card = resolvedCards[key] ?? deckCardLookup[key] {
+                                        selectedCard = card
+                                        showCardDetail = true
+                                    }
+                                }
+                                return .handled
+                            })
                     } else if isGenerating {
                         HStack(spacing: 8) {
                             ProgressView().scaleEffect(0.8)
@@ -324,16 +324,14 @@ struct DeckGuideSheet: View {
                 .padding(20)
             }
             .background(MD3Theme.background)
+            .navigationDestination(isPresented: $showCardDetail) {
+                if let card = selectedCard {
+                    CardDetailView(card: card, repository: cardRepository, deckRepository: nil, onScanAnother: {})
+                }
+            }
             .navigationTitle("Deck Guide — \(deckName)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    if let guideDate {
-                        Text(guideDate)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack {
                         if guide != nil {
@@ -352,37 +350,74 @@ struct DeckGuideSheet: View {
                 }
             }
             .task {
+                // Resolve deck cards FIRST so card links point to correct versions
+                await resolveDeckCards()
                 guide = UserDefaults.standard.string(forKey: storageKey)
                 guideDate = UserDefaults.standard.string(forKey: dateKey)
-                await resolveDeckCards()
             }
         }
     }
 
-    // MARK: - Card Chips
+    // MARK: - Inline Card Links
 
     @State private var resolvedCards: [String: Card] = [:]
     @State private var selectedCard: Card?
     @State private var showCardDetail: Bool = false
 
-    private func cardChip(_ name: String) -> some View {
-        let key = name.lowercased()
-        let card = resolvedCards[key] ?? deckCardLookup[key]
-        return NavigationLink {
-            if let card {
-                CardDetailView(card: card, repository: cardRepository, deckRepository: nil, onScanAnother: {})
+    private let sectionHeaders: Set<String> = [
+        "how to play", "key cards & synergies", "matchups to watch",
+        "sideboard strategy", "improvement suggestions"
+    ]
+
+    /// Builds an AttributedString where section headers are bold and
+    /// card names are tappable links (purple, underlined).
+    private func buildLinkedText(from text: String) -> AttributedString {
+        var result = AttributedString()
+        var remaining = text
+
+        while let starRange = remaining.range(of: "**") {
+            // Plain text before **
+            let before = String(remaining[remaining.startIndex..<starRange.lowerBound])
+            if !before.isEmpty {
+                result += AttributedString(before)
             }
-        } label: {
-            Text(name)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(card != nil ? .white : .secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(card != nil ? MD3Theme.primary : MD3Theme.surfaceVariant)
-                .clipShape(Capsule())
+            remaining = String(remaining[starRange.upperBound...])
+
+            // Find closing **
+            if let closeRange = remaining.range(of: "**") {
+                let name = String(remaining[remaining.startIndex..<closeRange.lowerBound])
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                remaining = String(remaining[closeRange.upperBound...])
+
+                var attr = AttributedString(name)
+                if sectionHeaders.contains(name.lowercased()) || name.hasSuffix(":") {
+                    // Section header — bold
+                    attr.font = .body.bold()
+                } else if name.count >= 3 {
+                    // Card name — tappable link
+                    attr.font = .body.bold()
+                    attr.foregroundColor = .purple
+                    attr.underlineStyle = .single
+                    if let encoded = name.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed),
+                       let url = URL(string: "mtgcard://\(encoded)") {
+                        attr.link = url
+                    }
+                    // Trigger resolution
+                    Task { await resolveCard(name) }
+                } else {
+                    attr.font = .body.bold()
+                }
+                result += attr
+            } else {
+                result += AttributedString("**" + remaining)
+                remaining = ""
+            }
         }
-        .disabled(card == nil)
-        .task { await resolveCard(name) }
+
+        if !remaining.isEmpty {
+            result += AttributedString(remaining)
+        }
+        return result
     }
 
     private func resolveCard(_ name: String) async {
@@ -397,22 +432,6 @@ struct DeckGuideSheet: View {
         if let card = await resolver.resolve(name: name, strategy: .cheapest, allowFuzzyFallback: false) {
             resolvedCards[key] = card
         }
-    }
-
-    private func extractCardNames(from text: String) -> [String] {
-        let headers: Set<String> = ["how to play", "key cards & synergies", "matchups to watch",
-                                     "sideboard strategy", "improvement suggestions"]
-        var names: [String] = []
-        var seen = Set<String>()
-        let pattern = /\*\*([^*]+)\*\*/
-        for match in text.matches(of: pattern) {
-            let name = String(match.1).trimmingCharacters(in: .whitespacesAndNewlines)
-            let lower = name.lowercased()
-            guard !headers.contains(lower), !name.hasSuffix(":"), name.count >= 3, !seen.contains(lower) else { continue }
-            seen.insert(lower)
-            names.append(name)
-        }
-        return names
     }
 
     // MARK: - Resolution & Generation
