@@ -6,6 +6,7 @@ struct DecksScreen: View {
     let repository: DeckListRepository
     let cardRepository: CardRepositoryProtocol?
 
+    @Bindable private var currencyService = CurrencyService.shared
     @State private var decks: [DeckList] = []
     @State private var analyses: [CardAnalysis] = []
     @State private var showCreateSheet = false
@@ -220,10 +221,19 @@ struct DecksScreen: View {
                             Image(systemName: "tag")
                                 .font(.caption2)
                                 .foregroundStyle(MD3Theme.primary)
-                            Text("TCGMid: $\(String(format: "%.2f", marketUSD))")
-                                .font(MD3Typography.labelSmall)
-                                .foregroundStyle(MD3Theme.primary)
-                                .monospacedDigit()
+                            let preferred = LocalCurrency.current
+                            if preferred != "USD",
+                               let converted = currencyService.convert(marketUSD, to: preferred) {
+                                Text("TCGMid: \(LocalCurrency.format(converted, currency: preferred))")
+                                    .font(MD3Typography.labelSmall)
+                                    .foregroundStyle(MD3Theme.primary)
+                                    .monospacedDigit()
+                            } else {
+                                Text("TCGMid: $\(String(format: "%.2f", marketUSD))")
+                                    .font(MD3Typography.labelSmall)
+                                    .foregroundStyle(MD3Theme.primary)
+                                    .monospacedDigit()
+                            }
                         }
                     }
                     if let spentLabel {

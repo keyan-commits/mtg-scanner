@@ -814,8 +814,7 @@ struct DeckDetailView: View {
                         uniquingKeysWith: { first, _ in first }
                     )
                 )
-                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
             ForEach(zoneSections) { zoneSection in
                 Section {
