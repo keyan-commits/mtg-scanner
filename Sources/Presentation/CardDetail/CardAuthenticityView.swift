@@ -19,6 +19,7 @@ struct CardAuthenticityView: View {
     @State private var error: String?
     @State private var frontItem: PhotosPickerItem?
     @State private var backItem: PhotosPickerItem?
+    @State private var zoomedImageURL: URL?
 
     struct AuthCheck: Identifiable {
         let id = UUID()
@@ -78,6 +79,12 @@ struct CardAuthenticityView: View {
                 }
             }
             .padding(16)
+        }
+        .sheet(item: Binding(
+            get: { zoomedImageURL.map { ZoomableImageID(url: $0) } },
+            set: { if $0 == nil { zoomedImageURL = nil } }
+        )) { item in
+            ZoomableImageView(url: item.url)
         }
         .onChange(of: frontItem) { _, item in
             Task { await loadPhoto(item: item, target: .front) }
@@ -344,41 +351,47 @@ struct CardAuthenticityView: View {
                         .foregroundStyle(MD3Theme.onSurfaceVariant)
                 }
             }
-            // Real vs Fake comparison images
+            // Real vs Fake comparison images (tappable to zoom)
             if let realURL = realImageURL.flatMap(URL.init(string:)),
                let fakeURL = fakeImageURL.flatMap(URL.init(string:)) {
                 HStack(spacing: 8) {
                     VStack(spacing: 2) {
-                        AsyncImage(url: realURL) { phase in
-                            switch phase {
-                            case .success(let img):
-                                img.resizable().scaledToFit()
-                                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                            default:
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(MD3Theme.surfaceVariant)
-                                    .frame(height: 80)
+                        Button { zoomedImageURL = realURL } label: {
+                            AsyncImage(url: realURL) { phase in
+                                switch phase {
+                                case .success(let img):
+                                    img.resizable().scaledToFit()
+                                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                                default:
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(MD3Theme.surfaceVariant)
+                                        .frame(height: 80)
+                                }
                             }
+                            .frame(maxHeight: 100)
                         }
-                        .frame(maxHeight: 100)
-                        Text("Real")
+                        .buttonStyle(.plain)
+                        Text("Real ✅")
                             .font(.system(size: 9, weight: .bold))
                             .foregroundStyle(.green)
                     }
                     VStack(spacing: 2) {
-                        AsyncImage(url: fakeURL) { phase in
-                            switch phase {
-                            case .success(let img):
-                                img.resizable().scaledToFit()
-                                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                            default:
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(MD3Theme.surfaceVariant)
-                                    .frame(height: 80)
+                        Button { zoomedImageURL = fakeURL } label: {
+                            AsyncImage(url: fakeURL) { phase in
+                                switch phase {
+                                case .success(let img):
+                                    img.resizable().scaledToFit()
+                                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                                default:
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(MD3Theme.surfaceVariant)
+                                        .frame(height: 80)
+                                }
                             }
+                            .frame(maxHeight: 100)
                         }
-                        .frame(maxHeight: 100)
-                        Text("Fake")
+                        .buttonStyle(.plain)
+                        Text("Fake ❌")
                             .font(.system(size: 9, weight: .bold))
                             .foregroundStyle(.red)
                     }
@@ -448,18 +461,18 @@ struct CardAuthenticityView: View {
         let prompt = """
         Analyze this Magic: The Gathering card for authenticity. \(cardContext) \(photoContext)
 
-        Return ONLY JSON: {"verdict":"LIKELY AUTHENTIC or LIKELY FAKE or INCONCLUSIVE","checks":[{"test":"name","status":"PASS/FAIL/WARNING/UNKNOWN","detail":"what you observed and a manual tip to verify further"}]}
+        Return ONLY JSON: {"verdict":"LIKELY AUTHENTIC or LIKELY FAKE or INCONCLUSIVE","checks":[{"test":"name","status":"PASS/FAIL/WARNING/UNKNOWN","detail":"what you observed + manual verification tip"}]}
 
-        Tests (mark UNKNOWN if photo doesn't show that area). For each, include a brief manual verification tip in the detail:
-        1. Print Quality — text sharpness, clean edges. Tip: use 10x loupe to check for fuzzy text
-        2. Color Accuracy — correct saturation. Tip: compare side-by-side with a known real card
-        3. Border Quality — consistent width. Tip: measure with ruler, should be even all sides
-        4. Set Symbol — correct shape/color. Tip: rarity color should match (gold=rare, orange=mythic)
-        5. Holographic Stamp — present on rares/mythics post-2014. Tip: tilt card to check holographic effect
-        6. Font Consistency — correct MTG fonts. Tip: compare letter shapes with Scryfall image
-        7. Card Back — correct blue color/pattern. Tip: do the light test (flashlight behind card)
-        8. Rosette Pattern — dot pattern. Tip: use 30x loupe, look for CMYK dot rosettes not inkjet lines
-        Be honest about what you can and cannot determine from the photo.
+        Tests based on threeforonetrading.com authentication guide. Mark UNKNOWN if photo quality prevents assessment:
+        1. Green Dot Test — on card back, look for 4 red dots in L-shape inside yellow spot within the green mana dot. Fakes lack red dots. Tip: use 20x loupe on the green dot
+        2. The "T" Test — letter T in "The" on card back should have smooth straight left edge, wavy right edge. Fakes have uniform edges. Tip: use loupe on "The" text
+        3. Rosette Pattern — real cards show sharp even CMYK dot rosettes. Fakes show blurry chaotic patterns or inkjet lines. Tip: use 30x loupe on colored areas
+        4. Print Layer Test — black lines in set/mana symbols should be printed ON TOP of color dots (separate layers). Fakes intermix black with color. Tip: magnify set symbol
+        5. Border & Line Quality — borders and lines around Deckmaster text should be crisp and continuous. Fakes show pixelated, uneven lines. Tip: check border with loupe
+        6. Font Consistency — correct MTG fonts, check letter shapes against Scryfall reference
+        7. Blue Core Test — real cards have a blue core layer visible from the side. Fakes show black core. Tip: flashlight behind card shows bluish tint
+        8. Holographic Stamp — rares/mythics post-2014 must have holographic oval stamp at bottom center
+        Be honest about what you can and cannot determine. Include manual verification tips.
         """
 
         parts.append(["text": prompt])
@@ -536,5 +549,61 @@ struct CardAuthenticityScreen: View {
         .background(MD3Theme.background)
         .navigationTitle("Verify Card")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - Zoomable Image
+
+private struct ZoomableImageID: Identifiable {
+    let url: URL
+    var id: String { url.absoluteString }
+}
+
+private struct ZoomableImageView: View {
+    let url: URL
+    @State private var scale: CGFloat = 1.0
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            GeometryReader { geo in
+                ScrollView([.horizontal, .vertical]) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: geo.size.width * scale)
+                                .scaleEffect(scale)
+                                .gesture(
+                                    MagnifyGesture()
+                                        .onChanged { value in
+                                            scale = max(1.0, min(5.0, value.magnification))
+                                        }
+                                )
+                                .onTapGesture(count: 2) {
+                                    withAnimation { scale = scale > 1.5 ? 1.0 : 3.0 }
+                                }
+                        case .failure:
+                            Text("Failed to load image")
+                                .foregroundStyle(.secondary)
+                        default:
+                            ProgressView()
+                        }
+                    }
+                    .frame(minWidth: geo.size.width, minHeight: geo.size.height)
+                }
+            }
+            .background(.black)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                        .foregroundStyle(.white)
+                }
+            }
+            .toolbarBackground(.hidden, for: .navigationBar)
+        }
     }
 }
