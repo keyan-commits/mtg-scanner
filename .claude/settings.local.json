@@ -233,7 +233,8 @@
       "WebFetch(domain:www.duckduckgo.com)",
       "WebFetch(domain:html.duckduckgo.com)",
       "WebFetch(domain:tcgsync.com)",
-      "Bash(git revert *)"
+      "Bash(git revert *)",
+      "WebFetch(domain:www.threeforonetrading.com)"
     ]
   }
 }

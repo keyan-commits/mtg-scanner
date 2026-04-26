@@ -1312,17 +1312,29 @@ struct HomeView: View {
                 }
                 .buttonStyle(.plain)
             }
-            HStack(spacing: 10) {
-                NavigationLink {
-                    CardAuthenticityScreen()
-                } label: {
-                    quickAction(icon: "checkmark.shield.fill", label: "Verify Card", color: .cyan)
+            NavigationLink {
+                CardAuthenticityScreen()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.shield.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.white)
+                        .frame(width: 32, height: 32)
+                        .background(Color.cyan)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    Text("Verify Card Authenticity")
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundStyle(MD3Theme.onSurface)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(MD3Theme.onSurfaceVariant.opacity(0.5))
                 }
-                .buttonStyle(.plain)
-                Spacer()
-                Spacer()
-                Spacer()
+                .padding(12)
+                .background(MD3Theme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
+            .buttonStyle(.plain)
         }
     }
 

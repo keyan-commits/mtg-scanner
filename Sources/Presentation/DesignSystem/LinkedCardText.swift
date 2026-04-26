@@ -1,9 +1,7 @@
 import SwiftUI
 
-/// Renders AI text with **card names** as inline tappable chips.
-/// Uses AttributedString for proper markdown rendering (bold headers)
-/// and extracts card names into a compact chip section after the text.
-/// Optimized: single Text view for body, chips only for card names.
+/// Renders AI text with **card names** replaced by inline tappable chips.
+/// Section headers render as bold headlines. Plain text wraps naturally.
 struct LinkedCardText: View {
 
     let text: String
@@ -29,43 +27,13 @@ struct LinkedCardText: View {
         self.font = font
     }
 
-    /// Render markdown properly (bold headers, bold card names).
-    private var attributedText: AttributedString {
-        (try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(text)
-    }
-
-    /// Extract card names from **bold** markers, excluding section headers.
-    private var cardNames: [String] {
-        var names: [String] = []
-        var seen = Set<String>()
-        let pattern = /\*\*([^*]+)\*\*/
-        for match in text.matches(of: pattern) {
-            let name = String(match.1).trimmingCharacters(in: .whitespacesAndNewlines)
-            let lower = name.lowercased()
-            guard !sectionHeaders.contains(lower),
-                  !name.hasSuffix(":"),
-                  name.count >= 3,
-                  !seen.contains(lower) else { continue }
-            seen.insert(lower)
-            names.append(name)
-        }
-        return names
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Single Text view with proper markdown rendering
-            Text(attributedText)
-                .font(font)
-                .foregroundStyle(MD3Theme.onSurface)
-                .textSelection(.enabled)
-
-            // Tappable card chips
-            if !cardNames.isEmpty {
-                FlowLayout(spacing: 4) {
-                    ForEach(cardNames, id: \.self) { name in
-                        cardChipButton(name)
-                    }
+            let paragraphs = text.components(separatedBy: "\n\n")
+            ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, paragraph in
+                let trimmed = paragraph.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty {
+                    paragraphView(trimmed)
                 }
             }
         }
@@ -81,7 +49,42 @@ struct LinkedCardText: View {
         }
     }
 
-    private func cardChipButton(_ name: String) -> some View {
+    // MARK: - Paragraph Rendering
+
+    @ViewBuilder
+    private func paragraphView(_ paragraph: String) -> some View {
+        let segments = parseSegments(paragraph)
+        // Use FlowLayout only if there are chips to inline.
+        // Pure text paragraphs render as single Text view.
+        let hasChips = segments.contains { if case .cardChip = $0 { return true }; return false }
+
+        if hasChips {
+            FlowLayout(spacing: 2) {
+                ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
+                    switch segment {
+                    case .word(let text):
+                        Text(text + " ")
+                            .font(font)
+                            .foregroundStyle(MD3Theme.onSurface)
+                    case .sectionHeader(let title):
+                        Text(title + " ")
+                            .font(.headline)
+                            .foregroundStyle(MD3Theme.onSurface)
+                    case .cardChip(let name):
+                        cardChipInline(name)
+                    }
+                }
+            }
+        } else {
+            // No chips — render as single AttributedString Text (fast)
+            let md = (try? AttributedString(markdown: paragraph, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(paragraph)
+            Text(md)
+                .font(font)
+                .foregroundStyle(MD3Theme.onSurface)
+        }
+    }
+
+    private func cardChipInline(_ name: String) -> some View {
         let key = name.lowercased()
         let card = resolvedCards[key] ?? deckCards[key]
         return Button {
@@ -91,17 +94,62 @@ struct LinkedCardText: View {
             }
         } label: {
             Text(name)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(card != nil ? .white : MD3Theme.onSurfaceVariant)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(card != nil ? MD3Theme.primary : MD3Theme.surfaceVariant)
-                .clipShape(Capsule())
+                .font(font.bold())
+                .foregroundStyle(card != nil ? MD3Theme.primary : MD3Theme.onSurface)
+                .underline(card != nil, color: MD3Theme.primary.opacity(0.4))
         }
         .buttonStyle(.plain)
         .disabled(card == nil)
         .task { await resolveCard(name) }
     }
+
+    // MARK: - Parsing
+
+    private enum Segment {
+        case word(String)
+        case sectionHeader(String)
+        case cardChip(String)
+    }
+
+    /// Parses text into segments. Consecutive plain words are merged into
+    /// single `.word` segments to minimize view count (10-20 segments per
+    /// paragraph instead of 50-100 individual words).
+    private func parseSegments(_ text: String) -> [Segment] {
+        var segments: [Segment] = []
+        var remaining = text
+
+        while let starRange = remaining.range(of: "**") {
+            let before = String(remaining[remaining.startIndex..<starRange.lowerBound])
+                .trimmingCharacters(in: .whitespaces)
+            if !before.isEmpty {
+                segments.append(.word(before))
+            }
+            remaining = String(remaining[starRange.upperBound...])
+
+            if let closeRange = remaining.range(of: "**") {
+                let name = String(remaining[remaining.startIndex..<closeRange.lowerBound])
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                remaining = String(remaining[closeRange.upperBound...])
+
+                if sectionHeaders.contains(name.lowercased()) || name.hasSuffix(":") {
+                    segments.append(.sectionHeader(name.replacingOccurrences(of: ":", with: "")))
+                } else if name.count >= 3 {
+                    segments.append(.cardChip(name))
+                } else {
+                    segments.append(.word(name))
+                }
+            } else {
+                segments.append(.word("**" + remaining))
+                remaining = ""
+            }
+        }
+
+        let tail = remaining.trimmingCharacters(in: .whitespaces)
+        if !tail.isEmpty { segments.append(.word(tail)) }
+        return segments
+    }
+
+    // MARK: - Resolution
 
     private func resolveCard(_ name: String) async {
         let key = name.lowercased()
