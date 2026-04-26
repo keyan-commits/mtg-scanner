@@ -9,7 +9,8 @@ struct CardInsightView: View {
 
     @State private var insight: String?
     @State private var insightDate: String?
-    @State private var alternatives: [(name: String, reason: String)] = []
+    @State private var budgetAlternatives: [(name: String, reason: String)] = []
+    @State private var gameplayAlternatives: [(name: String, reason: String)] = []
     @State private var resolvedAlternatives: [String: Card] = [:]
     @State private var isGenerating: Bool = false
     @State private var error: String?
@@ -58,14 +59,23 @@ struct CardInsightView: View {
                         .foregroundStyle(MD3Theme.onSurface)
                         .textSelection(.enabled)
 
-                    // Tappable alternatives
-                    if !alternatives.isEmpty {
+                    // Budget alternatives
+                    if !budgetAlternatives.isEmpty {
                         Divider()
                         Text("Budget Alternatives")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(MD3Theme.onSurfaceVariant)
-
-                        ForEach(alternatives, id: \.name) { alt in
+                        ForEach(budgetAlternatives, id: \.name) { alt in
+                            alternativeRow(alt)
+                        }
+                    }
+                    // Gameplay alternatives
+                    if !gameplayAlternatives.isEmpty {
+                        Divider()
+                        Text("Gameplay Alternatives")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(MD3Theme.onSurfaceVariant)
+                        ForEach(gameplayAlternatives, id: \.name) { alt in
                             alternativeRow(alt)
                         }
                     }
@@ -114,7 +124,8 @@ struct CardInsightView: View {
             // Reset state when card changes (e.g. navigating Other Printings)
             insight = nil
             insightDate = nil
-            alternatives = []
+            budgetAlternatives = []
+            gameplayAlternatives = []
             resolvedAlternatives = [:]
             error = nil
             await loadCachedInsight()
@@ -200,15 +211,36 @@ struct CardInsightView: View {
 
     /// Parses stored insight text. The format is:
     /// `[RECOMMENDATION] analysis text\n---ALT---\nname1|||reason1\nname2|||reason2`
+    /// Parses stored insight. Format:
+    /// `analysis\n---BUDGET---\nname|||reason\n---GAMEPLAY---\nname|||reason`
     private func parseInsight(_ stored: String) {
-        let parts = stored.components(separatedBy: "\n---ALT---\n")
-        insight = parts[0]
-        if parts.count > 1 {
-            alternatives = parts[1].components(separatedBy: "\n").compactMap { line in
-                let fields = line.components(separatedBy: "|||")
-                guard fields.count == 2 else { return nil }
-                return (name: fields[0], reason: fields[1])
+        let budgetSplit = stored.components(separatedBy: "\n---BUDGET---\n")
+        insight = budgetSplit[0]
+        budgetAlternatives = []
+        gameplayAlternatives = []
+
+        if budgetSplit.count > 1 {
+            let rest = budgetSplit[1]
+            let gameplaySplit = rest.components(separatedBy: "\n---GAMEPLAY---\n")
+            budgetAlternatives = parseAltLines(gameplaySplit[0])
+            if gameplaySplit.count > 1 {
+                gameplayAlternatives = parseAltLines(gameplaySplit[1])
             }
+        }
+        // Legacy format compat (old ---ALT--- separator)
+        if budgetAlternatives.isEmpty && gameplayAlternatives.isEmpty {
+            let legacySplit = stored.components(separatedBy: "\n---ALT---\n")
+            if legacySplit.count > 1 {
+                budgetAlternatives = parseAltLines(legacySplit[1])
+            }
+        }
+    }
+
+    private func parseAltLines(_ text: String) -> [(name: String, reason: String)] {
+        text.components(separatedBy: "\n").compactMap { line in
+            let fields = line.components(separatedBy: "|||")
+            guard fields.count == 2, !fields[0].isEmpty else { return nil }
+            return (name: fields[0], reason: fields[1])
         }
     }
 
@@ -234,8 +266,8 @@ struct CardInsightView: View {
         MTG card analysis. Return ONLY JSON, no markdown wrapping.
         Card: \(card.name) | Set: \(card.set.name) | \(card.rarity.rawValue) | \(card.typeLine) | \(priceInfo)
         CURRENT format status (trust this, not your training data): \(formatInfo)
-        {"recommendation":"BUY/SELL/HOLD","analysis":"80-120 words: playability, price outlook, reprint risk, collectibility for this \(card.set.name) printing. Use the CURRENT format status above, not outdated info.","alternatives":[{"name":"exact Scryfall card name","reason":"10 word reason"}]}
-        Alternatives: 2-3 cheaper cards legal in the same formats. Be actionable.
+        {"recommendation":"BUY/SELL/HOLD","analysis":"80-120 words: playability, price outlook, reprint risk, collectibility for this \(card.set.name) printing. Use the CURRENT format status above, not outdated info.","budget_alternatives":[{"name":"exact Scryfall card name","reason":"10 word reason"}],"gameplay_alternatives":[{"name":"exact Scryfall card name","reason":"10 word reason"}]}
+        budget_alternatives: 2-3 cheaper cards that do a similar job. gameplay_alternatives: 2-3 cards at any price that are the best strategic substitutes or upgrades. All must be legal in the same formats. Use exact Scryfall English names.
         """
 
         guard let result = await GeminiVisionService.generateInsight(prompt: prompt) else {
@@ -250,33 +282,49 @@ struct CardInsightView: View {
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
         var analysisText: String
-        var alts: [(name: String, reason: String)] = []
+        var budget: [(name: String, reason: String)] = []
+        var gameplay: [(name: String, reason: String)] = []
 
         if let data = cleaned.data(using: .utf8),
            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
             let rec = json["recommendation"] as? String ?? "HOLD"
             let analysis = json["analysis"] as? String ?? cleaned
             analysisText = "[\(rec)] \(analysis)"
-            let altArray = json["alternatives"] as? [[String: String]] ?? []
-            alts = altArray.compactMap { dict in
+            budget = (json["budget_alternatives"] as? [[String: String]] ?? []).compactMap { dict in
                 guard let name = dict["name"], let reason = dict["reason"] else { return nil }
                 return (name: name, reason: reason)
             }
+            gameplay = (json["gameplay_alternatives"] as? [[String: String]] ?? []).compactMap { dict in
+                guard let name = dict["name"], let reason = dict["reason"] else { return nil }
+                return (name: name, reason: reason)
+            }
+            // Fallback: old "alternatives" key
+            if budget.isEmpty && gameplay.isEmpty {
+                let alts = (json["alternatives"] as? [[String: String]] ?? []).compactMap { dict -> (name: String, reason: String)? in
+                    guard let name = dict["name"], let reason = dict["reason"] else { return nil }
+                    return (name: name, reason: reason)
+                }
+                budget = alts
+            }
         } else {
-            // Fallback: use raw text
             analysisText = cleaned
         }
 
         insight = analysisText
-        alternatives = alts
+        budgetAlternatives = budget
+        gameplayAlternatives = gameplay
         let dateStr = Self.dateFormatter.string(from: Date())
         insightDate = dateStr
 
-        // Serialize for DB: analysis + alternatives in a parseable format
+        // Serialize for DB
         var storedText = analysisText
-        if !alts.isEmpty {
-            let altLines = alts.map { "\($0.name)|||\($0.reason)" }
-            storedText += "\n---ALT---\n" + altLines.joined(separator: "\n")
+        if !budget.isEmpty {
+            let lines = budget.map { "\($0.name)|||\($0.reason)" }
+            storedText += "\n---BUDGET---\n" + lines.joined(separator: "\n")
+        }
+        if !gameplay.isEmpty {
+            let lines = gameplay.map { "\($0.name)|||\($0.reason)" }
+            storedText += "\n---GAMEPLAY---\n" + lines.joined(separator: "\n")
         }
 
         // Save to DB
