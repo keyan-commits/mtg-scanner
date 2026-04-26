@@ -10,6 +10,7 @@ struct SettingsScreen: View {
     @State private var refreshing: Bool = false
     @State private var pricesUpdated: String = "Never"
     @State private var geminiAPIKey: String = GeminiVisionService.apiKey ?? ""
+    @State private var geminiAltKey: String = GeminiVisionService.altApiKey ?? ""
     @State private var geminiEnabled: Bool = GeminiVisionService.isEnabled || (GeminiVisionService.isConfigured && UserDefaults.standard.object(forKey: "geminiEnabled") == nil)
     @State private var geminiTestResult: String?
     @State private var geminiTesting: Bool = false
@@ -168,6 +169,13 @@ struct SettingsScreen: View {
                             Spacer()
                             Button("Done") { geminiKeyFocused = false }
                         }
+                    }
+                SecureField("Alternative API Key (fallback)", text: $geminiAltKey)
+                    .textContentType(.password)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                    .onChange(of: geminiAltKey) { _, newValue in
+                        GeminiVisionService.altApiKey = newValue.isEmpty ? nil : newValue
                     }
                 if !geminiAPIKey.isEmpty {
                     Toggle("Enable Gemini Vision", isOn: $geminiEnabled)

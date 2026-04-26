@@ -8,12 +8,27 @@ import UIKit
 actor GeminiVisionService {
 
     private static let apiKeyKey = "geminiAPIKey"
+    private static let altApiKeyKey = "geminiAltAPIKey"
     // Gemini 3 Flash Preview: 15 RPM, 1000 RPD free tier
     private static let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent"
 
     static var apiKey: String? {
         get { UserDefaults.standard.string(forKey: apiKeyKey) }
         set { UserDefaults.standard.set(newValue, forKey: apiKeyKey) }
+    }
+
+    /// Alternative API key — used as fallback when the primary key is rate-limited.
+    static var altApiKey: String? {
+        get { UserDefaults.standard.string(forKey: altApiKeyKey) }
+        set { UserDefaults.standard.set(newValue, forKey: altApiKeyKey) }
+    }
+
+    /// Returns the best available API key (primary, or alt if primary is rate-limited).
+    static var activeApiKey: String? {
+        if !isRateLimited, let key = apiKey, !key.isEmpty { return key }
+        if let alt = altApiKey, !alt.isEmpty { return alt }
+        if let key = apiKey, !key.isEmpty { return key }
+        return nil
     }
 
     private static let enabledKey = "geminiEnabled"
@@ -101,7 +116,7 @@ actor GeminiVisionService {
 
     /// Identifies a card from a CGImage. Returns (cardName, setCode?, collectorNumber?) or nil.
     func identifyCard(image: CGImage) async -> GeminiCardResult? {
-        guard let apiKey = Self.apiKey, !apiKey.isEmpty else { return nil }
+        guard let apiKey = Self.activeApiKey else { return nil }
         Self.recordUsage()
 
         // Convert to JPEG
@@ -202,7 +217,7 @@ actor GeminiVisionService {
     /// Identifies ALL cards in a full binder page photo. Returns an array of results.
     /// Uses a single API call instead of one per card.
     func identifyAllCards(image: CGImage) async -> (analysis: String?, cards: [GeminiCardResult])? {
-        guard let apiKey = Self.apiKey, !apiKey.isEmpty else { return nil }
+        guard let apiKey = Self.activeApiKey else { return nil }
         Self.recordUsage()
 
         var uiImage = UIImage(cgImage: image)
@@ -354,7 +369,7 @@ actor GeminiVisionService {
     /// Generates a card insight using Gemini text model (no image).
     /// Uses 1 daily request. Returns the insight text or nil on failure.
     static func generateInsight(prompt: String) async -> String? {
-        guard let apiKey = apiKey, !apiKey.isEmpty else { return nil }
+        guard let apiKey = activeApiKey else { return nil }
         guard !isDailyLimitReached else { return nil }
         recordUsage()
 
