@@ -365,7 +365,6 @@ actor GeminiVisionService {
         request.timeoutInterval = 30
 
         let body: [String: Any] = [
-            "generationConfig": ["maxOutputTokens": 600],
             "contents": [[
                 "parts": [["text": prompt]]
             ]]
