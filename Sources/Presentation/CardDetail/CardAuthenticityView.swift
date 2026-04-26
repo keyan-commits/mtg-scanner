@@ -60,11 +60,15 @@ struct CardAuthenticityView: View {
                             .foregroundStyle(MD3Theme.onSurfaceVariant)
                     }
                 } else if !isConfigured {
-                    Text("Set up Gemini API key in Settings to enable authenticity checks")
+                    Text("Set up Gemini API key in Settings to enable AI visual checks")
                         .font(.caption)
                         .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    Divider()
+                    manualTestsSection
                 } else {
                     photoButtons
+                    Divider()
+                    manualTestsSection
                 }
 
                 if let error {
@@ -194,7 +198,10 @@ struct CardAuthenticityView: View {
                 .padding(.vertical, 2)
             }
 
-            Text("Visual analysis only. Not a substitute for physical tests (light, bend, weight).")
+            Divider()
+            manualTestsSection
+
+            Text("Visual analysis only. Combine with physical tests for best results.")
                 .font(.system(size: 9))
                 .foregroundStyle(MD3Theme.onSurfaceVariant.opacity(0.6))
                 .padding(.top, 4)
@@ -230,6 +237,82 @@ struct CardAuthenticityView: View {
         case .unknown:
             Image(systemName: "questionmark.circle.fill")
                 .foregroundStyle(.gray).font(.system(size: 18))
+        }
+    }
+
+    // MARK: - Manual Tests Guide
+
+    @State private var showManualTests: Bool = false
+
+    private var manualTestsSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                showManualTests.toggle()
+            } label: {
+                HStack {
+                    Image(systemName: "hand.raised.fill")
+                        .font(.caption)
+                    Text("Manual Tests Guide")
+                        .font(.system(size: 13, weight: .semibold))
+                    Spacer()
+                    Image(systemName: showManualTests ? "chevron.up" : "chevron.down")
+                        .font(.caption2)
+                }
+                .foregroundStyle(MD3Theme.onSurface)
+            }
+            .buttonStyle(.plain)
+
+            if showManualTests {
+                VStack(alignment: .leading, spacing: 10) {
+                    manualTest(
+                        icon: "flashlight.on.fill",
+                        name: "Light Test",
+                        steps: "Hold a bright flashlight behind the card. Real cards show a faint, even amber/reddish glow. Fakes block light completely or show uneven brightness. The blue core layer should be visible."
+                    )
+                    manualTest(
+                        icon: "arrow.up.and.down",
+                        name: "Bend Test",
+                        steps: "Gently bend the card into a U-shape and release. Real cards spring back flat with no crease. Fakes crease permanently or feel stiff/flimsy. Use caution with valuable cards."
+                    )
+                    manualTest(
+                        icon: "scalemass.fill",
+                        name: "Weight Test",
+                        steps: "Real cards weigh ~1.7-1.8 grams. Use a precision scale (0.01g). Fakes are often heavier (thicker stock) or lighter (thin paper)."
+                    )
+                    manualTest(
+                        icon: "drop.fill",
+                        name: "Water Drop Test",
+                        steps: "Place a tiny water drop on the card surface. Real cards bead water briefly before absorbing. Fakes absorb instantly or repel completely. WARNING: Can damage cards."
+                    )
+                    manualTest(
+                        icon: "magnifyingglass",
+                        name: "Loupe Test (10-30x)",
+                        steps: "Under magnification, real cards show a distinct rosette dot pattern (CMYK printing). Fakes show solid color bands, blurry dots, or inkjet patterns. Check the black text — it should be crisp, not fuzzy."
+                    )
+                    manualTest(
+                        icon: "rectangle.split.2x1",
+                        name: "Rip Test (Destructive)",
+                        steps: "LAST RESORT ONLY. Tear the edge of the card. Real cards have a visible blue core layer sandwiched between white layers. Fakes show solid white or gray throughout. Only use on suspected bulk fakes."
+                    )
+                }
+            }
+        }
+    }
+
+    private func manualTest(icon: String, name: String, steps: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundStyle(.blue)
+                .frame(width: 20)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(MD3Theme.onSurface)
+                Text(steps)
+                    .font(.system(size: 11))
+                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+            }
         }
     }
 
@@ -293,18 +376,18 @@ struct CardAuthenticityView: View {
         let prompt = """
         Analyze this Magic: The Gathering card for authenticity. \(cardContext) \(photoContext)
 
-        Return ONLY JSON: {"verdict":"LIKELY AUTHENTIC or LIKELY FAKE or INCONCLUSIVE","checks":[{"test":"name","status":"PASS/FAIL/WARNING/UNKNOWN","detail":"brief explanation"}]}
+        Return ONLY JSON: {"verdict":"LIKELY AUTHENTIC or LIKELY FAKE or INCONCLUSIVE","checks":[{"test":"name","status":"PASS/FAIL/WARNING/UNKNOWN","detail":"what you observed and a manual tip to verify further"}]}
 
-        Tests (mark UNKNOWN if photo doesn't show that area):
-        1. Print Quality — text sharpness, clean edges, no ink bleeding
-        2. Color Accuracy — correct saturation for this set/era
-        3. Border Quality — consistent width, correct color
-        4. Set Symbol — correct shape and rarity color
-        5. Holographic Stamp — present on rares/mythics (post-2014)
-        6. Font Consistency — correct MTG fonts
-        7. Card Back — correct blue color, pattern, and print quality
-        8. Rosette Pattern — visible dot pattern under close inspection
-        Be honest about what you can and cannot determine.
+        Tests (mark UNKNOWN if photo doesn't show that area). For each, include a brief manual verification tip in the detail:
+        1. Print Quality — text sharpness, clean edges. Tip: use 10x loupe to check for fuzzy text
+        2. Color Accuracy — correct saturation. Tip: compare side-by-side with a known real card
+        3. Border Quality — consistent width. Tip: measure with ruler, should be even all sides
+        4. Set Symbol — correct shape/color. Tip: rarity color should match (gold=rare, orange=mythic)
+        5. Holographic Stamp — present on rares/mythics post-2014. Tip: tilt card to check holographic effect
+        6. Font Consistency — correct MTG fonts. Tip: compare letter shapes with Scryfall image
+        7. Card Back — correct blue color/pattern. Tip: do the light test (flashlight behind card)
+        8. Rosette Pattern — dot pattern. Tip: use 30x loupe, look for CMYK dot rosettes not inkjet lines
+        Be honest about what you can and cannot determine from the photo.
         """
 
         parts.append(["text": prompt])
