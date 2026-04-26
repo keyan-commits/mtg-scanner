@@ -9,17 +9,45 @@ struct CardAuthenticityView: View {
     /// Optional — when provided, tells Gemini what card to expect.
     let card: Card?
 
-    @State private var frontImage: UIImage?
-    @State private var backImage: UIImage?
-    @State private var showFrontPicker: Bool = false
-    @State private var showBackPicker: Bool = false
+    @State private var photos: [PhotoSlot: UIImage] = [:]
+    @State private var pickerItems: [PhotoSlot: PhotosPickerItem] = [:]
+    @State private var activeSlot: PhotoSlot?
     @State private var isAnalyzing: Bool = false
     @State private var results: [AuthCheck] = []
     @State private var overallVerdict: String?
     @State private var error: String?
-    @State private var frontItem: PhotosPickerItem?
-    @State private var backItem: PhotosPickerItem?
     @State private var zoomedImageURL: URL?
+
+    enum PhotoSlot: String, CaseIterable, Identifiable {
+        case front = "Card Front"
+        case back = "Card Back"
+        case greenDot = "Green Dot (20x)"
+        case textCloseup = "Text \"T\" (20x)"
+        case setSymbol = "Set Symbol (20x)"
+        case cardEdge = "Card Edge (side)"
+
+        var id: String { rawValue }
+        var icon: String {
+            switch self {
+            case .front: return "photo"
+            case .back: return "photo.fill"
+            case .greenDot: return "circle.fill"
+            case .textCloseup: return "textformat"
+            case .setSymbol: return "star.circle"
+            case .cardEdge: return "rectangle.split.2x1"
+            }
+        }
+        var hint: String {
+            switch self {
+            case .front: return "Full card front"
+            case .back: return "Full card back"
+            case .greenDot: return "Magnified green dot on back"
+            case .textCloseup: return "Magnified \"The\" on back"
+            case .setSymbol: return "Magnified set symbol"
+            case .cardEdge: return "Side view showing core layer"
+            }
+        }
+    }
 
     struct AuthCheck: Identifiable {
         let id = UUID()
@@ -36,7 +64,8 @@ struct CardAuthenticityView: View {
     }
 
     private var isConfigured: Bool { GeminiVisionService.isConfigured }
-    private var hasPhotos: Bool { frontImage != nil || backImage != nil }
+    private var hasPhotos: Bool { !photos.isEmpty }
+    private var allPhotos: Bool { photos.count == PhotoSlot.allCases.count }
 
     var body: some View {
         MD3Card {
@@ -86,72 +115,32 @@ struct CardAuthenticityView: View {
         )) { item in
             ZoomableImageView(url: item.url)
         }
-        .onChange(of: frontItem) { _, item in
-            Task { await loadPhoto(item: item, target: .front) }
-        }
-        .onChange(of: backItem) { _, item in
-            Task { await loadPhoto(item: item, target: .back) }
-        }
     }
 
     // MARK: - Photo Buttons
 
     private var photoButtons: some View {
         VStack(spacing: 10) {
-            HStack(spacing: 12) {
-                // Front photo
-                PhotosPicker(selection: $frontItem, matching: .images) {
-                    VStack(spacing: 6) {
-                        if let frontImage {
-                            Image(uiImage: frontImage)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 80, height: 112)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                        } else {
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(MD3Theme.surfaceVariant)
-                                .frame(width: 80, height: 112)
-                                .overlay(
-                                    VStack(spacing: 4) {
-                                        Image(systemName: "photo.badge.plus")
-                                            .font(.title3)
-                                        Text("Front")
-                                            .font(.caption2)
-                                    }
-                                    .foregroundStyle(MD3Theme.onSurfaceVariant)
-                                )
-                        }
-                    }
-                }
+            Text("Capture these photos for a thorough check:")
+                .font(.caption)
+                .foregroundStyle(MD3Theme.onSurfaceVariant)
 
-                // Back photo
-                PhotosPicker(selection: $backItem, matching: .images) {
-                    VStack(spacing: 6) {
-                        if let backImage {
-                            Image(uiImage: backImage)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 80, height: 112)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                        } else {
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(MD3Theme.surfaceVariant)
-                                .frame(width: 80, height: 112)
-                                .overlay(
-                                    VStack(spacing: 4) {
-                                        Image(systemName: "photo.badge.plus")
-                                            .font(.title3)
-                                        Text("Back")
-                                            .font(.caption2)
-                                    }
-                                    .foregroundStyle(MD3Theme.onSurfaceVariant)
-                                )
-                        }
-                    }
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                ForEach(PhotoSlot.allCases) { slot in
+                    photoSlotView(slot)
                 }
+            }
 
-                Spacer()
+            // Progress indicator
+            HStack(spacing: 4) {
+                Text("\(photos.count)/\(PhotoSlot.allCases.count) photos")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(photos.count == PhotoSlot.allCases.count ? .green : MD3Theme.onSurfaceVariant)
+                if photos.count < PhotoSlot.allCases.count {
+                    Text("— more photos = better accuracy")
+                        .font(.caption2)
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                }
             }
 
             if hasPhotos {
@@ -160,22 +149,72 @@ struct CardAuthenticityView: View {
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.shield")
-                        Text("Verify Card")
+                        Text("Verify Card (\(photos.count) photos)")
                     }
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
-                    .background(Color.blue)
+                    .background(photos.count >= 4 ? Color.blue : Color.blue.opacity(0.6))
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
                 .buttonStyle(.plain)
             }
-
-            Text("Pick front and/or back photos from library or camera")
-                .font(.system(size: 9))
-                .foregroundStyle(MD3Theme.onSurfaceVariant)
         }
+    }
+
+    @ViewBuilder
+    private func photoSlotView(_ slot: PhotoSlot) -> some View {
+        let binding = Binding<PhotosPickerItem?>(
+            get: { pickerItems[slot] },
+            set: { pickerItems[slot] = $0 }
+        )
+        PhotosPicker(selection: binding, matching: .images) {
+            VStack(spacing: 4) {
+                if let image = photos[slot] {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 90, height: 70)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .overlay(
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                                .font(.caption)
+                                .padding(3),
+                            alignment: .topTrailing
+                        )
+                } else {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(MD3Theme.surfaceVariant)
+                        .frame(width: 90, height: 70)
+                        .overlay(
+                            VStack(spacing: 2) {
+                                Image(systemName: slot.icon)
+                                    .font(.caption)
+                                Image(systemName: "plus.circle")
+                                    .font(.caption2)
+                            }
+                            .foregroundStyle(MD3Theme.onSurfaceVariant)
+                        )
+                }
+                Text(slot.rawValue)
+                    .font(.system(size: 8, weight: .medium))
+                    .foregroundStyle(photos[slot] != nil ? .green : MD3Theme.onSurfaceVariant)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+        }
+        .onChange(of: pickerItems[slot]) { _, item in
+            Task { await loadSlotPhoto(item: item, slot: slot) }
+        }
+    }
+
+    private func loadSlotPhoto(item: PhotosPickerItem?, slot: PhotoSlot) async {
+        guard let item else { return }
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data) else { return }
+        photos[slot] = image
     }
 
     // MARK: - Results
@@ -216,10 +255,8 @@ struct CardAuthenticityView: View {
             Button {
                 results = []
                 overallVerdict = nil
-                frontImage = nil
-                backImage = nil
-                frontItem = nil
-                backItem = nil
+                photos = [:]
+                pickerItems = [:]
             } label: {
                 Text("Check another card")
                     .font(.caption.weight(.medium))
@@ -408,20 +445,6 @@ struct CardAuthenticityView: View {
         return .green
     }
 
-    // MARK: - Photo Loading
-
-    private enum PhotoTarget { case front, back }
-
-    private func loadPhoto(item: PhotosPickerItem?, target: PhotoTarget) async {
-        guard let item else { return }
-        guard let data = try? await item.loadTransferable(type: Data.self),
-              let image = UIImage(data: data) else { return }
-        switch target {
-        case .front: frontImage = image
-        case .back: backImage = image
-        }
-    }
-
     // MARK: - Analysis
 
     private func analyzeAuthenticity() async {
@@ -438,14 +461,14 @@ struct CardAuthenticityView: View {
 
         var parts: [[String: Any]] = []
 
-        // Add front photo
-        if let frontImage, let jpeg = frontImage.jpegData(compressionQuality: 0.8) {
-            parts.append(["inline_data": ["mime_type": "image/jpeg", "data": jpeg.base64EncodedString()]])
-        }
-
-        // Add back photo
-        if let backImage, let jpeg = backImage.jpegData(compressionQuality: 0.8) {
-            parts.append(["inline_data": ["mime_type": "image/jpeg", "data": jpeg.base64EncodedString()]])
+        // Add all captured photos with labels
+        let slotLabels: [PhotoSlot] = PhotoSlot.allCases
+        var photoDescriptions: [String] = []
+        for slot in slotLabels {
+            if let image = photos[slot], let jpeg = image.jpegData(compressionQuality: 0.8) {
+                parts.append(["inline_data": ["mime_type": "image/jpeg", "data": jpeg.base64EncodedString()]])
+                photoDescriptions.append(slot.rawValue)
+            }
         }
 
         guard !parts.isEmpty else {
@@ -454,9 +477,7 @@ struct CardAuthenticityView: View {
         }
 
         let cardContext = card.map { "The card should be: \($0.name) from \($0.set.name)." } ?? "Identify and verify this Magic: The Gathering card."
-        let photoContext = frontImage != nil && backImage != nil
-            ? "Both front and back photos provided."
-            : (frontImage != nil ? "Front photo only." : "Back photo only.")
+        let photoContext = "Photos provided (\(photoDescriptions.count)): \(photoDescriptions.joined(separator: ", "))."
 
         let prompt = """
         Analyze this Magic: The Gathering card for authenticity. \(cardContext) \(photoContext)
