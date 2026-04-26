@@ -346,9 +346,10 @@ actor GeminiVisionService {
 
     // MARK: - Text-Only Insight Generation
 
-    /// Text-only endpoint — uses Gemini Flash (not Vision/Preview) for
-    /// cheaper, faster text generation without image capabilities.
-    private static let textEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+    /// Text-only insight uses the same model as the scanner so the
+    /// user's API key always works (gemini-3-flash-preview handles both
+    /// text and vision prompts).
+    private static let textEndpoint = endpoint
 
     /// Generates a card insight using Gemini text model (no image).
     /// Uses 1 daily request. Returns the insight text or nil on failure.

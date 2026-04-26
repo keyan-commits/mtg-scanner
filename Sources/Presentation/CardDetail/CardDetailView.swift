@@ -70,6 +70,12 @@ struct CardDetailView: View {
                 cardHeader
                 cardListTags
                 PriceComparisonView(card: viewModel.card)
+                if let repository {
+                    CardInsightView(
+                        card: viewModel.card,
+                        cardRepository: repository
+                    )
+                }
                 phStoresSection
                 otherPrintingsSection
                 classicArchetypesSection
@@ -80,12 +86,6 @@ struct CardDetailView: View {
                     cardRepository: repository,
                     deckRepository: deckRepository
                 )
-                if let repository {
-                    CardInsightView(
-                        card: viewModel.card,
-                        cardRepository: repository
-                    )
-                }
                 oracleTextSection
                 rulingsSection
                 addToDeckButton
