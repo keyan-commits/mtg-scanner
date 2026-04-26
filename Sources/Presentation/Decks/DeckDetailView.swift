@@ -99,17 +99,13 @@ struct DeckDetailView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 12) {
-                    Picker("View", selection: $viewMode) {
-                        ForEach(DeckViewMode.allCases) { mode in
-                            Image(systemName: mode.icon).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 90)
-                    .onChange(of: viewMode) { _, newValue in
-                        if newValue == .grid {
+                    Button {
+                        viewMode = viewMode == .list ? .grid : .list
+                        if viewMode == .grid {
                             Task { await loadGridCardsIfNeeded() }
                         }
+                    } label: {
+                        Image(systemName: viewMode == .list ? "square.grid.2x2" : "list.bullet")
                     }
                     ScreenHelpButton(title: "Deck Detail", sections: [
                         HelpSection(icon: "checkmark.seal", title: "Status lifecycle",
