@@ -1,17 +1,24 @@
 import SwiftUI
+import PhotosUI
 
 /// Card authenticity checker using Gemini Vision.
-/// Analyzes a card photo and returns a checklist of authenticity tests.
+/// Supports front and back photos via system camera or photo library.
+/// Can be used standalone (from home) or embedded in card detail.
 struct CardAuthenticityView: View {
 
-    let card: Card
+    /// Optional — when provided, tells Gemini what card to expect.
+    let card: Card?
 
-    @State private var showCamera: Bool = false
-    @State private var selectedImage: UIImage?
+    @State private var frontImage: UIImage?
+    @State private var backImage: UIImage?
+    @State private var showFrontPicker: Bool = false
+    @State private var showBackPicker: Bool = false
     @State private var isAnalyzing: Bool = false
     @State private var results: [AuthCheck] = []
     @State private var overallVerdict: String?
     @State private var error: String?
+    @State private var frontItem: PhotosPickerItem?
+    @State private var backItem: PhotosPickerItem?
 
     struct AuthCheck: Identifiable {
         let id = UUID()
@@ -28,6 +35,7 @@ struct CardAuthenticityView: View {
     }
 
     private var isConfigured: Bool { GeminiVisionService.isConfigured }
+    private var hasPhotos: Bool { frontImage != nil || backImage != nil }
 
     var body: some View {
         MD3Card {
@@ -43,46 +51,7 @@ struct CardAuthenticityView: View {
                 }
 
                 if !results.isEmpty {
-                    // Overall verdict
-                    if let verdict = overallVerdict {
-                        Text(verdict)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(verdictColor)
-                            .padding(.bottom, 4)
-                    }
-
-                    // Checklist
-                    ForEach(results) { check in
-                        HStack(spacing: 10) {
-                            statusIcon(check.status)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(check.test)
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(MD3Theme.onSurface)
-                                Text(check.detail)
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(MD3Theme.onSurfaceVariant)
-                            }
-                            Spacer()
-                        }
-                        .padding(.vertical, 2)
-                    }
-
-                    // Disclaimer
-                    Text("Visual analysis only. Not a substitute for physical tests (light, bend, weight). High-quality counterfeits may pass visual checks.")
-                        .font(.system(size: 9))
-                        .foregroundStyle(MD3Theme.onSurfaceVariant.opacity(0.6))
-                        .padding(.top, 4)
-
-                    // Re-check button
-                    Button {
-                        showCamera = true
-                    } label: {
-                        Text("Re-check with new photo")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(MD3Theme.primary)
-                    }
-                    .buttonStyle(.plain)
+                    resultsList
                 } else if isAnalyzing {
                     HStack(spacing: 8) {
                         ProgressView().scaleEffect(0.7)
@@ -95,25 +64,7 @@ struct CardAuthenticityView: View {
                         .font(.caption)
                         .foregroundStyle(MD3Theme.onSurfaceVariant)
                 } else {
-                    Button {
-                        showCamera = true
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "checkmark.shield")
-                            Text("Check Authenticity")
-                        }
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(Color.blue)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                    }
-                    .buttonStyle(.plain)
-
-                    Text("Take a close-up photo of the card for visual analysis")
-                        .font(.system(size: 9))
-                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    photoButtons
                 }
 
                 if let error {
@@ -124,91 +75,239 @@ struct CardAuthenticityView: View {
             }
             .padding(16)
         }
-        .sheet(isPresented: $showCamera) {
-            ImagePicker(image: $selectedImage)
+        .onChange(of: frontItem) { _, item in
+            Task { await loadPhoto(item: item, target: .front) }
         }
-        .onChange(of: selectedImage) { _, newImage in
-            if let image = newImage {
-                Task { await analyzeAuthenticity(image: image) }
-            }
+        .onChange(of: backItem) { _, item in
+            Task { await loadPhoto(item: item, target: .back) }
         }
     }
 
-    // MARK: - Status Icons
+    // MARK: - Photo Buttons
+
+    private var photoButtons: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 12) {
+                // Front photo
+                PhotosPicker(selection: $frontItem, matching: .images) {
+                    VStack(spacing: 6) {
+                        if let frontImage {
+                            Image(uiImage: frontImage)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 80, height: 112)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        } else {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(MD3Theme.surfaceVariant)
+                                .frame(width: 80, height: 112)
+                                .overlay(
+                                    VStack(spacing: 4) {
+                                        Image(systemName: "photo.badge.plus")
+                                            .font(.title3)
+                                        Text("Front")
+                                            .font(.caption2)
+                                    }
+                                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+                                )
+                        }
+                    }
+                }
+
+                // Back photo
+                PhotosPicker(selection: $backItem, matching: .images) {
+                    VStack(spacing: 6) {
+                        if let backImage {
+                            Image(uiImage: backImage)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 80, height: 112)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        } else {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(MD3Theme.surfaceVariant)
+                                .frame(width: 80, height: 112)
+                                .overlay(
+                                    VStack(spacing: 4) {
+                                        Image(systemName: "photo.badge.plus")
+                                            .font(.title3)
+                                        Text("Back")
+                                            .font(.caption2)
+                                    }
+                                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+                                )
+                        }
+                    }
+                }
+
+                Spacer()
+            }
+
+            if hasPhotos {
+                Button {
+                    Task { await analyzeAuthenticity() }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.shield")
+                        Text("Verify Card")
+                    }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(Color.blue)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+                .buttonStyle(.plain)
+            }
+
+            Text("Pick front and/or back photos from library or camera")
+                .font(.system(size: 9))
+                .foregroundStyle(MD3Theme.onSurfaceVariant)
+        }
+    }
+
+    // MARK: - Results
+
+    private var resultsList: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let verdict = overallVerdict {
+                Text(verdict)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(verdictColor)
+                    .padding(.bottom, 2)
+            }
+
+            ForEach(results) { check in
+                HStack(spacing: 10) {
+                    statusIcon(check.status)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(check.test)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(MD3Theme.onSurface)
+                        Text(check.detail)
+                            .font(.system(size: 11))
+                            .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    }
+                    Spacer()
+                }
+                .padding(.vertical, 2)
+            }
+
+            Text("Visual analysis only. Not a substitute for physical tests (light, bend, weight).")
+                .font(.system(size: 9))
+                .foregroundStyle(MD3Theme.onSurfaceVariant.opacity(0.6))
+                .padding(.top, 4)
+
+            Button {
+                results = []
+                overallVerdict = nil
+                frontImage = nil
+                backImage = nil
+                frontItem = nil
+                backItem = nil
+            } label: {
+                Text("Check another card")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(MD3Theme.primary)
+            }
+            .buttonStyle(.plain)
+        }
+    }
 
     @ViewBuilder
     private func statusIcon(_ status: AuthCheck.Status) -> some View {
         switch status {
         case .pass:
             Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-                .font(.system(size: 18))
+                .foregroundStyle(.green).font(.system(size: 18))
         case .fail:
             Image(systemName: "xmark.circle.fill")
-                .foregroundStyle(.red)
-                .font(.system(size: 18))
+                .foregroundStyle(.red).font(.system(size: 18))
         case .warning:
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
-                .font(.system(size: 18))
+                .foregroundStyle(.orange).font(.system(size: 18))
         case .unknown:
             Image(systemName: "questionmark.circle.fill")
-                .foregroundStyle(.gray)
-                .font(.system(size: 18))
+                .foregroundStyle(.gray).font(.system(size: 18))
         }
     }
 
     private var verdictColor: Color {
         let fails = results.filter { $0.status == .fail }.count
-        let warnings = results.filter { $0.status == .warning }.count
         if fails > 0 { return .red }
-        if warnings > 1 { return .orange }
+        if results.filter({ $0.status == .warning }).count > 1 { return .orange }
         return .green
+    }
+
+    // MARK: - Photo Loading
+
+    private enum PhotoTarget { case front, back }
+
+    private func loadPhoto(item: PhotosPickerItem?, target: PhotoTarget) async {
+        guard let item else { return }
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data) else { return }
+        switch target {
+        case .front: frontImage = image
+        case .back: backImage = image
+        }
     }
 
     // MARK: - Analysis
 
-    private func analyzeAuthenticity(image: UIImage) async {
+    private func analyzeAuthenticity() async {
         isAnalyzing = true
         error = nil
         results = []
         overallVerdict = nil
         defer { isAnalyzing = false }
 
-        guard let cgImage = image.cgImage else {
-            error = "Could not process image"
-            return
-        }
-
-        guard let jpegData = image.jpegData(compressionQuality: 0.8) else {
-            error = "Could not encode image"
-            return
-        }
-        let base64 = jpegData.base64EncodedString()
-
         guard let apiKey = GeminiVisionService.activeApiKey else {
             error = "No API key configured"
             return
         }
 
+        var parts: [[String: Any]] = []
+
+        // Add front photo
+        if let frontImage, let jpeg = frontImage.jpegData(compressionQuality: 0.8) {
+            parts.append(["inline_data": ["mime_type": "image/jpeg", "data": jpeg.base64EncodedString()]])
+        }
+
+        // Add back photo
+        if let backImage, let jpeg = backImage.jpegData(compressionQuality: 0.8) {
+            parts.append(["inline_data": ["mime_type": "image/jpeg", "data": jpeg.base64EncodedString()]])
+        }
+
+        guard !parts.isEmpty else {
+            error = "Select at least one photo"
+            return
+        }
+
+        let cardContext = card.map { "The card should be: \($0.name) from \($0.set.name)." } ?? "Identify and verify this Magic: The Gathering card."
+        let photoContext = frontImage != nil && backImage != nil
+            ? "Both front and back photos provided."
+            : (frontImage != nil ? "Front photo only." : "Back photo only.")
+
         let prompt = """
-        Analyze this Magic: The Gathering card photo for authenticity. The card should be: \(card.name) from \(card.set.name).
+        Analyze this Magic: The Gathering card for authenticity. \(cardContext) \(photoContext)
 
-        Check each of these tests and return ONLY a JSON object:
-        {"verdict":"LIKELY AUTHENTIC or LIKELY FAKE or INCONCLUSIVE","checks":[{"test":"test name","status":"PASS or FAIL or WARNING or UNKNOWN","detail":"brief explanation"}]}
+        Return ONLY JSON: {"verdict":"LIKELY AUTHENTIC or LIKELY FAKE or INCONCLUSIVE","checks":[{"test":"name","status":"PASS/FAIL/WARNING/UNKNOWN","detail":"brief explanation"}]}
 
-        Tests to perform:
-        1. Print Quality — text sharpness, clean edges, no bleeding
-        2. Color Accuracy — correct color saturation for this era/set
-        3. Border Quality — consistent width, correct color (black/white)
-        4. Set Symbol — correct shape, color, and rarity indicator
-        5. Holographic Stamp — present on rares/mythics (post-2014 only)
-        6. Font Consistency — correct MTG fonts for card name, type, text
-        7. Card Stock — visible texture appropriate for real cards
-        8. Rosette Pattern — dot pattern visible (if close-up enough)
-
-        Mark as UNKNOWN if the photo quality prevents assessment. Be honest about what you can and cannot determine from the image.
+        Tests (mark UNKNOWN if photo doesn't show that area):
+        1. Print Quality — text sharpness, clean edges, no ink bleeding
+        2. Color Accuracy — correct saturation for this set/era
+        3. Border Quality — consistent width, correct color
+        4. Set Symbol — correct shape and rarity color
+        5. Holographic Stamp — present on rares/mythics (post-2014)
+        6. Font Consistency — correct MTG fonts
+        7. Card Back — correct blue color, pattern, and print quality
+        8. Rosette Pattern — visible dot pattern under close inspection
+        Be honest about what you can and cannot determine.
         """
+
+        parts.append(["text": prompt])
 
         let url = URL(string: "\(GeminiVisionService.endpointURL)?key=\(apiKey)")!
         var request = URLRequest(url: url)
@@ -217,12 +316,7 @@ struct CardAuthenticityView: View {
         request.timeoutInterval = 30
 
         let body: [String: Any] = [
-            "contents": [[
-                "parts": [
-                    ["inline_data": ["mime_type": "image/jpeg", "data": base64]],
-                    ["text": prompt]
-                ]
-            ]]
+            "contents": [["parts": parts]]
         ]
 
         guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else {
@@ -242,9 +336,9 @@ struct CardAuthenticityView: View {
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let candidates = json["candidates"] as? [[String: Any]],
                   let content = candidates.first?["content"] as? [String: Any],
-                  let parts = content["parts"] as? [[String: Any]],
-                  let text = parts.first?["text"] as? String else {
-                error = "Unexpected response from Gemini"
+                  let respParts = content["parts"] as? [[String: Any]],
+                  let text = respParts.first?["text"] as? String else {
+                error = "Unexpected response"
                 return
             }
 
@@ -255,7 +349,7 @@ struct CardAuthenticityView: View {
 
             guard let resultData = cleaned.data(using: .utf8),
                   let result = try JSONSerialization.jsonObject(with: resultData) as? [String: Any] else {
-                error = "Could not parse response"
+                error = "Could not parse response. Try again."
                 return
             }
 
@@ -269,43 +363,23 @@ struct CardAuthenticityView: View {
                 return AuthCheck(test: test, status: status, detail: detail)
             }
 
-            if results.isEmpty {
-                error = "No checks returned. Try with a clearer photo."
-            }
+            if results.isEmpty { error = "No checks returned. Try a clearer photo." }
         } catch {
             self.error = "Request failed: \(error.localizedDescription)"
         }
     }
 }
 
-// MARK: - Image Picker
+// MARK: - Standalone Screen (from Home)
 
-struct ImagePicker: UIViewControllerRepresentable {
-    @Binding var image: UIImage?
-    @Environment(\.dismiss) private var dismiss
-
-    func makeUIViewController(context: Context) -> UIImagePickerController {
-        let picker = UIImagePickerController()
-        picker.sourceType = .camera
-        picker.delegate = context.coordinator
-        return picker
-    }
-
-    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
-
-    func makeCoordinator() -> Coordinator { Coordinator(self) }
-
-    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-        let parent: ImagePicker
-        init(_ parent: ImagePicker) { self.parent = parent }
-
-        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
-            parent.image = info[.originalImage] as? UIImage
-            parent.dismiss()
+struct CardAuthenticityScreen: View {
+    var body: some View {
+        ScrollView {
+            CardAuthenticityView(card: nil)
+                .padding(16)
         }
-
-        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-            parent.dismiss()
-        }
+        .background(MD3Theme.background)
+        .navigationTitle("Verify Card")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }

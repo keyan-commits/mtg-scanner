@@ -77,6 +77,7 @@ struct CardDetailView: View {
                     )
                 }
                 CardAuthenticityView(card: viewModel.card)
+                    .id("auth-\(viewModel.card.scryfallID)")
                 phStoresSection
                 otherPrintingsSection
                 classicArchetypesSection

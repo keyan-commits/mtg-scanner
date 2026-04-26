@@ -1312,6 +1312,17 @@ struct HomeView: View {
                 }
                 .buttonStyle(.plain)
             }
+            HStack(spacing: 10) {
+                NavigationLink {
+                    CardAuthenticityScreen()
+                } label: {
+                    quickAction(icon: "checkmark.shield.fill", label: "Verify Card", color: .cyan)
+                }
+                .buttonStyle(.plain)
+                Spacer()
+                Spacer()
+                Spacer()
+            }
         }
     }
 
