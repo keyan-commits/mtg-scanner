@@ -53,6 +53,7 @@ struct DeckDetailView: View {
     @State private var showSideboardGuide: Bool = false
     @State private var isFixingDeck: Bool = false
     @State private var fixDeckError: String?
+    @State private var showDeckGuide: Bool = false
 
     enum DeckViewMode: String, CaseIterable, Identifiable {
         case list = "List"
@@ -304,6 +305,35 @@ struct DeckDetailView: View {
         }
         .sheet(isPresented: $showSideboardGuide) {
             SideboardGuideSheet(format: deckFormat, sideboardCards: items.filter { $0.zone == "sideboard" }.map { $0.cardName.lowercased() })
+        }
+        .sheet(isPresented: $showDeckGuide) {
+            NavigationStack {
+                ScrollView {
+                    DeckGuideView(
+                        deckName: deck.name,
+                        format: deck.format,
+                        mainboard: items.filter { $0.zone == "mainboard" }.map { ($0.cardName, $0.quantity) },
+                        sideboard: items.filter { $0.zone == "sideboard" }.map { ($0.cardName, $0.quantity) },
+                        source: deck.referenceURL?.hasPrefix("source:") == true
+                            ? String(deck.referenceURL!.dropFirst(7))
+                            : (deck.referenceURL != nil ? "MTGTop8 tournament deck" : nil),
+                        cardRepository: cardRepository,
+                        deckItemPrintings: Dictionary(
+                            items.map { ($0.cardName.lowercased(), (set: $0.setCode, collector: $0.collectorNumber)) },
+                            uniquingKeysWith: { first, _ in first }
+                        )
+                    )
+                    .padding(16)
+                }
+                .background(MD3Theme.background)
+                .navigationTitle("AI Deck Guide")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Done") { showDeckGuide = false }
+                    }
+                }
+            }
         }
         .confirmationDialog("Reset Collected Status", isPresented: $showClearConfirmation, titleVisibility: .visible) {
             Button("Reset & Match Collection", role: .destructive) {
@@ -800,21 +830,22 @@ struct DeckDetailView: View {
                 }
             }
             Section {
-                DeckGuideView(
-                    deckName: deck.name,
-                    format: deck.format,
-                    mainboard: items.filter { $0.zone == "mainboard" }.map { ($0.cardName, $0.quantity) },
-                    sideboard: items.filter { $0.zone == "sideboard" }.map { ($0.cardName, $0.quantity) },
-                    source: deck.referenceURL?.hasPrefix("source:") == true
-                        ? String(deck.referenceURL!.dropFirst(7))
-                        : (deck.referenceURL != nil ? "MTGTop8 tournament deck" : nil),
-                    cardRepository: cardRepository,
-                    deckItemPrintings: Dictionary(
-                        items.map { ($0.cardName.lowercased(), (set: $0.setCode, collector: $0.collectorNumber)) },
-                        uniquingKeysWith: { first, _ in first }
-                    )
-                )
-                .buttonStyle(.borderless)
+                Button {
+                    showDeckGuide = true
+                } label: {
+                    HStack {
+                        Image(systemName: "book.pages")
+                            .foregroundStyle(.purple)
+                        Text("AI Deck Guide")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(MD3Theme.onSurface)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                            .foregroundStyle(MD3Theme.onSurfaceVariant.opacity(0.5))
+                    }
+                }
+                .buttonStyle(.plain)
             }
             ForEach(zoneSections) { zoneSection in
                 Section {
