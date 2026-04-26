@@ -257,6 +257,7 @@ struct DeckGuideSheet: View {
     @State private var isGenerating: Bool = false
     @State private var error: String?
     @State private var deckCardLookup: [String: Card] = [:]
+    @State private var cardsResolved: Bool = false
 
     @Environment(\.dismiss) private var dismiss
 
@@ -288,10 +289,10 @@ struct DeckGuideSheet: View {
                                 }
                                 return .handled
                             })
-                    } else if isGenerating {
+                    } else if !cardsResolved || isGenerating {
                         HStack(spacing: 8) {
                             ProgressView().scaleEffect(0.8)
-                            Text("Generating deck guide…")
+                            Text(isGenerating ? "Generating deck guide…" : "Loading…")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
@@ -350,11 +351,14 @@ struct DeckGuideSheet: View {
                 }
             }
             .task {
-                // Load cached guide FIRST (instant, no flash)
-                guide = UserDefaults.standard.string(forKey: storageKey)
+                // Load guide text immediately (no flash)
+                let cached = UserDefaults.standard.string(forKey: storageKey)
                 guideDate = UserDefaults.standard.string(forKey: dateKey)
-                // Then resolve deck cards so links point to correct versions
+                // Resolve deck cards so links point to correct versions
                 await resolveDeckCards()
+                cardsResolved = true
+                // Set guide AFTER cards resolved so buildLinkedText uses deckCardLookup
+                guide = cached
             }
         }
     }
