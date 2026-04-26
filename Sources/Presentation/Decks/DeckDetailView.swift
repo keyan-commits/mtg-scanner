@@ -814,7 +814,7 @@ struct DeckDetailView: View {
                         uniquingKeysWith: { first, _ in first }
                     )
                 )
-                .listRowSeparator(.hidden)
+                .buttonStyle(.borderless)
             }
             ForEach(zoneSections) { zoneSection in
                 Section {

@@ -63,6 +63,10 @@ struct CardCopiesDetailView: View {
                         .padding(.horizontal, 16)
                     PriceComparisonView(card: card)
                         .padding(.horizontal, 16)
+                    if let cardRepository {
+                        CardInsightView(card: card, cardRepository: cardRepository)
+                            .padding(.horizontal, 16)
+                    }
                     phStoresSection(card)
                         .padding(.horizontal, 16)
                     legalitySection(card)

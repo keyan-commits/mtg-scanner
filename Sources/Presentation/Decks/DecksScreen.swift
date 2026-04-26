@@ -224,7 +224,7 @@ struct DecksScreen: View {
                             let preferred = LocalCurrency.current
                             if preferred != "USD",
                                let converted = currencyService.convert(marketUSD, to: preferred) {
-                                Text("TCGMid: \(LocalCurrency.format(converted, currency: preferred))")
+                                Text("TCGMid: \(LocalCurrency.format(converted, currency: preferred)) · $\(String(format: "%.2f", marketUSD))")
                                     .font(MD3Typography.labelSmall)
                                     .foregroundStyle(MD3Theme.primary)
                                     .monospacedDigit()

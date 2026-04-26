@@ -76,8 +76,6 @@ struct CardDetailView: View {
                         cardRepository: repository
                     )
                 }
-                CardAuthenticityView(card: viewModel.card)
-                    .id("auth-\(viewModel.card.scryfallID)")
                 phStoresSection
                 otherPrintingsSection
                 classicArchetypesSection
