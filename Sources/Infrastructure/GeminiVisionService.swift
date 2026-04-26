@@ -23,12 +23,21 @@ actor GeminiVisionService {
         set { UserDefaults.standard.set(newValue, forKey: altApiKeyKey) }
     }
 
-    /// Returns the best available API key (primary, or alt if primary is rate-limited).
+    /// Returns the best available API key (primary, or alt if primary is rate-limited/exhausted).
     static var activeApiKey: String? {
-        if !isRateLimited, let key = apiKey, !key.isEmpty { return key }
-        if let alt = altApiKey, !alt.isEmpty { return alt }
+        let primaryOK = !isRateLimited && !isDailyLimitReached
+        if primaryOK, let key = apiKey, !key.isEmpty { return key }
+        if !isAltDailyLimitReached, let alt = altApiKey, !alt.isEmpty { return alt }
         if let key = apiKey, !key.isEmpty { return key }
         return nil
+    }
+
+    /// Whether the active key is the alt key.
+    static var isUsingAltKey: Bool {
+        let primaryOK = !isRateLimited && !isDailyLimitReached
+        if primaryOK, let key = apiKey, !key.isEmpty { return false }
+        if let alt = altApiKey, !alt.isEmpty { return true }
+        return false
     }
 
     private static let enabledKey = "geminiEnabled"
@@ -78,6 +87,8 @@ actor GeminiVisionService {
 
     private static let dailyLimitKey = "geminiDailyCount"
     private static let dailyDateKey = "geminiDailyDate"
+    private static let altDailyLimitKey = "geminiAltDailyCount"
+    private static let altDailyDateKey = "geminiAltDailyDate"
     // Gemini 3 Flash Preview free tier: 15 RPM, 1000 RPD
     private static let dailyLimit = 1000
 
@@ -98,11 +109,15 @@ actor GeminiVisionService {
         UserDefaults.standard.set(count, forKey: dailyLimitKey)
     }
 
-    /// Records one API usage. Call after a successful Gemini response.
+    /// Records one API usage for the currently active key.
     static func recordUsage() {
         resetIfNewDay()
-        let count = UserDefaults.standard.integer(forKey: dailyLimitKey)
-        UserDefaults.standard.set(count + 1, forKey: dailyLimitKey)
+        if isUsingAltKey {
+            recordAltUsage()
+        } else {
+            let count = UserDefaults.standard.integer(forKey: dailyLimitKey)
+            UserDefaults.standard.set(count + 1, forKey: dailyLimitKey)
+        }
     }
 
     private static func resetIfNewDay() {
@@ -112,6 +127,28 @@ actor GeminiVisionService {
             UserDefaults.standard.set(0, forKey: dailyLimitKey)
             UserDefaults.standard.set(today, forKey: dailyDateKey)
         }
+        let altStored = UserDefaults.standard.double(forKey: altDailyDateKey)
+        if altStored < today {
+            UserDefaults.standard.set(0, forKey: altDailyLimitKey)
+            UserDefaults.standard.set(today, forKey: altDailyDateKey)
+        }
+    }
+
+    // MARK: - Alt Key Usage
+
+    static var altDailyUsage: Int {
+        resetIfNewDay()
+        return UserDefaults.standard.integer(forKey: altDailyLimitKey)
+    }
+
+    static var isAltDailyLimitReached: Bool {
+        altDailyUsage >= dailyLimit
+    }
+
+    static func recordAltUsage() {
+        resetIfNewDay()
+        let count = UserDefaults.standard.integer(forKey: altDailyLimitKey)
+        UserDefaults.standard.set(count + 1, forKey: altDailyLimitKey)
     }
 
     /// Identifies a card from a CGImage. Returns (cardName, setCode?, collectorNumber?) or nil.

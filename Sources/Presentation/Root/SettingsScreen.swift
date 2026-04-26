@@ -221,6 +221,27 @@ struct SettingsScreen: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    // Alt key status and usage
+                    if !geminiAltKey.isEmpty {
+                        HStack {
+                            Text("Alt key status")
+                            Spacer()
+                            if GeminiVisionService.isAltDailyLimitReached {
+                                Text("Daily limit reached")
+                                    .foregroundStyle(.red)
+                            } else {
+                                Text("Ready")
+                                    .foregroundStyle(.green)
+                            }
+                        }
+                        HStack {
+                            Text("Alt key usage")
+                                .foregroundStyle(MD3Theme.onSurface)
+                            Spacer()
+                            Text("\(GeminiVisionService.altDailyUsage) / 1,000")
+                                .foregroundStyle(GeminiVisionService.isAltDailyLimitReached ? .red : .secondary)
+                        }
+                    }
                     if let error = GeminiVisionService.lastError {
                         HStack {
                             Image(systemName: "exclamationmark.triangle.fill")
