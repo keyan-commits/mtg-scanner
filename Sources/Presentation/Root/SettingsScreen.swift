@@ -178,7 +178,8 @@ struct SettingsScreen: View {
                     .submitLabel(.done)
                     .onSubmit { geminiKeyFocused = false }
                     .onChange(of: geminiAltKey) { _, newValue in
-                        GeminiVisionService.altApiKey = newValue.isEmpty ? nil : newValue
+                        let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                        GeminiVisionService.altApiKey = trimmed.isEmpty ? nil : trimmed
                     }
                 if !geminiAPIKey.isEmpty {
                     Toggle("Enable Gemini Vision", isOn: $geminiEnabled)
@@ -477,9 +478,13 @@ struct SettingsScreen: View {
     }
 
     private func testSingleKey(_ key: String?) async -> String {
-        guard let key, !key.isEmpty else { return "No key" }
+        guard let rawKey = key else { return "No key" }
+        let trimmed = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "No key" }
 
-        let url = URL(string: "\(GeminiVisionService.endpointURL)?key=\(key)")!
+        guard let url = URL(string: "\(GeminiVisionService.endpointURL)?key=\(trimmed)") else {
+            return "Invalid key format (len=\(trimmed.count))"
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -499,13 +504,17 @@ struct SettingsScreen: View {
                    !candidates.isEmpty {
                     return "OK"
                 }
-                return "Unexpected response"
-            } else if statusCode == 400 { return "Invalid key" }
-            else if statusCode == 403 { return "Not authorized" }
-            else if statusCode == 429 { return "Rate limited" }
-            else { return "HTTP \(statusCode)" }
+                let body = String(data: data.prefix(100), encoding: .utf8) ?? "?"
+                return "Bad response: \(body)"
+            } else if statusCode == 400 { return "Invalid key (400)" }
+            else if statusCode == 403 { return "Not authorized (403)" }
+            else if statusCode == 429 { return "Rate limited (429)" }
+            else {
+                let body = String(data: data.prefix(80), encoding: .utf8) ?? "?"
+                return "HTTP \(statusCode): \(body)"
+            }
         } catch {
-            return "Network error"
+            return "Error: \(error.localizedDescription)"
         }
     }
 
