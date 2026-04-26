@@ -90,10 +90,22 @@ struct CardInsightView: View {
             }
             .padding(16)
         }
-        .onAppear {
-            // Load cached insight from card
-            insight = card.insight
-            insightDate = card.insightDate
+        .task {
+            // Load from the passed card first
+            if let cached = card.insight {
+                insight = cached
+                insightDate = card.insightDate
+                return
+            }
+            // If nil, reload from DB (the card struct may be stale)
+            if let repo = cardRepository as? LocalCardRepository,
+               let record = try? await repo.databaseManager.findCard(scryfallID: card.scryfallID) {
+                let fresh = record.toDomain()
+                if let dbInsight = fresh.insight {
+                    insight = dbInsight
+                    insightDate = fresh.insightDate
+                }
+            }
         }
     }
 
