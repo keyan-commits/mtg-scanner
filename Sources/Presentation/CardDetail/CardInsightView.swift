@@ -1,8 +1,7 @@
 import SwiftUI
 
 /// AI-generated card insight section. Shows buy/sell/hold analysis
-/// based on card data. Persists to DB so it only needs to be
-/// generated once per card.
+/// with tappable budget alternatives. Persists to DB.
 struct CardInsightView: View {
 
     let card: Card
@@ -10,6 +9,8 @@ struct CardInsightView: View {
 
     @State private var insight: String?
     @State private var insightDate: String?
+    @State private var alternatives: [(name: String, reason: String)] = []
+    @State private var resolvedAlternatives: [String: Card] = [:]
     @State private var isGenerating: Bool = false
     @State private var error: String?
 
@@ -19,6 +20,7 @@ struct CardInsightView: View {
     var body: some View {
         MD3Card {
             VStack(alignment: .leading, spacing: 12) {
+                // Header
                 HStack {
                     Image(systemName: "sparkles")
                         .font(.caption)
@@ -44,11 +46,24 @@ struct CardInsightView: View {
                     }
                 }
 
+                // Content
                 if let insight {
                     Text(insight)
                         .font(MD3Typography.bodySmall)
                         .foregroundStyle(MD3Theme.onSurface)
                         .textSelection(.enabled)
+
+                    // Tappable alternatives
+                    if !alternatives.isEmpty {
+                        Divider()
+                        Text("Budget Alternatives")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(MD3Theme.onSurfaceVariant)
+
+                        ForEach(alternatives, id: \.name) { alt in
+                            alternativeRow(alt)
+                        }
+                    }
                 } else if isGenerating {
                     HStack(spacing: 8) {
                         ProgressView().scaleEffect(0.7)
@@ -91,23 +106,95 @@ struct CardInsightView: View {
             .padding(16)
         }
         .task {
-            // Load from the passed card first
-            if let cached = card.insight {
-                insight = cached
-                insightDate = card.insightDate
-                return
+            await loadCachedInsight()
+        }
+    }
+
+    // MARK: - Alternative Row
+
+    @ViewBuilder
+    private func alternativeRow(_ alt: (name: String, reason: String)) -> some View {
+        let rowContent = HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(alt.name)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(MD3Theme.onSurface)
+                    .lineLimit(1)
+                Text(alt.reason)
+                    .font(.system(size: 10))
+                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    .lineLimit(2)
             }
-            // If nil, reload from DB (the card struct may be stale)
-            if let repo = cardRepository as? LocalCardRepository,
-               let record = try? await repo.databaseManager.findCard(scryfallID: card.scryfallID) {
-                let fresh = record.toDomain()
-                if let dbInsight = fresh.insight {
-                    insight = dbInsight
-                    insightDate = fresh.insightDate
-                }
+            Spacer()
+            if resolvedAlternatives[alt.name] != nil {
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(MD3Theme.onSurfaceVariant.opacity(0.5))
+            }
+        }
+        .padding(.vertical, 2)
+        .task { await resolveAlternative(name: alt.name) }
+
+        if let altCard = resolvedAlternatives[alt.name] {
+            NavigationLink {
+                CardDetailView(
+                    card: altCard,
+                    repository: cardRepository,
+                    deckRepository: nil,
+                    onScanAnother: {}
+                )
+            } label: {
+                rowContent
+            }
+            .buttonStyle(.plain)
+        } else {
+            rowContent
+        }
+    }
+
+    private func resolveAlternative(name: String) async {
+        guard resolvedAlternatives[name] == nil else { return }
+        let resolver = CardResolver(cardRepository: cardRepository)
+        if let card = await resolver.resolve(name: name, strategy: .cheapest) {
+            resolvedAlternatives[name] = card
+        }
+    }
+
+    // MARK: - Load Cached Insight
+
+    private func loadCachedInsight() async {
+        // Try from passed card first
+        if let cached = card.insight {
+            parseInsight(cached)
+            insightDate = card.insightDate
+            return
+        }
+        // Reload from DB (card struct may be stale)
+        if let repo = cardRepository as? LocalCardRepository,
+           let record = try? await repo.databaseManager.findCard(scryfallID: card.scryfallID) {
+            let fresh = record.toDomain()
+            if let dbInsight = fresh.insight {
+                parseInsight(dbInsight)
+                insightDate = fresh.insightDate
             }
         }
     }
+
+    /// Parses stored insight text. The format is:
+    /// `[RECOMMENDATION] analysis text\n---ALT---\nname1|||reason1\nname2|||reason2`
+    private func parseInsight(_ stored: String) {
+        let parts = stored.components(separatedBy: "\n---ALT---\n")
+        insight = parts[0]
+        if parts.count > 1 {
+            alternatives = parts[1].components(separatedBy: "\n").compactMap { line in
+                let fields = line.components(separatedBy: "|||")
+                guard fields.count == 2 else { return nil }
+                return (name: fields[0], reason: fields[1])
+            }
+        }
+    }
+
+    // MARK: - Generate Insight
 
     private func generateInsight() async {
         isGenerating = true
@@ -126,7 +213,7 @@ struct CardInsightView: View {
         let formatInfo = card.legalities.summary
 
         let prompt = """
-        You are an MTG finance and competitive play analyst. Analyze this Magic: The Gathering card for a player who buys and sells cards competitively.
+        You are an MTG finance and competitive play analyst. Analyze this Magic: The Gathering card.
 
         Card: \(card.name)
         Set: \(card.set.name) (\(card.set.code.uppercased()))
@@ -135,14 +222,10 @@ struct CardInsightView: View {
         \(priceInfo)
         Format legality: \(formatInfo)
 
-        Provide a concise analysis (max 200 words) covering:
-        1. BUY, SELL, or HOLD recommendation with reasoning
-        2. Competitive playability (which formats/archetypes use it)
-        3. Price outlook (is it likely to go up or down and why)
-        4. Any special collectibility factors (alternate art, foil premium, reserved list, etc.)
-        5. Budget alternatives — suggest 2-3 cheaper cards that fill a similar role in competitive decks
+        Return ONLY a JSON object (no markdown, no other text):
+        {"recommendation":"BUY or SELL or HOLD","analysis":"concise analysis (max 150 words) covering competitive playability, price outlook, collectibility factors","alternatives":[{"name":"exact card name","reason":"why it substitutes (max 15 words)"}]}
 
-        Be direct and actionable. No disclaimers.
+        For alternatives: suggest 2-3 cheaper cards that fill a similar role. They MUST be legal in at least one of the same formats as \(card.name). Use exact English card names as they appear on Scryfall.
         """
 
         guard let result = await GeminiVisionService.generateInsight(prompt: prompt) else {
@@ -150,15 +233,47 @@ struct CardInsightView: View {
             return
         }
 
-        insight = result
+        // Parse JSON response
+        let cleaned = result
+            .replacingOccurrences(of: "```json", with: "")
+            .replacingOccurrences(of: "```", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        var analysisText: String
+        var alts: [(name: String, reason: String)] = []
+
+        if let data = cleaned.data(using: .utf8),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            let rec = json["recommendation"] as? String ?? "HOLD"
+            let analysis = json["analysis"] as? String ?? cleaned
+            analysisText = "[\(rec)] \(analysis)"
+            let altArray = json["alternatives"] as? [[String: String]] ?? []
+            alts = altArray.compactMap { dict in
+                guard let name = dict["name"], let reason = dict["reason"] else { return nil }
+                return (name: name, reason: reason)
+            }
+        } else {
+            // Fallback: use raw text
+            analysisText = cleaned
+        }
+
+        insight = analysisText
+        alternatives = alts
         let dateStr = Self.dateFormatter.string(from: Date())
         insightDate = dateStr
+
+        // Serialize for DB: analysis + alternatives in a parseable format
+        var storedText = analysisText
+        if !alts.isEmpty {
+            let altLines = alts.map { "\($0.name)|||\($0.reason)" }
+            storedText += "\n---ALT---\n" + altLines.joined(separator: "\n")
+        }
 
         // Save to DB
         if let repo = cardRepository as? LocalCardRepository {
             try? await repo.databaseManager.saveInsight(
                 scryfallID: card.scryfallID,
-                insight: result,
+                insight: storedText,
                 date: dateStr
             )
         }
