@@ -148,6 +148,17 @@ struct ClassicDeckDetailView: View {
                 }
             }
 
+            Section {
+                DeckGuideView(
+                    deckName: archetype.name,
+                    format: archetype.format,
+                    mainboard: archetype.mainboard.map { ($0.key, $0.value) },
+                    sideboard: (archetype.sideboard ?? [:]).map { ($0.key, $0.value) }
+                )
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowBackground(Color.clear)
+            }
+
             if archetype.cardTypes != nil && resolved.isEmpty {
                 // Hardcoded path: render instantly from hardcoded data
                 hardcodedCardSections

@@ -787,6 +787,16 @@ struct DeckDetailView: View {
                     }
                 }
             }
+            Section {
+                DeckGuideView(
+                    deckName: deck.name,
+                    format: deck.format,
+                    mainboard: items.filter { $0.zone == "mainboard" }.map { ($0.cardName, $0.quantity) },
+                    sideboard: items.filter { $0.zone == "sideboard" }.map { ($0.cardName, $0.quantity) }
+                )
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowBackground(Color.clear)
+            }
             ForEach(zoneSections) { zoneSection in
                 Section {
                     zoneHeader(zoneSection)

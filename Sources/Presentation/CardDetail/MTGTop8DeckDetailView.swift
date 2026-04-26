@@ -322,6 +322,16 @@ struct MTGTop8DeckDetailView: View {
             VStack(alignment: .leading, spacing: 16) {
                 headerCard
 
+                if !resolvedMain.isEmpty {
+                    DeckGuideView(
+                        deckName: deckName,
+                        format: format,
+                        mainboard: resolvedMain.map { ($0.card.name, $0.quantity) },
+                        sideboard: resolvedSide.map { ($0.card.name, $0.quantity) }
+                    )
+                    .padding(.horizontal, 16)
+                }
+
                 ForEach(categorizedSections(resolvedMain), id: \.category) { section in
                     listSection(title: section.category.rawValue, entries: section.entries)
                 }

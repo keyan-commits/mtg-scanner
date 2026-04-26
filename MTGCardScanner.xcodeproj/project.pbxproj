@@ -136,6 +136,7 @@
 		985FD9EEA4A8C83675AA3016 /* CardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FED8B2BEDEF495AD8311F1D5 /* CardTests.swift */; };
 		993793FD781891DF25BD78B9 /* ScryfallAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F66C6124A6B24011F7AB0B21 /* ScryfallAPIClient.swift */; };
 		9A8021D907A98467EDB08B7C /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31C20EF780B773AFFB05E4A1 /* RootView.swift */; };
+		9B91A6CBE619B23CB9D85AF7 /* DeckGuideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6CC96FC2B57624EB76A8403 /* DeckGuideView.swift */; };
 		9C521841E6720318DBCF57E7 /* DeckLookupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 907071EF35D16C3AC1BE93F3 /* DeckLookupService.swift */; };
 		A36C512C36CE5162CCCB093D /* QuickAddToCollectionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1BFD0F4CFB4B9E44414742 /* QuickAddToCollectionSheet.swift */; };
 		A4037FC7EC4CBF999BB15C34 /* CollectorInfoExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F00F6CA17C65A39BDF87E55 /* CollectorInfoExtractor.swift */; };
@@ -432,6 +433,7 @@
 		F543F59101D9F076941A13B3 /* ScryfallAPIClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScryfallAPIClientTests.swift; sourceTree = "<group>"; };
 		F54BA7FD19DB0D770564509E /* GeminiVisionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiVisionService.swift; sourceTree = "<group>"; };
 		F66C6124A6B24011F7AB0B21 /* ScryfallAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScryfallAPIClient.swift; sourceTree = "<group>"; };
+		F6CC96FC2B57624EB76A8403 /* DeckGuideView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckGuideView.swift; sourceTree = "<group>"; };
 		F8ADB800C25183CB08831A06 /* AddCardToDeckSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddCardToDeckSheet.swift; sourceTree = "<group>"; };
 		F9DC23CBC42A3962BA36BCAC /* CardTextRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardTextRecognizer.swift; sourceTree = "<group>"; };
 		FA6E4B9316C204EFE3C573CD /* FeaturePrintCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeaturePrintCache.swift; sourceTree = "<group>"; };
@@ -723,6 +725,7 @@
 				14CBD28C376B0A7F27A5B665 /* DeckBuilderScreen.swift */,
 				0687015B8DCF55E433F027BB /* DeckDetailView.swift */,
 				C8270ABBF3105C5643C5A712 /* DeckFormat.swift */,
+				F6CC96FC2B57624EB76A8403 /* DeckGuideView.swift */,
 				3C6329F043FDAFA07F823418 /* DecksScreen.swift */,
 				8BDD6D1EFC5A088457CBC521 /* EditCollectionItemSheet.swift */,
 				66A563065D22921CD26B863B /* EditOrderItemSheet.swift */,
@@ -1093,6 +1096,7 @@
 				0EAAE6F32011A604557C58E4 /* DeckDetailView.swift in Sources */,
 				DEB0BBC5C5C0D932EB794B45 /* DeckFormat.swift in Sources */,
 				643DDF5C1576B3E3F4C696FB /* DeckGridOverlayView.swift in Sources */,
+				9B91A6CBE619B23CB9D85AF7 /* DeckGuideView.swift in Sources */,
 				93131F4750E0CACE8B4FD296 /* DeckIdentificationService.swift in Sources */,
 				014E7FE69AABCCB5994D0B0B /* DeckIdentificationView.swift in Sources */,
 				A6D313CE620FB5E2370B741F /* DeckListModel.swift in Sources */,
