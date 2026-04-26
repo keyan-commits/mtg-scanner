@@ -327,7 +327,9 @@ struct MTGTop8DeckDetailView: View {
                         deckName: deckName,
                         format: format,
                         mainboard: resolvedMain.map { ($0.card.name, $0.quantity) },
-                        sideboard: resolvedSide.map { ($0.card.name, $0.quantity) }
+                        sideboard: resolvedSide.map { ($0.card.name, $0.quantity) },
+                        source: "MTGTop8 tournament deck by \(player)",
+                        cardRepository: cardRepository
                     )
                     .padding(.horizontal, 16)
                 }
