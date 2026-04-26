@@ -76,6 +76,7 @@ struct CardDetailView: View {
                         cardRepository: repository
                     )
                 }
+                CardAuthenticityView(card: viewModel.card)
                 phStoresSection
                 otherPrintingsSection
                 classicArchetypesSection
