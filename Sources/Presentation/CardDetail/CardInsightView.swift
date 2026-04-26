@@ -105,7 +105,13 @@ struct CardInsightView: View {
             }
             .padding(16)
         }
-        .task {
+        .task(id: card.scryfallID) {
+            // Reset state when card changes (e.g. navigating Other Printings)
+            insight = nil
+            insightDate = nil
+            alternatives = []
+            resolvedAlternatives = [:]
+            error = nil
             await loadCachedInsight()
         }
     }
@@ -223,9 +229,9 @@ struct CardInsightView: View {
         Format legality: \(formatInfo)
 
         Return ONLY a JSON object (no markdown, no other text):
-        {"recommendation":"BUY or SELL or HOLD","analysis":"concise analysis (max 150 words) covering competitive playability, price outlook, collectibility factors","alternatives":[{"name":"exact card name","reason":"why it substitutes (max 15 words)"}]}
+        {"recommendation":"BUY or SELL or HOLD","analysis":"Detailed analysis (200-250 words) structured as: **Recommendation: BUY/SELL/HOLD** then paragraphs on **Competitive Playability** (formats, archetypes, how many copies typically played), **Price Outlook** (direction, reasoning, reprint risk, supply factors), and **Collectibility** (alt arts, foil premium, reserved list status, special printings). Use markdown bold for section headers.","alternatives":[{"name":"exact card name","reason":"why it substitutes (max 20 words)"}]}
 
-        For alternatives: suggest 2-3 cheaper cards that fill a similar role. They MUST be legal in at least one of the same formats as \(card.name). Use exact English card names as they appear on Scryfall.
+        For alternatives: suggest 2-3 cheaper cards that fill a similar role. They MUST be legal in at least one of the same formats as \(card.name). Use exact English card names as they appear on Scryfall. Include the specific printing/set context in the analysis since this is the \(card.set.name) version.
         """
 
         guard let result = await GeminiVisionService.generateInsight(prompt: prompt) else {

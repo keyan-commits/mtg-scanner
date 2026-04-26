@@ -231,10 +231,16 @@ struct PriceComparisonView: View {
             }
             .padding(16)
         }
-        .task {
+        .task(id: card.scryfallID) {
+            // Reset when card changes (e.g. Other Printings navigation)
+            priceHistory = nil
+            mtgStocksCard = nil
+            mtgStocksID = nil
+            hareruyaPrice = nil
+            isLoadingHistory = false
             await loadMTGStocksData()
         }
-        .task {
+        .task(id: "hareruya-\(card.scryfallID)") {
             await loadHareruyaPrice()
         }
     }
