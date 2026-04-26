@@ -151,6 +151,11 @@ actor GeminiVisionService {
         UserDefaults.standard.set(count + 1, forKey: altDailyLimitKey)
     }
 
+    static func setAltDailyUsage(_ count: Int) {
+        resetIfNewDay()
+        UserDefaults.standard.set(count, forKey: altDailyLimitKey)
+    }
+
     /// Identifies a card from a CGImage. Returns (cardName, setCode?, collectorNumber?) or nil.
     func identifyCard(image: CGImage) async -> GeminiCardResult? {
         guard let apiKey = Self.activeApiKey else { return nil }
@@ -403,13 +408,32 @@ actor GeminiVisionService {
     /// text and vision prompts).
     private static let textEndpoint = endpoint
 
-    /// Generates a card insight using Gemini text model (no image).
-    /// Uses 1 daily request. Returns the insight text or nil on failure.
-    static func generateInsight(prompt: String) async -> String? {
-        guard let apiKey = activeApiKey else { return nil }
-        guard !isDailyLimitReached else { return nil }
-        recordUsage()
+    /// Which key was used for the last insight call.
+    static var lastUsedKey: String = "primary"
 
+    /// Generates a card insight using Gemini text model (no image).
+    /// Tries primary key first, retries with alt on rate limit.
+    static func generateInsight(prompt: String) async -> String? {
+        // Try primary first, then alt on failure
+        let keysToTry: [(key: String, label: String)] = {
+            var keys: [(String, String)] = []
+            if let primary = apiKey, !primary.isEmpty { keys.append((primary, "primary")) }
+            if let alt = altApiKey, !alt.isEmpty { keys.append((alt, "alt")) }
+            return keys
+        }()
+
+        for (key, label) in keysToTry {
+            if let result = await callGemini(prompt: prompt, apiKey: key) {
+                lastUsedKey = label
+                if label == "primary" { recordUsage() }
+                else { recordAltUsage() }
+                return result
+            }
+        }
+        return nil
+    }
+
+    private static func callGemini(prompt: String, apiKey: String) async -> String? {
         guard let url = URL(string: "\(textEndpoint)?key=\(apiKey)") else { return nil }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -429,7 +453,7 @@ actor GeminiVisionService {
             let (data, response) = try await URLSession.shared.data(for: request)
             if let http = response as? HTTPURLResponse, http.statusCode == 429 {
                 markRateLimited()
-                return nil
+                return nil // Will retry with next key
             }
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let candidates = json["candidates"] as? [[String: Any]],

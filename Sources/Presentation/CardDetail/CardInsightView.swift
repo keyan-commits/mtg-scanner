@@ -15,6 +15,7 @@ struct CardInsightView: View {
     @State private var isGenerating: Bool = false
     @State private var error: String?
     @State private var showFullInsight: Bool = false
+    @State private var usedKeyLabel: String?
 
     private var isConfigured: Bool { GeminiVisionService.isConfigured }
     private var remainingQuota: Int { max(0, 1000 - GeminiVisionService.dailyUsage) }
@@ -91,8 +92,13 @@ struct CardInsightView: View {
                 } else if isGenerating {
                     HStack(spacing: 8) {
                         ProgressView().scaleEffect(0.7)
-                        Text("Generating insight...")
+                        Text("Generating insight…")
                             .font(.caption)
+                            .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    }
+                    if let usedKeyLabel {
+                        Text("Using \(usedKeyLabel) key")
+                            .font(.system(size: 9))
                             .foregroundStyle(MD3Theme.onSurfaceVariant)
                     }
                 } else if !isConfigured {
@@ -329,10 +335,12 @@ struct CardInsightView: View {
         budget_alternatives: 2-3 cheaper cards that do a similar job. gameplay_alternatives: 2-3 cards at any price that are the best strategic substitutes or upgrades. All must be legal in the same formats. Use exact Scryfall English names.
         """
 
+        usedKeyLabel = GeminiVisionService.isUsingAltKey ? "alt" : "primary"
         guard let result = await GeminiVisionService.generateInsight(prompt: prompt) else {
             error = "Failed to generate insight. Check Gemini settings."
             return
         }
+        usedKeyLabel = GeminiVisionService.lastUsedKey
 
         // Parse JSON response
         let cleaned = result

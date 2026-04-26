@@ -15,6 +15,7 @@ struct SettingsScreen: View {
     @State private var geminiTestResult: String?
     @State private var geminiTesting: Bool = false
     @State private var showUsageEditor: Bool = false
+    @State private var showAltUsageEditor: Bool = false
     @State private var manualUsageText: String = ""
     @State private var showGeminiHelp: Bool = false
     @State private var geminiToast: String?
@@ -223,6 +224,20 @@ struct SettingsScreen: View {
                         }
                     }
                     // Alt key status and usage
+                    // Active key indicator
+                    HStack {
+                        Text("Active key")
+                        Spacer()
+                        if GeminiVisionService.isUsingAltKey {
+                            Text("Alt")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.orange)
+                        } else {
+                            Text("Primary")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.green)
+                        }
+                    }
                     if !geminiAltKey.isEmpty {
                         HStack {
                             Text("Alt key status")
@@ -235,12 +250,20 @@ struct SettingsScreen: View {
                                     .foregroundStyle(.green)
                             }
                         }
-                        HStack {
-                            Text("Alt key usage")
-                                .foregroundStyle(MD3Theme.onSurface)
-                            Spacer()
-                            Text("\(GeminiVisionService.altDailyUsage) / 1,000")
-                                .foregroundStyle(GeminiVisionService.isAltDailyLimitReached ? .red : .secondary)
+                        Button {
+                            manualUsageText = "\(GeminiVisionService.altDailyUsage)"
+                            showAltUsageEditor = true
+                        } label: {
+                            HStack {
+                                Text("Alt key usage")
+                                    .foregroundStyle(MD3Theme.onSurface)
+                                Spacer()
+                                Text("\(GeminiVisionService.altDailyUsage) / 1,000")
+                                    .foregroundStyle(GeminiVisionService.isAltDailyLimitReached ? .red : .secondary)
+                                Image(systemName: "pencil")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                     if let error = GeminiVisionService.lastError {
@@ -405,7 +428,7 @@ struct SettingsScreen: View {
                 }
             }
         }
-        .alert("Set API Usage", isPresented: $showUsageEditor) {
+        .alert("Set Primary Key Usage", isPresented: $showUsageEditor) {
             TextField("Usage count", text: $manualUsageText)
                 .keyboardType(.numberPad)
             Button("Save") {
@@ -416,6 +439,18 @@ struct SettingsScreen: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Enter the actual request count from aistudio.google.com to sync with Google's dashboard.")
+        }
+        .alert("Set Alt Key Usage", isPresented: $showAltUsageEditor) {
+            TextField("Usage count", text: $manualUsageText)
+                .keyboardType(.numberPad)
+            Button("Save") {
+                if let count = Int(manualUsageText) {
+                    GeminiVisionService.setAltDailyUsage(count)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Enter the actual request count for the alt key from aistudio.google.com.")
         }
         .task {
             await currencyService.refreshIfStale()
