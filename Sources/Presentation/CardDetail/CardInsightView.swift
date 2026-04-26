@@ -119,6 +119,11 @@ struct CardInsightView: View {
             error = nil
             await loadCachedInsight()
         }
+        .onAppear {
+            // Reload from DB on re-appear (e.g. returning from alternative)
+            // .task(id:) only fires on change, not re-appear
+            Task { await loadCachedInsight() }
+        }
     }
 
     // MARK: - Alternative Row
