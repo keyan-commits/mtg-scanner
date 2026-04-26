@@ -272,25 +272,26 @@ struct CardInsightView: View {
     /// Parses stored insight. Format:
     /// `analysis\n---BUDGET---\nname|||reason\n---GAMEPLAY---\nname|||reason`
     private func parseInsight(_ stored: String) {
-        let budgetSplit = stored.components(separatedBy: "\n---BUDGET---\n")
-        insight = budgetSplit[0]
         budgetAlternatives = []
         gameplayAlternatives = []
 
+        let budgetSplit = stored.components(separatedBy: "\n---BUDGET---\n")
         if budgetSplit.count > 1 {
+            insight = budgetSplit[0]
             let rest = budgetSplit[1]
             let gameplaySplit = rest.components(separatedBy: "\n---GAMEPLAY---\n")
             budgetAlternatives = parseAltLines(gameplaySplit[0])
             if gameplaySplit.count > 1 {
                 gameplayAlternatives = parseAltLines(gameplaySplit[1])
             }
+            return
         }
-        // Legacy format compat (old ---ALT--- separator)
-        if budgetAlternatives.isEmpty && gameplayAlternatives.isEmpty {
-            let legacySplit = stored.components(separatedBy: "\n---ALT---\n")
-            if legacySplit.count > 1 {
-                budgetAlternatives = parseAltLines(legacySplit[1])
-            }
+
+        // Legacy format (old ---ALT--- separator)
+        let legacySplit = stored.components(separatedBy: "\n---ALT---\n")
+        insight = legacySplit[0] // Strip the ---ALT--- portion
+        if legacySplit.count > 1 {
+            budgetAlternatives = parseAltLines(legacySplit[1])
         }
     }
 
@@ -365,7 +366,9 @@ struct CardInsightView: View {
                 budget = alts
             }
         } else {
-            analysisText = cleaned
+            // JSON parsing failed (likely truncated response) — retry hint
+            error = "AI response was incomplete. Tap refresh to try again."
+            return
         }
 
         insight = analysisText
