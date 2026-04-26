@@ -541,13 +541,11 @@ struct SettingsScreen: View {
                 }
                 let body = String(data: data.prefix(100), encoding: .utf8) ?? "?"
                 return "Bad response: \(body)"
-            } else if statusCode == 400 { return "Invalid key (400)" }
-            else if statusCode == 403 { return "Not authorized (403)" }
-            else if statusCode == 429 { return "Rate limited (429)" }
-            else {
-                let body = String(data: data.prefix(80), encoding: .utf8) ?? "?"
-                return "HTTP \(statusCode): \(body)"
-            }
+            } else if statusCode == 400 { return "Invalid key" }
+            else if statusCode == 403 { return "Not authorized" }
+            else if statusCode == 429 { return "Rate limited" }
+            else if statusCode == 503 { return "Server busy" }
+            else { return "HTTP \(statusCode)" }
         } catch {
             return "Error: \(error.localizedDescription)"
         }
