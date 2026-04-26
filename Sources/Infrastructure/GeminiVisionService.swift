@@ -362,9 +362,10 @@ actor GeminiVisionService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 20
+        request.timeoutInterval = 30
 
         let body: [String: Any] = [
+            "generationConfig": ["maxOutputTokens": 300],
             "contents": [[
                 "parts": [["text": prompt]]
             ]]
