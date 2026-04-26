@@ -442,12 +442,23 @@ struct SettingsScreen: View {
         geminiTesting = true
         defer { geminiTesting = false }
 
-        guard let apiKey = GeminiVisionService.apiKey, !apiKey.isEmpty else {
-            geminiTestResult = "No key"
-            return
-        }
+        let primaryResult = await testSingleKey(GeminiVisionService.apiKey)
+        let altResult = await testSingleKey(GeminiVisionService.altApiKey)
 
-        let url = URL(string: "\(GeminiVisionService.endpointURL)?key=\(apiKey)")!
+        if let altKey = GeminiVisionService.altApiKey, !altKey.isEmpty {
+            geminiTestResult = "Primary: \(primaryResult) · Alt: \(altResult)"
+        } else {
+            geminiTestResult = primaryResult
+        }
+        if primaryResult == "OK" || altResult == "OK" {
+            GeminiVisionService.lastError = nil
+        }
+    }
+
+    private func testSingleKey(_ key: String?) async -> String {
+        guard let key, !key.isEmpty else { return "No key" }
+
+        let url = URL(string: "\(GeminiVisionService.endpointURL)?key=\(key)")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -457,7 +468,6 @@ struct SettingsScreen: View {
             "contents": [["parts": [["text": "Reply with exactly: OK"]]]]
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        GeminiVisionService.recordUsage()
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -466,22 +476,15 @@ struct SettingsScreen: View {
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let candidates = json["candidates"] as? [[String: Any]],
                    !candidates.isEmpty {
-                    geminiTestResult = "OK"
-                    GeminiVisionService.lastError = nil
-                } else {
-                    geminiTestResult = "Unexpected response"
+                    return "OK"
                 }
-            } else if statusCode == 400 {
-                geminiTestResult = "Invalid key"
-            } else if statusCode == 403 {
-                geminiTestResult = "Key not authorized"
-            } else if statusCode == 429 {
-                geminiTestResult = "Rate limited"
-            } else {
-                geminiTestResult = "HTTP \(statusCode)"
-            }
+                return "Unexpected response"
+            } else if statusCode == 400 { return "Invalid key" }
+            else if statusCode == 403 { return "Not authorized" }
+            else if statusCode == 429 { return "Rate limited" }
+            else { return "HTTP \(statusCode)" }
         } catch {
-            geminiTestResult = "Network error"
+            return "Network error"
         }
     }
 
