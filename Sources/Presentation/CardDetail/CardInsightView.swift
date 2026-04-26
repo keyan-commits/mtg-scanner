@@ -14,6 +14,7 @@ struct CardInsightView: View {
     @State private var resolvedAlternatives: [String: Card] = [:]
     @State private var isGenerating: Bool = false
     @State private var error: String?
+    @State private var showFullInsight: Bool = false
 
     private var isConfigured: Bool { GeminiVisionService.isConfigured }
     private var remainingQuota: Int { max(0, 1000 - GeminiVisionService.dailyUsage) }
@@ -57,7 +58,15 @@ struct CardInsightView: View {
                     Text(insight)
                         .font(MD3Typography.bodySmall)
                         .foregroundStyle(MD3Theme.onSurface)
-                        .textSelection(.enabled)
+                        .lineLimit(6)
+                    Button {
+                        showFullInsight = true
+                    } label: {
+                        Text("Read more")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(MD3Theme.primary)
+                    }
+                    .buttonStyle(.plain)
 
                     // Budget alternatives
                     if !budgetAlternatives.isEmpty {
@@ -120,6 +129,9 @@ struct CardInsightView: View {
             }
             .padding(16)
         }
+        .sheet(isPresented: $showFullInsight) {
+            insightFullScreen
+        }
         .task(id: card.scryfallID) {
             // Reset state when card changes (e.g. navigating Other Printings)
             insight = nil
@@ -133,6 +145,52 @@ struct CardInsightView: View {
         .onAppear {
             // Reload from DB on re-appear (e.g. returning from alternative)
             Task { await loadFromDB() }
+        }
+    }
+
+    // MARK: - Full Screen Insight
+
+    private var insightFullScreen: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    if let insight {
+                        Text(insight)
+                            .font(.body)
+                            .foregroundStyle(MD3Theme.onSurface)
+                            .textSelection(.enabled)
+                    }
+
+                    if !budgetAlternatives.isEmpty {
+                        Divider()
+                        Text("Budget Alternatives")
+                            .font(.headline)
+                            .foregroundStyle(MD3Theme.onSurface)
+                        ForEach(budgetAlternatives, id: \.name) { alt in
+                            alternativeRow(alt)
+                        }
+                    }
+
+                    if !gameplayAlternatives.isEmpty {
+                        Divider()
+                        Text("Gameplay Alternatives")
+                            .font(.headline)
+                            .foregroundStyle(MD3Theme.onSurface)
+                        ForEach(gameplayAlternatives, id: \.name) { alt in
+                            alternativeRow(alt)
+                        }
+                    }
+                }
+                .padding(20)
+            }
+            .background(MD3Theme.background)
+            .navigationTitle("AI Insight — \(card.name)")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { showFullInsight = false }
+                }
+            }
         }
     }
 
