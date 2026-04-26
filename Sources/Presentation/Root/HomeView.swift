@@ -1493,11 +1493,18 @@ struct HomeView: View {
 
     /// Async wrapper so the heavy DB fetches don't block the main thread.
     private func reloadAsync() async {
+        // Each fetch hops to @MainActor (DeckListRepository is @MainActor).
+        // Yield between fetches so SwiftUI can render the UI.
+        let decks = (try? deckRepository.fetchAllDecks()) ?? []
+        await Task.yield()
+        let allItems = (try? deckRepository.fetchAllItems()) ?? []
+        await Task.yield()
+        let collection = (try? deckRepository.fetchCollection()) ?? []
+        await Task.yield()
+        let orders = (try? deckRepository.fetchOrders()) ?? []
+        await Task.yield()
+
         await Task.detached(priority: .userInitiated) { @Sendable in
-            let decks = (try? self.deckRepository.fetchAllDecks()) ?? []
-            let allItems = (try? self.deckRepository.fetchAllItems()) ?? []
-            let collection = (try? self.deckRepository.fetchCollection()) ?? []
-            let orders = (try? self.deckRepository.fetchOrders()) ?? []
             let pendingOrders = orders.filter { order in
                 order.items.contains { $0.status != .arrived }
             }.count
