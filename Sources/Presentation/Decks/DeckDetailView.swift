@@ -51,6 +51,8 @@ struct DeckDetailView: View {
     @State private var showSideboardPicker: Bool = false
     @State private var sideboardCandidates: [(name: String, items: [PurchaseItem], moveCount: Int)] = []
     @State private var showSideboardGuide: Bool = false
+    @State private var isFixingDeck: Bool = false
+    @State private var fixDeckError: String?
 
     enum DeckViewMode: String, CaseIterable, Identifiable {
         case list = "List"
@@ -173,6 +175,16 @@ struct DeckDetailView: View {
                             }
                             .disabled(items.isEmpty || changingAllPrintings)
 
+                            let mainCount = items.filter { $0.zone == "mainboard" }.count
+                            if mainCount > 60 {
+                                Button {
+                                    Task { await aiFixDeck() }
+                                } label: {
+                                    Label("AI Fix Deck (60+15)", systemImage: "sparkles")
+                                }
+                                .disabled(isFixingDeck)
+                            }
+
                             Divider()
 
                             Button {
@@ -182,7 +194,7 @@ struct DeckDetailView: View {
                             }
                             .disabled(items.filter { $0.status != .needed }.isEmpty)
                         } label: {
-                            if changingAllPrintings {
+                            if changingAllPrintings || isFixingDeck {
                                 ProgressView()
                                     .scaleEffect(0.7)
                             } else {
@@ -1520,6 +1532,71 @@ struct DeckDetailView: View {
     }
 
     // MARK: - Actions
+
+    // MARK: - AI Fix Deck (60+15)
+
+    private func aiFixDeck() async {
+        isFixingDeck = true
+        fixDeckError = nil
+        defer { isFixingDeck = false }
+
+        let mainItems = items.filter { $0.zone == "mainboard" }
+        let mainList = Dictionary(grouping: mainItems, by: \.cardName)
+            .map { "\($0.value.count)x \($0.key)" }
+            .sorted()
+            .joined(separator: ", ")
+        let formatStr = deck.format ?? "Unknown"
+
+        let prompt = """
+        You are an expert MTG deck builder. This deck has \(mainItems.count) cards in the mainboard but should have 60 mainboard + 15 sideboard.
+
+        Deck: \(deck.name)
+        Format: \(formatStr)
+        All cards currently in mainboard: \(mainList)
+
+        Return ONLY a JSON array of card names to MOVE to sideboard (the 15 cards that should become the sideboard). Choose the most situational/matchup-dependent cards.
+        Example: ["Card Name 1", "Card Name 2", ...]
+        Return exactly 15 card names (accounting for quantities). Use exact card names from the list above. No other text.
+        """
+
+        guard let result = await GeminiVisionService.generateInsight(prompt: prompt) else {
+            fixDeckError = "Failed to get AI suggestion. Try again."
+            return
+        }
+
+        let cleaned = result
+            .replacingOccurrences(of: "```json", with: "")
+            .replacingOccurrences(of: "```", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard let data = cleaned.data(using: .utf8),
+              let cardNames = try? JSONSerialization.jsonObject(with: data) as? [String],
+              !cardNames.isEmpty else {
+            fixDeckError = "AI response was incomplete. Try again."
+            return
+        }
+
+        // Move the specified cards to sideboard
+        var moved = 0
+        for name in cardNames {
+            let lowerName = name.lowercased()
+            // Find a mainboard item with this name that hasn't been moved yet
+            if let item = items.first(where: {
+                $0.cardName.lowercased() == lowerName && $0.zone == "mainboard"
+            }) {
+                try? repository.moveItems([item], toZone: "sideboard")
+                moved += 1
+            }
+        }
+
+        reload()
+
+        if moved > 0 {
+            fixDeckError = nil
+        } else {
+            fixDeckError = "No matching cards found to move."
+        }
+    }
 
     private func reload() {
         // Refetch via the repository so we see items added in other contexts
