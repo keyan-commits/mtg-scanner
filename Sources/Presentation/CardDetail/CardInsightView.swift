@@ -228,13 +228,14 @@ struct CardInsightView: View {
             priceInfo = "No current price data"
         }
 
-        let formatInfo = card.legalities.summary
+        let formatInfo = card.legalities.detailedSummary
 
         let prompt = """
         MTG card analysis. Return ONLY JSON, no markdown wrapping.
-        Card: \(card.name) | Set: \(card.set.name) | \(card.rarity.rawValue) | \(card.typeLine) | \(priceInfo) | Formats: \(formatInfo)
-        {"recommendation":"BUY/SELL/HOLD","analysis":"80-120 word analysis: playability, price outlook, reprint risk, collectibility for this \(card.set.name) printing","alternatives":[{"name":"exact Scryfall card name","reason":"10 word reason"}]}
-        Alternatives: 2-3 cheaper cards, same format-legal. Be specific and actionable.
+        Card: \(card.name) | Set: \(card.set.name) | \(card.rarity.rawValue) | \(card.typeLine) | \(priceInfo)
+        CURRENT format status (trust this, not your training data): \(formatInfo)
+        {"recommendation":"BUY/SELL/HOLD","analysis":"80-120 words: playability, price outlook, reprint risk, collectibility for this \(card.set.name) printing. Use the CURRENT format status above, not outdated info.","alternatives":[{"name":"exact Scryfall card name","reason":"10 word reason"}]}
+        Alternatives: 2-3 cheaper cards legal in the same formats. Be actionable.
         """
 
         guard let result = await GeminiVisionService.generateInsight(prompt: prompt) else {
