@@ -343,6 +343,55 @@ actor GeminiVisionService {
             return nil
         }
     }
+
+    // MARK: - Text-Only Insight Generation
+
+    /// Text-only endpoint — uses Gemini Flash (not Vision/Preview) for
+    /// cheaper, faster text generation without image capabilities.
+    private static let textEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+
+    /// Generates a card insight using Gemini text model (no image).
+    /// Uses 1 daily request. Returns the insight text or nil on failure.
+    static func generateInsight(prompt: String) async -> String? {
+        guard let apiKey = apiKey, !apiKey.isEmpty else { return nil }
+        guard !isDailyLimitReached else { return nil }
+        recordUsage()
+
+        guard let url = URL(string: "\(textEndpoint)?key=\(apiKey)") else { return nil }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 20
+
+        let body: [String: Any] = [
+            "contents": [[
+                "parts": [["text": prompt]]
+            ]]
+        ]
+
+        guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else { return nil }
+        request.httpBody = bodyData
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse, http.statusCode == 429 {
+                markRateLimited()
+                return nil
+            }
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let candidates = json["candidates"] as? [[String: Any]],
+                  let content = candidates.first?["content"] as? [String: Any],
+                  let parts = content["parts"] as? [[String: Any]],
+                  let text = parts.first?["text"] as? String else {
+                return nil
+            }
+            lastError = nil
+            return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        } catch {
+            lastError = "Insight request failed: \(error.localizedDescription)"
+            return nil
+        }
+    }
 }
 
 struct GeminiCardResult {

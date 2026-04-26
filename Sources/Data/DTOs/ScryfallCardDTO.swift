@@ -110,7 +110,9 @@ extension ScryfallCardDTO {
             lang: nil,
             printedName: nil,
             promoTypes: [],
-            finishes: []
+            finishes: [],
+            insight: nil,
+            insightDate: nil
         )
     }
 }

@@ -108,6 +108,10 @@ extension CardRecord {
     static let promoTypesKey = "__promo_types"
     /// Sentinel key for finishes (nonfoil, foil, etched)
     static let finishesKey = "__finishes"
+    /// Sentinel key for AI-generated insight (persisted per card)
+    static let insightKey = "__insight"
+    /// Sentinel key for insight generation date
+    static let insightDateKey = "__insight_date"
 
     /// Encodes frame effects into the imageURIs dict before JSON
     /// serialization. Empty effects are not written.
@@ -172,6 +176,8 @@ extension CardRecord {
         let promoTypes = promoTypesRaw?.split(separator: ",").map(String.init) ?? []
         let finishesRaw = imageURIs.removeValue(forKey: Self.finishesKey)
         let finishes = finishesRaw?.split(separator: ",").map(String.init) ?? []
+        let insight = imageURIs.removeValue(forKey: Self.insightKey)
+        let insightDate = imageURIs.removeValue(forKey: Self.insightDateKey)
 
         let cardRarity = CardRarity(rawValue: rarity) ?? .common
 
@@ -198,7 +204,9 @@ extension CardRecord {
             lang: lang,
             printedName: printedName,
             promoTypes: promoTypes,
-            finishes: finishes
+            finishes: finishes,
+            insight: insight,
+            insightDate: insightDate
         )
     }
 }

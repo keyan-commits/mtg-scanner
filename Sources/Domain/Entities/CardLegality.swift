@@ -25,4 +25,11 @@ struct FormatLegality: Equatable, Sendable {
     var allFormats: [String] {
         Array(statuses.keys)
     }
+
+    /// Short summary of format legality for AI prompts.
+    var summary: String {
+        let legal = statuses.filter { $0.value == .legal }.keys.sorted()
+        if legal.isEmpty { return "Not legal in any format" }
+        return legal.joined(separator: ", ")
+    }
 }

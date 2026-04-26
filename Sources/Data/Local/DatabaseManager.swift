@@ -444,4 +444,30 @@ final class DatabaseManager: Sendable {
         )
         return try context.fetch(descriptor)
     }
+
+    // MARK: - Save Insight
+
+    /// Persists an AI-generated insight for a card by encoding it into
+    /// the imageURIsJSON sentinel keys on the CardRecord.
+    func saveInsight(scryfallID: String, insight: String, date: String) async throws {
+        let context = ModelContext(modelContainer)
+        let descriptor = FetchDescriptor<CardRecord>(
+            predicate: #Predicate<CardRecord> { $0.scryfallID == scryfallID }
+        )
+        guard let record = try context.fetch(descriptor).first else { return }
+
+        // Decode existing imageURIs, add insight keys, re-encode
+        var imageURIs: [String: String] = [:]
+        if let data = record.imageURIsJSON.data(using: .utf8),
+           let dict = try? JSONSerialization.jsonObject(with: data) as? [String: String] {
+            imageURIs = dict
+        }
+        imageURIs[CardRecord.insightKey] = insight
+        imageURIs[CardRecord.insightDateKey] = date
+        if let data = try? JSONSerialization.data(withJSONObject: imageURIs),
+           let jsonString = String(data: data, encoding: .utf8) {
+            record.imageURIsJSON = jsonString
+        }
+        try context.save()
+    }
 }

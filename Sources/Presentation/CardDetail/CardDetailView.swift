@@ -80,6 +80,12 @@ struct CardDetailView: View {
                     cardRepository: repository,
                     deckRepository: deckRepository
                 )
+                if let repository {
+                    CardInsightView(
+                        card: viewModel.card,
+                        cardRepository: repository
+                    )
+                }
                 oracleTextSection
                 rulingsSection
                 addToDeckButton

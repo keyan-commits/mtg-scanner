@@ -52,6 +52,10 @@ struct Card: Identifiable, Equatable, Hashable, Sendable {
     let promoTypes: [String]
     /// Scryfall finishes (e.g. "nonfoil", "foil", "etched").
     let finishes: [String]
+    /// AI-generated insight text (persisted in DB). Nil until generated.
+    var insight: String?
+    /// Date the insight was generated (ISO format).
+    var insightDate: String?
 
     // MARK: - Identifiable
 
