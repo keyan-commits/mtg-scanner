@@ -350,10 +350,11 @@ struct DeckGuideSheet: View {
                 }
             }
             .task {
-                // Resolve deck cards FIRST so card links point to correct versions
-                await resolveDeckCards()
+                // Load cached guide FIRST (instant, no flash)
                 guide = UserDefaults.standard.string(forKey: storageKey)
                 guideDate = UserDefaults.standard.string(forKey: dateKey)
+                // Then resolve deck cards so links point to correct versions
+                await resolveDeckCards()
             }
         }
     }
