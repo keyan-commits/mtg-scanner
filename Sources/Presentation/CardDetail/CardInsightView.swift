@@ -135,11 +135,12 @@ struct CardInsightView: View {
         \(priceInfo)
         Format legality: \(formatInfo)
 
-        Provide a concise analysis (max 150 words) covering:
+        Provide a concise analysis (max 200 words) covering:
         1. BUY, SELL, or HOLD recommendation with reasoning
         2. Competitive playability (which formats/archetypes use it)
         3. Price outlook (is it likely to go up or down and why)
         4. Any special collectibility factors (alternate art, foil premium, reserved list, etc.)
+        5. Budget alternatives — suggest 2-3 cheaper cards that fill a similar role in competitive decks
 
         Be direct and actionable. No disclaimers.
         """
