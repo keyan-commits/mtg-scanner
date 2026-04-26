@@ -174,6 +174,9 @@ struct SettingsScreen: View {
                     .textContentType(.password)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
+                    .focused($geminiKeyFocused)
+                    .submitLabel(.done)
+                    .onSubmit { geminiKeyFocused = false }
                     .onChange(of: geminiAltKey) { _, newValue in
                         GeminiVisionService.altApiKey = newValue.isEmpty ? nil : newValue
                     }
