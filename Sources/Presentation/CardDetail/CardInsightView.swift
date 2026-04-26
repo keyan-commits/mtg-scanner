@@ -331,7 +331,7 @@ struct CardInsightView: View {
         MTG card analysis. Return ONLY JSON, no markdown wrapping.
         Card: \(card.name) | Set: \(card.set.name) | \(card.rarity.rawValue) | \(card.typeLine) | \(priceInfo)
         CURRENT format status (trust this, not your training data): \(formatInfo)
-        {"recommendation":"BUY/SELL/HOLD","analysis":"80-120 words: playability, price outlook, reprint risk, collectibility for this \(card.set.name) printing. Use the CURRENT format status above, not outdated info.","budget_alternatives":[{"name":"exact Scryfall card name","reason":"10 word reason"}],"gameplay_alternatives":[{"name":"exact Scryfall card name","reason":"10 word reason"}]}
+        {"recommendation":"BUY/SELL/HOLD","analysis":"150-200 word analysis with these sections separated by newlines:\n\n**Competitive Playability:** which formats and archetypes use this card, how many copies typically played\n\n**Price Outlook:** price direction, reprint risk, supply factors for this \(card.set.name) printing\n\n**Collectibility:** alt arts, foil premium, reserved list, special printings\n\nUse the CURRENT format status above, not outdated info.","budget_alternatives":[{"name":"exact Scryfall card name","reason":"10 word reason"}],"gameplay_alternatives":[{"name":"exact Scryfall card name","reason":"10 word reason"}]}
         budget_alternatives: 2-3 cheaper cards that do a similar job. gameplay_alternatives: 2-3 cards at any price that are the best strategic substitutes or upgrades. All must be legal in the same formats. Use exact Scryfall English names.
         """
 
