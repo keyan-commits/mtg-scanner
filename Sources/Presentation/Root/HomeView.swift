@@ -1493,10 +1493,16 @@ struct HomeView: View {
 
     /// Async wrapper so the heavy DB fetches don't block the main thread.
     private func reloadAsync() async {
-        // Each fetch hops to @MainActor (DeckListRepository is @MainActor).
-        // Yield between fetches so SwiftUI can render the UI.
+        // Show decks immediately, defer heavy queries
         let decks = (try? deckRepository.fetchAllDecks()) ?? []
+        recentDecks = decks
+        stats = HomeStats(deckCount: decks.count, collectionUniques: stats.collectionUniques,
+                          collectionCopies: stats.collectionCopies, orderCount: stats.orderCount,
+                          pendingOrders: stats.pendingOrders, spentByCurrency: stats.spentByCurrency)
+        isLoadingStats = false
         await Task.yield()
+
+        // Heavy queries deferred
         let allItems = (try? deckRepository.fetchAllItems()) ?? []
         await Task.yield()
         let collection = (try? deckRepository.fetchCollection()) ?? []
@@ -1527,8 +1533,6 @@ struct HomeView: View {
 
             await MainActor.run {
                 self.stats = newStats
-                self.recentDecks = decks
-                self.isLoadingStats = false
             }
         }.value
     }

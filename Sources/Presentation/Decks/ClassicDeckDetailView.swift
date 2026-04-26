@@ -789,6 +789,9 @@ struct ClassicDeckDetailView: View {
             format: archetype.format
         ) else { return }
 
+        // Store source so AI Deck Guide knows the origin
+        deck.referenceURL = "source:\(archetype.source)"
+
         for entry in resolved {
             _ = try? deckRepository.addItem(
                 card: entry.card,

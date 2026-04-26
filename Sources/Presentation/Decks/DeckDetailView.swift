@@ -805,7 +805,9 @@ struct DeckDetailView: View {
                     format: deck.format,
                     mainboard: items.filter { $0.zone == "mainboard" }.map { ($0.cardName, $0.quantity) },
                     sideboard: items.filter { $0.zone == "sideboard" }.map { ($0.cardName, $0.quantity) },
-                    source: deck.referenceURL != nil ? "MTGTop8 tournament deck" : nil,
+                    source: deck.referenceURL?.hasPrefix("source:") == true
+                        ? String(deck.referenceURL!.dropFirst(7))
+                        : (deck.referenceURL != nil ? "MTGTop8 tournament deck" : nil),
                     cardRepository: cardRepository,
                     deckItemPrintings: Dictionary(
                         items.map { ($0.cardName.lowercased(), (set: $0.setCode, collector: $0.collectorNumber)) },
@@ -1550,6 +1552,28 @@ struct DeckDetailView: View {
             .sorted()
             .joined(separator: ", ")
         let formatStr = deck.format ?? "Unknown"
+
+        // Check if this deck matches a known archetype with a defined sideboard
+        let allArchetypes = ClassicArchetypes.all + InQuestDecks.all
+        if let match = allArchetypes.first(where: { archetype in
+            deck.name.lowercased().contains(archetype.name.lowercased())
+        }), let originalSideboard = match.sideboard, !originalSideboard.isEmpty {
+            // Use the original archetype's sideboard split
+            var moved = 0
+            for (cardName, qty) in originalSideboard {
+                let lowerName = cardName.lowercased()
+                for _ in 0..<qty {
+                    if let item = items.first(where: {
+                        $0.cardName.lowercased() == lowerName && $0.zone == "mainboard"
+                    }) {
+                        try? repository.moveItems([item], toZone: "sideboard")
+                        moved += 1
+                    }
+                }
+            }
+            reload()
+            return
+        }
 
         let prompt = """
         You are an expert MTG deck builder. This deck has \(mainItems.count) cards in the mainboard but should have 60 mainboard + 15 sideboard.
