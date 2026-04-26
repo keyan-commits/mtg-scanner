@@ -18,9 +18,9 @@ struct DeckGuideView: View {
     private var isConfigured: Bool { GeminiVisionService.isConfigured }
     private var remainingQuota: Int { max(0, 1000 - GeminiVisionService.dailyUsage) }
 
-    // Persist guides keyed by deck name
-    private var storageKey: String { "deckGuide_\(deckName)" }
-    private var dateKey: String { "deckGuideDate_\(deckName)" }
+    // Persist guides keyed by deck name + format
+    private var storageKey: String { "deckGuide_\(deckName)_\(format ?? "freeform")" }
+    private var dateKey: String { "deckGuideDate_\(deckName)_\(format ?? "freeform")" }
 
     var body: some View {
         MD3Card {
