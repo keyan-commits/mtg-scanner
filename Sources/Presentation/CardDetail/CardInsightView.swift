@@ -35,14 +35,19 @@ struct CardInsightView: View {
                             .foregroundStyle(MD3Theme.onSurfaceVariant)
                     }
                     if insight != nil {
-                        Button {
-                            Task { await generateInsight() }
-                        } label: {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.caption)
-                                .foregroundStyle(MD3Theme.primary)
+                        if isGenerating {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                        } else {
+                            Button {
+                                Task { await generateInsight() }
+                            } label: {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.caption)
+                                    .foregroundStyle(MD3Theme.primary)
+                            }
+                            .disabled(!isConfigured)
                         }
-                        .disabled(isGenerating || !isConfigured)
                     }
                 }
 
