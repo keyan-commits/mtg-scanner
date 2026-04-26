@@ -1018,17 +1018,15 @@ struct HomeView: View {
         if let parenRange = name.range(of: " (") {
             name = String(name[..<parenRange.lowerBound])
         }
-        // Try to match the exact set from MTGStocks first
-        if let setName = interest.setName,
-           let printings = try? await cardRepository.findAllPrintings(name: name),
+        // Try to match the exact set from MTGStocks first (by set code)
+        if let printings = try? await cardRepository.findAllPrintings(name: name),
            !printings.isEmpty {
-            let lowerSet = setName.lowercased()
-            // Match by set name (fuzzy — MTGStocks and Scryfall names differ slightly)
-            if let match = printings.first(where: {
-                $0.set.name.lowercased().contains(lowerSet) || lowerSet.contains($0.set.name.lowercased())
-            }) {
-                hotInterestsResolved[interest.id] = match
-                return
+            if let setCode = interest.setCode {
+                let lowerCode = setCode.lowercased()
+                if let match = printings.first(where: { $0.set.code == lowerCode }) {
+                    hotInterestsResolved[interest.id] = match
+                    return
+                }
             }
         }
         // Fallback: cheapest printing

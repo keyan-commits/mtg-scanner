@@ -148,8 +148,9 @@ actor MTGStocksService {
             // Cap at 500% to filter data glitches
             guard let percent = pct, abs(percent) <= 500 else { return nil }
             let setName = printObj["set_name"] as? String
+            let setCode = printObj["set_code"] as? String
             return MTGStocksInterest(
-                id: id, name: name, setName: setName,
+                id: id, name: name, setName: setName, setCode: setCode,
                 currentPrice: current, previousPrice: previous,
                 percentageChange: percent
             )
@@ -322,6 +323,7 @@ struct MTGStocksInterest: Sendable {
     let id: Int
     let name: String
     let setName: String?
+    let setCode: String?
     let currentPrice: Double?
     let previousPrice: Double?
     let percentageChange: Double?
