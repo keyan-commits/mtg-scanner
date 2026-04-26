@@ -10,6 +10,9 @@ struct DeckGuideView: View {
     let sideboard: [(name: String, quantity: Int)]
     let source: String?
     let cardRepository: CardRepositoryProtocol?
+    /// Set+collector from the deck items keyed by lowercased card name.
+    /// Used to resolve the exact printing in the deck.
+    let deckItemPrintings: [String: (set: String, collector: String)]
 
     @State private var guide: String?
     @State private var guideDate: String?
@@ -151,16 +154,14 @@ struct DeckGuideView: View {
         }
     }
 
-    /// Pre-resolve deck card names so LinkedCardText can match the correct version.
+    /// Pre-resolve deck card names using the deck's actual set+collector
+    /// so referenced cards link to the correct printing (e.g. Ice Age, not Strixhaven).
     private func resolveDeckCards() async {
         guard let repo = cardRepository else { return }
-        let resolver = CardResolver(cardRepository: repo)
-        let allNames = Set(mainboard.map(\.name) + sideboard.map(\.name))
-        for name in allNames {
-            if deckCardLookup[name.lowercased()] == nil {
-                if let card = await resolver.resolve(name: name, strategy: .cheapest) {
-                    deckCardLookup[name.lowercased()] = card
-                }
+        for (lowerName, printing) in deckItemPrintings {
+            guard deckCardLookup[lowerName] == nil else { continue }
+            if let card = try? await repo.fetchCard(set: printing.set, collectorNumber: printing.collector) {
+                deckCardLookup[lowerName] = card
             }
         }
     }

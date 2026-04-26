@@ -806,7 +806,11 @@ struct DeckDetailView: View {
                     mainboard: items.filter { $0.zone == "mainboard" }.map { ($0.cardName, $0.quantity) },
                     sideboard: items.filter { $0.zone == "sideboard" }.map { ($0.cardName, $0.quantity) },
                     source: deck.referenceURL != nil ? "MTGTop8 tournament deck" : nil,
-                    cardRepository: cardRepository
+                    cardRepository: cardRepository,
+                    deckItemPrintings: Dictionary(
+                        items.map { ($0.cardName.lowercased(), (set: $0.setCode, collector: $0.collectorNumber)) },
+                        uniquingKeysWith: { first, _ in first }
+                    )
                 )
                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 .listRowBackground(Color.clear)

@@ -329,7 +329,11 @@ struct MTGTop8DeckDetailView: View {
                         mainboard: resolvedMain.map { ($0.card.name, $0.quantity) },
                         sideboard: resolvedSide.map { ($0.card.name, $0.quantity) },
                         source: "MTGTop8 tournament deck by \(player)",
-                        cardRepository: cardRepository
+                        cardRepository: cardRepository,
+                        deckItemPrintings: Dictionary(
+                            (resolvedMain + resolvedSide).map { ($0.card.name.lowercased(), (set: $0.card.set.code, collector: $0.card.collectorNumber)) },
+                            uniquingKeysWith: { first, _ in first }
+                        )
                     )
                     .padding(.horizontal, 16)
                 }

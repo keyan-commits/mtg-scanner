@@ -155,7 +155,11 @@ struct ClassicDeckDetailView: View {
                     mainboard: archetype.mainboard.map { ($0.key, $0.value) },
                     sideboard: (archetype.sideboard ?? [:]).map { ($0.key, $0.value) },
                     source: archetype.source,
-                    cardRepository: cardRepository
+                    cardRepository: cardRepository,
+                    deckItemPrintings: Dictionary(
+                        resolved.map { ($0.card.name.lowercased(), (set: $0.card.set.code, collector: $0.card.collectorNumber)) },
+                        uniquingKeysWith: { first, _ in first }
+                    )
                 )
                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 .listRowBackground(Color.clear)
