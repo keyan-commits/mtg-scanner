@@ -263,55 +263,127 @@ struct CardAuthenticityView: View {
             .buttonStyle(.plain)
 
             if showManualTests {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 14) {
                     manualTest(
-                        icon: "flashlight.on.fill",
-                        name: "Light Test",
-                        steps: "Hold a bright flashlight behind the card. Real cards show a faint, even amber/reddish glow. Fakes block light completely or show uneven brightness. The blue core layer should be visible."
+                        icon: "magnifyingglass",
+                        name: "Green Dot Test (Best Test)",
+                        steps: "Use a 20x loupe on the green dot on the card BACK. Real cards show 4 red dots in an L-shape inside a yellow spot. Fakes have no red dots.",
+                        realImageURL: "https://h5m3s5t5.delivery.rocketcdn.me/wp-content/uploads/2022/10/Green-Dot-Real-2.jpg",
+                        fakeImageURL: "https://h5m3s5t5.delivery.rocketcdn.me/wp-content/uploads/2022/10/Green-Dot-Fake-2.jpg"
                     )
                     manualTest(
-                        icon: "arrow.up.and.down",
-                        name: "Bend Test",
-                        steps: "Gently bend the card into a U-shape and release. Real cards spring back flat with no crease. Fakes crease permanently or feel stiff/flimsy. Use caution with valuable cards."
+                        icon: "textformat",
+                        name: "The \"T\" Test",
+                        steps: "Examine the \"T\" in \"The\" on the card back with a loupe. Real: smooth straight left edge, wavy right edge. Fake: all edges uniform.",
+                        realImageURL: "https://h5m3s5t5.delivery.rocketcdn.me/wp-content/uploads/2024/02/Fake-Update-21-1.jpg",
+                        fakeImageURL: "https://h5m3s5t5.delivery.rocketcdn.me/wp-content/uploads/2024/02/Fake-Update-20-1.jpg"
+                    )
+                    manualTest(
+                        icon: "circle.grid.3x3",
+                        name: "Rosette Pattern",
+                        steps: "Under magnification, real cards show sharp, even CMYK dot rosettes. Fakes show blurry, chaotic patterns or inkjet lines.",
+                        realImageURL: "https://h5m3s5t5.delivery.rocketcdn.me/wp-content/uploads/2022/10/Rosette-Pattern-Real-1.jpg",
+                        fakeImageURL: "https://h5m3s5t5.delivery.rocketcdn.me/wp-content/uploads/2022/10/Rosette-Pattern-Fake-1.jpg"
+                    )
+                    manualTest(
+                        icon: "flashlight.on.fill",
+                        name: "Light / Blue Core Test",
+                        steps: "Hold card to bright light. Real cards show bluish tint with a blue core layer visible from the side. Fakes show a black core.",
+                        realImageURL: "https://h5m3s5t5.delivery.rocketcdn.me/wp-content/uploads/2026/03/Fake-Update-23.jpg",
+                        fakeImageURL: "https://h5m3s5t5.delivery.rocketcdn.me/wp-content/uploads/2026/03/Fake-Update-22.jpg"
                     )
                     manualTest(
                         icon: "scalemass.fill",
                         name: "Weight Test",
-                        steps: "Real cards weigh ~1.7-1.8 grams. Use a precision scale (0.01g). Fakes are often heavier (thicker stock) or lighter (thin paper)."
+                        steps: "Real cards weigh 1.7-1.8g. Fakes are often ~1.9g due to higher plastic content. Use a precision scale (0.01g).",
+                        realImageURL: "https://h5m3s5t5.delivery.rocketcdn.me/wp-content/uploads/2022/10/Weight-Test-Real.jpg",
+                        fakeImageURL: "https://h5m3s5t5.delivery.rocketcdn.me/wp-content/uploads/2022/10/Weight-Test-Fake.jpg"
                     )
                     manualTest(
-                        icon: "drop.fill",
-                        name: "Water Drop Test",
-                        steps: "Place a tiny water drop on the card surface. Real cards bead water briefly before absorbing. Fakes absorb instantly or repel completely. WARNING: Can damage cards."
+                        icon: "line.diagonal",
+                        name: "Straight Lines Test",
+                        steps: "Examine border lines around 'Deckmaster' text with a loupe. Real: crisp continuous lines. Fake: pixelated, uneven lines that blend into background.",
+                        realImageURL: "https://h5m3s5t5.delivery.rocketcdn.me/wp-content/uploads/2024/02/Fake-Update-16-1.jpg",
+                        fakeImageURL: "https://h5m3s5t5.delivery.rocketcdn.me/wp-content/uploads/2024/02/Fake-Update-17-1.jpg"
                     )
                     manualTest(
-                        icon: "magnifyingglass",
-                        name: "Loupe Test (10-30x)",
-                        steps: "Under magnification, real cards show a distinct rosette dot pattern (CMYK printing). Fakes show solid color bands, blurry dots, or inkjet patterns. Check the black text — it should be crisp, not fuzzy."
+                        icon: "star.circle",
+                        name: "Set & Mana Symbols",
+                        steps: "Under magnification, real cards show black symbol lines printed ON TOP of color dots (separate layers). Fakes intermix black dots with color dots.",
+                        realImageURL: "https://h5m3s5t5.delivery.rocketcdn.me/wp-content/uploads/2022/10/Print-Layer-Real-1.jpg",
+                        fakeImageURL: "https://h5m3s5t5.delivery.rocketcdn.me/wp-content/uploads/2022/10/Print-Layer-Fake-1.jpg"
                     )
-                    manualTest(
-                        icon: "rectangle.split.2x1",
-                        name: "Rip Test (Destructive)",
-                        steps: "LAST RESORT ONLY. Tear the edge of the card. Real cards have a visible blue core layer sandwiched between white layers. Fakes show solid white or gray throughout. Only use on suspected bulk fakes."
-                    )
+
+                    Link(destination: URL(string: "https://www.threeforonetrading.com/en/fake-magic-cards")!) {
+                        HStack(spacing: 4) {
+                            Text("Full guide at threeforonetrading.com")
+                                .font(.caption.weight(.medium))
+                            Image(systemName: "arrow.up.right.square")
+                                .font(.caption2)
+                        }
+                        .foregroundStyle(MD3Theme.primary)
+                    }
                 }
             }
         }
     }
 
-    private func manualTest(icon: String, name: String, steps: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 14))
-                .foregroundStyle(.blue)
-                .frame(width: 20)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(name)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(MD3Theme.onSurface)
-                Text(steps)
-                    .font(.system(size: 11))
-                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+    private func manualTest(icon: String, name: String, steps: String, realImageURL: String? = nil, fakeImageURL: String? = nil) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 14))
+                    .foregroundStyle(.blue)
+                    .frame(width: 20)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(name)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(MD3Theme.onSurface)
+                    Text(steps)
+                        .font(.system(size: 11))
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                }
+            }
+            // Real vs Fake comparison images
+            if let realURL = realImageURL.flatMap(URL.init(string:)),
+               let fakeURL = fakeImageURL.flatMap(URL.init(string:)) {
+                HStack(spacing: 8) {
+                    VStack(spacing: 2) {
+                        AsyncImage(url: realURL) { phase in
+                            switch phase {
+                            case .success(let img):
+                                img.resizable().scaledToFit()
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                            default:
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(MD3Theme.surfaceVariant)
+                                    .frame(height: 80)
+                            }
+                        }
+                        .frame(maxHeight: 100)
+                        Text("Real")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.green)
+                    }
+                    VStack(spacing: 2) {
+                        AsyncImage(url: fakeURL) { phase in
+                            switch phase {
+                            case .success(let img):
+                                img.resizable().scaledToFit()
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                            default:
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(MD3Theme.surfaceVariant)
+                                    .frame(height: 80)
+                            }
+                        }
+                        .frame(maxHeight: 100)
+                        Text("Fake")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.red)
+                    }
+                }
+                .padding(.leading, 30)
             }
         }
     }
