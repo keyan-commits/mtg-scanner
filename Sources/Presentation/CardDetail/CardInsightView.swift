@@ -121,8 +121,7 @@ struct CardInsightView: View {
         }
         .onAppear {
             // Reload from DB on re-appear (e.g. returning from alternative)
-            // .task(id:) only fires on change, not re-appear
-            Task { await loadCachedInsight() }
+            Task { await loadFromDB() }
         }
     }
 
@@ -179,20 +178,23 @@ struct CardInsightView: View {
     // MARK: - Load Cached Insight
 
     private func loadCachedInsight() async {
-        // Try from passed card first
-        if let cached = card.insight {
+        // Always load from DB for the freshest data
+        await loadFromDB()
+        // Fall back to card struct if DB returned nothing
+        if insight == nil, let cached = card.insight {
             parseInsight(cached)
             insightDate = card.insightDate
-            return
         }
-        // Reload from DB (card struct may be stale)
-        if let repo = cardRepository as? LocalCardRepository,
-           let record = try? await repo.databaseManager.findCard(scryfallID: card.scryfallID) {
-            let fresh = record.toDomain()
-            if let dbInsight = fresh.insight {
-                parseInsight(dbInsight)
-                insightDate = fresh.insightDate
-            }
+    }
+
+    /// Loads insight directly from DB, bypassing the stale Card struct.
+    private func loadFromDB() async {
+        guard let repo = cardRepository as? LocalCardRepository,
+              let record = try? await repo.databaseManager.findCard(scryfallID: card.scryfallID) else { return }
+        let fresh = record.toDomain()
+        if let dbInsight = fresh.insight {
+            parseInsight(dbInsight)
+            insightDate = fresh.insightDate
         }
     }
 
