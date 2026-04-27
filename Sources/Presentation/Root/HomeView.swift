@@ -1439,7 +1439,7 @@ struct HomeView: View {
                 .buttonStyle(.plain)
                 Divider().padding(.leading, 64)
                 NavigationLink {
-                    SettingsScreen()
+                    SettingsScreen(deckRepository: deckRepository)
                 } label: {
                     moreRow(icon: "gearshape.fill", title: "Settings", subtitle: "Display currency, exchange rates", color: .gray)
                 }

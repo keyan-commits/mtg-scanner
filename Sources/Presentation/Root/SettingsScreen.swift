@@ -1,9 +1,12 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// User preferences screen. Currently houses the display-currency picker
 /// and a "refresh exchange rates" action; will grow as we add more
 /// settings (theme, notifications, etc.).
 struct SettingsScreen: View {
+
+    let deckRepository: DeckListRepository
 
     @State private var currency: String = LocalCurrency.current
     @State private var ratesUpdated: String = "Never"
@@ -19,6 +22,11 @@ struct SettingsScreen: View {
     @State private var manualUsageText: String = ""
     @State private var showGeminiHelp: Bool = false
     @State private var geminiToast: String?
+    @State private var showImportPicker = false
+    @State private var showExportShare = false
+    @State private var exportURL: URL?
+    @State private var importResult: String?
+    @State private var showImportResult = false
     @FocusState private var geminiKeyFocused: Bool
     @Bindable private var currencyService = CurrencyService.shared
     @Bindable private var iconManager = AppIconManager.shared
@@ -314,6 +322,42 @@ struct SettingsScreen: View {
                     .font(.caption2)
             }
 
+            Section("Data Management") {
+                Button {
+                    exportData()
+                } label: {
+                    HStack {
+                        Image(systemName: "square.and.arrow.up")
+                            .foregroundStyle(MD3Theme.primary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Export Data")
+                                .foregroundStyle(MD3Theme.onSurface)
+                            Text(exportSummaryText)
+                                .font(.caption2)
+                                .foregroundStyle(MD3Theme.onSurfaceVariant)
+                        }
+                        Spacer()
+                    }
+                }
+
+                Button {
+                    showImportPicker = true
+                } label: {
+                    HStack {
+                        Image(systemName: "square.and.arrow.down")
+                            .foregroundStyle(MD3Theme.primary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Import Data")
+                                .foregroundStyle(MD3Theme.onSurface)
+                            Text("Restore from a backup file")
+                                .font(.caption2)
+                                .foregroundStyle(MD3Theme.onSurfaceVariant)
+                        }
+                        Spacer()
+                    }
+                }
+            }
+
             Section {
                 Toggle(isOn: Binding(
                     get: { iconManager.rotationEnabled },
@@ -452,6 +496,38 @@ struct SettingsScreen: View {
         } message: {
             Text("Enter the actual request count for the alt key from aistudio.google.com.")
         }
+        .sheet(isPresented: $showExportShare) {
+            if let url = exportURL {
+                ShareSheet(url: url)
+            }
+        }
+        .fileImporter(isPresented: $showImportPicker, allowedContentTypes: [.json]) { result in
+            switch result {
+            case .success(let url):
+                guard url.startAccessingSecurityScopedResource() else { return }
+                defer { url.stopAccessingSecurityScopedResource() }
+                guard let data = try? Data(contentsOf: url) else {
+                    importResult = "Could not read file"
+                    showImportResult = true
+                    return
+                }
+                let service = UserDataService(repository: deckRepository)
+                if let imported = try? service.importAll(from: data) {
+                    importResult = "Imported \(imported.decksImported) decks, \(imported.collectionImported) collection items, \(imported.ordersImported) orders, \(imported.analysesImported) analyses"
+                } else {
+                    importResult = "Import failed — invalid file format"
+                }
+                showImportResult = true
+            case .failure:
+                importResult = "File selection cancelled"
+                showImportResult = true
+            }
+        }
+        .alert("Import Complete", isPresented: $showImportResult) {
+            Button("OK") {}
+        } message: {
+            Text(importResult ?? "")
+        }
         .task {
             await currencyService.refreshIfStale()
             updateTimestamp()
@@ -587,4 +663,33 @@ struct SettingsScreen: View {
         }
     }
 
+    // MARK: - Data Management
+
+    private var exportSummaryText: String {
+        let service = UserDataService(repository: deckRepository)
+        let s = service.exportSummary()
+        return "\(s.decks) decks, \(s.collection) collection, \(s.orders) orders"
+    }
+
+    private func exportData() {
+        let service = UserDataService(repository: deckRepository)
+        guard let data = try? service.exportAll() else { return }
+        let dateStr = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .none)
+            .replacingOccurrences(of: "/", with: "-")
+        let fileName = "MTGKeyan_Backup_\(dateStr).json"
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+        try? data.write(to: tempURL)
+        exportURL = tempURL
+        showExportShare = true
+    }
+}
+
+// MARK: - Share Sheet
+
+private struct ShareSheet: UIViewControllerRepresentable {
+    let url: URL
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+    }
+    func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
 }

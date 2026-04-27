@@ -11,7 +11,7 @@ import SwiftData
 final class DeckListRepository {
 
     private let modelContainer: ModelContainer
-    private let context: ModelContext
+    private(set) var context: ModelContext
 
     /// UserDefaults flag for the one-shot quantity-split migration.
     private static let splitMigrationKey = "deckItemsSplitMigration_v1_done"
