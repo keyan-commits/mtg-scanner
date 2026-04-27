@@ -21,6 +21,8 @@ final class UserDataService {
         let collection: [ExportCollectionItem]
         let analyses: [ExportAnalysis]
         let preferences: ExportPreferences
+        let cardInsights: [ExportCardInsight]?
+        let deckGuides: [ExportDeckGuide]?
     }
 
     struct ExportDeck: Codable {
@@ -104,6 +106,18 @@ final class UserDataService {
         let printingStrategy: String?
         let appIconRotation: Bool?
         let appIconColor: String?
+    }
+
+    struct ExportCardInsight: Codable {
+        let scryfallID: String
+        let insight: String
+        let insightDate: String?
+    }
+
+    struct ExportDeckGuide: Codable {
+        let key: String   // "deckGuide_<name>_<format>"
+        let guide: String
+        let date: String?
     }
 
     /// Exports all user data as a JSON Data blob.
@@ -205,6 +219,36 @@ final class UserDataService {
             appIconColor: UserDefaults.standard.string(forKey: "appIcon.currentColor")
         )
 
+        // Gather AI card insights from CardRecord DB
+        let cardInsights: [ExportCardInsight] = {
+            let insightKey = "__insight"
+            let insightDateKey = "__insight_date"
+            guard let allRecords = try? repository.context.fetch(FetchDescriptor<CardRecord>()) else { return [] }
+            return allRecords.compactMap { record in
+                guard let jsonData = record.imageURIsJSON.data(using: .utf8),
+                      let uris = try? JSONSerialization.jsonObject(with: jsonData) as? [String: String],
+                      let insight = uris[insightKey], !insight.isEmpty else { return nil }
+                return ExportCardInsight(
+                    scryfallID: record.scryfallID,
+                    insight: insight,
+                    insightDate: uris[insightDateKey]
+                )
+            }
+        }()
+
+        // Gather AI deck guides from UserDefaults
+        let deckGuides: [ExportDeckGuide] = {
+            let allDecks = (try? repository.fetchAllDecks()) ?? []
+            return allDecks.compactMap { deck in
+                let format = deck.format ?? "freeform"
+                let key = "deckGuide_\(deck.name)_\(format)"
+                let dateKey = "deckGuideDate_\(deck.name)_\(format)"
+                guard let guide = UserDefaults.standard.string(forKey: key) else { return nil }
+                let date = UserDefaults.standard.string(forKey: dateKey)
+                return ExportDeckGuide(key: key, guide: guide, date: date)
+            }
+        }()
+
         let export = ExportData(
             version: 1,
             exportedAt: Date(),
@@ -212,7 +256,9 @@ final class UserDataService {
             orders: exportOrders,
             collection: exportCollection,
             analyses: exportAnalyses,
-            preferences: prefs
+            preferences: prefs,
+            cardInsights: cardInsights.isEmpty ? nil : cardInsights,
+            deckGuides: deckGuides.isEmpty ? nil : deckGuides
         )
 
         let encoder = JSONEncoder()
@@ -369,6 +415,41 @@ final class UserDataService {
         }
         if let color = importData.preferences.appIconColor {
             UserDefaults.standard.set(color, forKey: "appIcon.currentColor")
+        }
+
+        // Import AI card insights
+        if let insights = importData.cardInsights, !insights.isEmpty {
+            let insightKey = "__insight"
+            let insightDateKey = "__insight_date"
+            let descriptor = FetchDescriptor<CardRecord>()
+            if let allRecords = try? context.fetch(descriptor) {
+                let recordMap = Dictionary(uniqueKeysWithValues: allRecords.map { ($0.scryfallID, $0) })
+                for ei in insights {
+                    guard let record = recordMap[ei.scryfallID] else { continue }
+                    // Parse existing imageURIsJSON, inject insight keys
+                    guard var uris = (try? JSONSerialization.jsonObject(
+                        with: Data(record.imageURIsJSON.utf8)
+                    )) as? [String: String] else { continue }
+                    uris[insightKey] = ei.insight
+                    if let date = ei.insightDate { uris[insightDateKey] = date }
+                    if let newJSON = try? JSONSerialization.data(withJSONObject: uris),
+                       let jsonStr = String(data: newJSON, encoding: .utf8) {
+                        record.imageURIsJSON = jsonStr
+                    }
+                }
+                try? context.save()
+            }
+        }
+
+        // Import AI deck guides
+        if let guides = importData.deckGuides {
+            for guide in guides {
+                UserDefaults.standard.set(guide.guide, forKey: guide.key)
+                let dateKey = guide.key.replacingOccurrences(of: "deckGuide_", with: "deckGuideDate_")
+                if let date = guide.date {
+                    UserDefaults.standard.set(date, forKey: dateKey)
+                }
+            }
         }
 
         return result
