@@ -388,6 +388,18 @@ final class DatabaseManager: Sendable {
     /// Returns cards with the biggest price increases (previous → current).
     /// Filters out low-value noise and deduplicates by card name (keeps
     /// the printing with the highest absolute dollar change).
+    /// Set types that should never appear in price movers — not tournament-relevant.
+    private static let excludedSetTypes: Set<String> = [
+        "art_series", "token", "memorabilia", "minigame", "vanguard",
+        "funny", "treasure_chest"
+    ]
+    /// Set name substrings that indicate non-standard printings.
+    private static let excludedSetSubstrings = [
+        "Foreign Black Border", "Foreign White Border",
+        "Collectors' Edition", "International Edition",
+        "30th Anniversary", "World Championship"
+    ]
+
     func fetchPriceMovers(limit: Int = 50) async throws -> [CardRecord] {
         let context = ModelContext(modelContainer)
         let descriptor = FetchDescriptor<CardRecord>(
@@ -409,7 +421,16 @@ final class DatabaseManager: Sendable {
                       let prev = Double(record.previousPriceUSD ?? ""),
                       prev >= 1.0, curr >= 2.0 else { return nil }
                 let pct = ((curr - prev) / prev) * 100
-                guard pct > 5.0 else { return nil }
+                // Filter: meaningful movers only
+                guard pct > 5.0, abs(pct) <= 500 else { return nil }
+                // Filter: skip non-tournament set types
+                if Self.excludedSetTypes.contains(record.setType) { return nil }
+                // Filter: skip non-standard printings (foreign borders, collector editions)
+                let setName = record.setName
+                if Self.excludedSetSubstrings.contains(where: { setName.contains($0) }) { return nil }
+                // Filter: skip promos with very low volume (collector number > 500 often = promo)
+                if let cn = Int(record.collectorNumber), cn > 500,
+                   record.setType == "promo" { return nil }
                 return Mover(record: record, pct: pct, absDelta: curr - prev)
             }
 

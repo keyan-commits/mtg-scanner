@@ -147,8 +147,17 @@ actor MTGStocksService {
             guard isTournamentLegal else { return nil }
             // Skip art series, tokens, and special sets
             let setType = printObj["set_type"] as? String ?? ""
-            let skipSetTypes: Set<String> = ["art_series", "token", "memorabilia", "minigame"]
+            let skipSetTypes: Set<String> = [
+                "art_series", "token", "memorabilia", "minigame", "vanguard",
+                "funny", "treasure_chest"
+            ]
             guard !skipSetTypes.contains(setType) else { return nil }
+            // Skip non-standard printings
+            let setNameStr = printObj["set_name"] as? String ?? ""
+            let excludedSubstrings = ["Foreign Black Border", "Foreign White Border",
+                                      "Collectors' Edition", "International Edition",
+                                      "30th Anniversary", "World Championship"]
+            guard !excludedSubstrings.contains(where: { setNameStr.contains($0) }) else { return nil }
             // Skip if name contains "Art Card"
             guard !name.contains("Art Card") else { return nil }
             let currentPrice = entry["present_price"] as? Double
