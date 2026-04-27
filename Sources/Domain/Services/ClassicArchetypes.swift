@@ -8,7 +8,9 @@ import Foundation
 ///
 /// Each list is "representative" — many of these decks had multiple variants.
 /// The mainboard counts here reflect a common/canonical configuration.
-struct ClassicArchetype: Identifiable, Sendable {
+struct ClassicArchetype: Identifiable, Hashable, Sendable {
+    static func == (lhs: ClassicArchetype, rhs: ClassicArchetype) -> Bool { lhs.id == rhs.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
     let id: String
     let name: String
     let era: String

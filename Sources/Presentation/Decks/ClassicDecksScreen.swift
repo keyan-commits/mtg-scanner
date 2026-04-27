@@ -21,6 +21,7 @@ struct ClassicDecksScreen: View {
     @State private var ownedQuantities: [String: Int] = [:]
     @State private var matchScores: [String: Double] = [:] // archetype.id → 0..1
     @State private var didLoadCollection: Bool = false
+    @State private var selectedArchetype: ClassicArchetype?
 
     enum SortMode: String, CaseIterable, Identifiable {
         case era = "Era"
@@ -114,6 +115,15 @@ struct ClassicDecksScreen: View {
             }
         }
         .listStyle(.insetGrouped)
+        .navigationDestination(item: $selectedArchetype) { archetype in
+            let idx = filteredAndSorted.firstIndex(where: { $0.id == archetype.id }) ?? 0
+            ClassicDeckPagerView(
+                archetypes: filteredAndSorted,
+                initialIndex: idx,
+                deckRepository: deckRepository,
+                cardRepository: cardRepository
+            )
+        }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.large)
         .searchable(text: $searchText, prompt: "Search by name, era, or format")
@@ -190,17 +200,12 @@ struct ClassicDecksScreen: View {
 
     @ViewBuilder
     private func navigationRow(_ archetype: ClassicArchetype) -> some View {
-        let idx = filteredAndSorted.firstIndex(where: { $0.id == archetype.id }) ?? 0
-        NavigationLink {
-            ClassicDeckPagerView(
-                archetypes: filteredAndSorted,
-                initialIndex: idx,
-                deckRepository: deckRepository,
-                cardRepository: cardRepository
-            )
+        Button {
+            selectedArchetype = archetype
         } label: {
             row(archetype)
         }
+        .buttonStyle(.plain)
     }
 
     private func row(_ archetype: ClassicArchetype) -> some View {
