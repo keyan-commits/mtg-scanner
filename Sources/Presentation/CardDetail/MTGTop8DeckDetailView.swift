@@ -490,7 +490,7 @@ struct MTGTop8DeckDetailView: View {
             VStack(spacing: 4) {
                 ZStack(alignment: .topLeading) {
                     if let url = imageURL(for: entry.card) {
-                        AsyncImage(url: url) { phase in
+                        CachedPhaseImage(url: url) { phase in
                             switch phase {
                             case .success(let image):
                                 image

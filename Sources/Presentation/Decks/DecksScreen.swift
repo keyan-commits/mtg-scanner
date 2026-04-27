@@ -261,7 +261,7 @@ struct DecksScreen: View {
     private func deckThumbnail(_ deck: DeckList) -> some View {
         ZStack {
             if let url = deckArtURLs[deck.id] {
-                AsyncImage(url: url) { phase in
+                CachedPhaseImage(url: url) { phase in
                     switch phase {
                     case .success(let image):
                         image

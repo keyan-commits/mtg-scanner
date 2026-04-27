@@ -367,9 +367,9 @@ struct MajorArchetypeDetailView: View {
             VStack(spacing: 4) {
                 ZStack(alignment: .topLeading) {
                     if let card = resolvedCards[entry.cardName],
-                       let urlString = card.imageURIs["normal"] ?? card.imageURIs["small"] ?? card.imageURIs["large"],
+                       let urlString = card.imageURIs["small"] ?? card.imageURIs["normal"] ?? card.imageURIs["large"],
                        let url = URL(string: urlString) {
-                        AsyncImage(url: url) { phase in
+                        CachedPhaseImage(url: url) { phase in
                             switch phase {
                             case .success(let image):
                                 image.resizable()

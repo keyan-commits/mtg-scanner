@@ -29,7 +29,7 @@ struct QuickAddToCollectionSheet: View {
                     if let urlString = card.imageURIs["small"]
                         ?? card.imageURIs["normal"],
                        let url = URL(string: urlString) {
-                        AsyncImage(url: url) { phase in
+                        CachedPhaseImage(url: url) { phase in
                             switch phase {
                             case .success(let image):
                                 image.resizable()

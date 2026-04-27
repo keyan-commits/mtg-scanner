@@ -294,7 +294,7 @@ struct CardRowView: View {
         Group {
             if let urlString = card.imageURIs["small"],
                let url = URL(string: urlString) {
-                AsyncImage(url: url) { phase in
+                CachedPhaseImage(url: url) { phase in
                     switch phase {
                     case .success(let image):
                         image

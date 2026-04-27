@@ -184,7 +184,7 @@ struct SampleHandView: View {
     @ViewBuilder
     private func cardImage(_ card: Card) -> some View {
         let url = imageURL(for: card)
-        AsyncImage(url: url) { phase in
+        CachedPhaseImage(url: url) { phase in
             switch phase {
             case .success(let image):
                 image
@@ -263,7 +263,7 @@ struct SampleHandView: View {
             ScrollView {
                 VStack(spacing: 12) {
                     if let url = imageURL(for: card) {
-                        AsyncImage(url: url) { phase in
+                        CachedPhaseImage(url: url) { phase in
                             switch phase {
                             case .success(let image):
                                 image

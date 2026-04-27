@@ -301,11 +301,11 @@ struct TopCardsDetailView: View {
         let owned = ownedQuantities[card.name] ?? 0
         return VStack(spacing: 4) {
             ZStack(alignment: .topLeading) {
-                if let urlString = card.imageURIs["normal"]
-                       ?? card.imageURIs["small"]
+                if let urlString = card.imageURIs["small"]
+                       ?? card.imageURIs["normal"]
                        ?? card.imageURIs["large"],
                    let url = URL(string: urlString) {
-                    AsyncImage(url: url) { phase in
+                    CachedPhaseImage(url: url) { phase in
                         switch phase {
                         case .success(let image):
                             image.resizable()

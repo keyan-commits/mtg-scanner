@@ -338,15 +338,12 @@ struct HomeView: View {
                                 ?? card.imageURIs["small"]
                                 ?? card.imageURIs["normal"],
                let url = URL(string: urlString) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    default:
-                        searchThumbPlaceholder
-                    }
+                CachedAsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                } placeholder: {
+                    searchThumbPlaceholder
                 }
                 .frame(width: 44, height: 44)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -907,11 +904,11 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 4) {
             ZStack {
                 if let card,
-                   let urlString = card.imageURIs["normal"]
-                       ?? card.imageURIs["small"]
+                   let urlString = card.imageURIs["small"]
+                       ?? card.imageURIs["normal"]
                        ?? card.imageURIs["large"],
                    let url = URL(string: urlString) {
-                    AsyncImage(url: url) { phase in
+                    CachedPhaseImage(url: url) { phase in
                         switch phase {
                         case .success(let image):
                             image.resizable()
@@ -1197,7 +1194,7 @@ struct HomeView: View {
         return ZStack(alignment: .topLeading) {
             // Art-crop background (or fallback solid surface).
             if let artURL = deckArtURLs[deck.id] {
-                AsyncImage(url: artURL) { phase in
+                CachedPhaseImage(url: artURL) { phase in
                     switch phase {
                     case .success(let image):
                         image

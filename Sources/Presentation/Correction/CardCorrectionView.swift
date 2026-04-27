@@ -298,16 +298,13 @@ struct CardCorrectionView: View {
             // Thumbnail
             if let urlString = card.imageURIs["small"],
                let url = URL(string: urlString) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    default:
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(MD3Theme.surfaceVariant)
-                    }
+                CachedAsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(MD3Theme.surfaceVariant)
                 }
                 .frame(width: 36, height: 50)
                 .clipShape(RoundedRectangle(cornerRadius: 3))

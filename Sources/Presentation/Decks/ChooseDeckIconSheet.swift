@@ -111,11 +111,11 @@ struct ChooseDeckIconSheet: View {
             dismiss()
         } label: {
             ZStack(alignment: .topLeading) {
-                if let urlString = entry.card.imageURIs["normal"]
-                                    ?? entry.card.imageURIs["small"]
+                if let urlString = entry.card.imageURIs["small"]
+                                    ?? entry.card.imageURIs["normal"]
                                     ?? entry.card.imageURIs["large"],
                    let url = URL(string: urlString) {
-                    AsyncImage(url: url) { phase in
+                    CachedPhaseImage(url: url) { phase in
                         switch phase {
                         case .success(let image):
                             image
