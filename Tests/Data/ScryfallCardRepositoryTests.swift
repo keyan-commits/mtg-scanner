@@ -5,10 +5,10 @@ import Foundation
 // MARK: - Mock API Client
 
 struct MockScryfallAPIClient: ScryfallAPIClientProtocol {
-    var fetchCardByNameResult: Result<ScryfallCardDTO, Error> = .failure(ScryfallError.cardNotFound)
-    var fetchCardBySetResult: Result<ScryfallCardDTO, Error> = .failure(ScryfallError.cardNotFound)
-    var searchCardsResult: Result<ScryfallSearchDTO, Error> = .failure(ScryfallError.cardNotFound)
-    var fetchCardCollectionResult: Result<ScryfallSearchDTO, Error> = .failure(ScryfallError.cardNotFound)
+    var fetchCardByNameResult: Result<ScryfallCardDTO, Error> = .failure(NetworkError.notFound)
+    var fetchCardBySetResult: Result<ScryfallCardDTO, Error> = .failure(NetworkError.notFound)
+    var searchCardsResult: Result<ScryfallSearchDTO, Error> = .failure(NetworkError.notFound)
+    var fetchCardCollectionResult: Result<ScryfallSearchDTO, Error> = .failure(NetworkError.notFound)
 
     func fetchCardByName(_ name: String) async throws -> ScryfallCardDTO {
         try fetchCardByNameResult.get()
@@ -146,17 +146,17 @@ struct ScryfallCardRepositoryTests {
     @Test("identifyCard propagates cardNotFound error")
     func identifyCardPropagatesError() async {
         var mockClient = MockScryfallAPIClient()
-        mockClient.fetchCardByNameResult = .failure(ScryfallError.cardNotFound)
+        mockClient.fetchCardByNameResult = .failure(NetworkError.notFound)
 
         let repository = ScryfallCardRepository(apiClient: mockClient)
 
         do {
             _ = try await repository.identifyCard(name: "Nonexistent")
             Issue.record("Expected error to be thrown")
-        } catch let error as ScryfallError {
-            #expect(error == .cardNotFound)
+        } catch let error as NetworkError {
+            #expect(error == .notFound)
         } catch {
-            Issue.record("Expected ScryfallError but got \(error)")
+            Issue.record("Expected NetworkError but got \(error)")
         }
     }
 

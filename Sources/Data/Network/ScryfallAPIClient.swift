@@ -1,32 +1,5 @@
 import Foundation
 
-// MARK: - Scryfall Error
-
-enum ScryfallError: Error, Equatable, Sendable {
-    case cardNotFound
-    case rateLimited
-    case serverError(statusCode: Int)
-    case decodingError(String)
-    case networkError(String)
-
-    static func == (lhs: ScryfallError, rhs: ScryfallError) -> Bool {
-        switch (lhs, rhs) {
-        case (.cardNotFound, .cardNotFound):
-            return true
-        case (.rateLimited, .rateLimited):
-            return true
-        case (.serverError(let lCode), .serverError(let rCode)):
-            return lCode == rCode
-        case (.decodingError(let lMsg), .decodingError(let rMsg)):
-            return lMsg == rMsg
-        case (.networkError(let lMsg), .networkError(let rMsg)):
-            return lMsg == rMsg
-        default:
-            return false
-        }
-    }
-}
-
 // MARK: - API Client Protocol
 
 protocol ScryfallAPIClientProtocol: Sendable {
@@ -53,30 +26,40 @@ struct ScryfallAPIClient: ScryfallAPIClientProtocol {
 
     func fetchCardByName(_ name: String) async throws -> ScryfallCardDTO {
         guard let encodedName = name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
-            throw ScryfallError.networkError("Invalid card name encoding")
+            throw NetworkError.networkError("Invalid card name encoding")
         }
-        let url = URL(string: "\(baseURL)/cards/named?fuzzy=\(encodedName)")!
+        guard let url = URL(string: "\(baseURL)/cards/named?fuzzy=\(encodedName)") else {
+            throw NetworkError.invalidURL("\(baseURL)/cards/named?fuzzy=\(encodedName)")
+        }
         let request = makeRequest(url: url)
         return try await perform(request: request)
     }
 
     func fetchCard(set: String, collectorNumber: String) async throws -> ScryfallCardDTO {
-        let url = URL(string: "\(baseURL)/cards/\(set)/\(collectorNumber)")!
+        let urlString = "\(baseURL)/cards/\(set)/\(collectorNumber)"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL(urlString)
+        }
         let request = makeRequest(url: url)
         return try await perform(request: request)
     }
 
     func searchCards(query: String) async throws -> ScryfallSearchDTO {
         guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
-            throw ScryfallError.networkError("Invalid search query encoding")
+            throw NetworkError.networkError("Invalid search query encoding")
         }
-        let url = URL(string: "\(baseURL)/cards/search?q=\(encodedQuery)")!
+        guard let url = URL(string: "\(baseURL)/cards/search?q=\(encodedQuery)") else {
+            throw NetworkError.invalidURL("\(baseURL)/cards/search?q=\(encodedQuery)")
+        }
         let request = makeRequest(url: url)
         return try await perform(request: request)
     }
 
     func fetchCardCollection(identifiers: [[String: String]]) async throws -> ScryfallSearchDTO {
-        let url = URL(string: "\(baseURL)/cards/collection")!
+        let urlString = "\(baseURL)/cards/collection"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL(urlString)
+        }
         var request = makeRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -103,28 +86,28 @@ struct ScryfallAPIClient: ScryfallAPIClientProtocol {
         do {
             (data, response) = try await httpClient.data(for: request)
         } catch {
-            throw ScryfallError.networkError(error.localizedDescription)
+            throw NetworkError.networkError(error.localizedDescription)
         }
 
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw ScryfallError.networkError("Invalid response type")
+            throw NetworkError.networkError("Invalid response type")
         }
 
         switch httpResponse.statusCode {
         case 200..<300:
             break
         case 404:
-            throw ScryfallError.cardNotFound
+            throw NetworkError.notFound
         case 429:
-            throw ScryfallError.rateLimited
+            throw NetworkError.rateLimited
         default:
-            throw ScryfallError.serverError(statusCode: httpResponse.statusCode)
+            throw NetworkError.serverError(statusCode: httpResponse.statusCode)
         }
 
         do {
             return try decoder.decode(T.self, from: data)
         } catch {
-            throw ScryfallError.decodingError(error.localizedDescription)
+            throw NetworkError.decodingError(error.localizedDescription)
         }
     }
 }

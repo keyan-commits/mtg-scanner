@@ -9,30 +9,6 @@ struct CardKingdomPrice: Sendable {
     let formattedBuylist: String?
 }
 
-// MARK: - Card Kingdom Error
-
-enum CardKingdomError: Error, Equatable, Sendable {
-    case networkError(String)
-    case serverError(statusCode: Int)
-    case decodingError(String)
-    case notFound
-
-    static func == (lhs: CardKingdomError, rhs: CardKingdomError) -> Bool {
-        switch (lhs, rhs) {
-        case (.networkError(let l), .networkError(let r)):
-            return l == r
-        case (.serverError(let l), .serverError(let r)):
-            return l == r
-        case (.decodingError(let l), .decodingError(let r)):
-            return l == r
-        case (.notFound, .notFound):
-            return true
-        default:
-            return false
-        }
-    }
-}
-
 // MARK: - Card Kingdom Response DTOs
 
 private struct CardKingdomResponseDTO: Decodable {
@@ -92,7 +68,9 @@ struct CardKingdomPriceService: CardKingdomPriceServiceProtocol {
     }
 
     func fetchNMPrice(cardName: String, setName: String) async throws -> CardKingdomPrice? {
-        let url = URL(string: priceListURL)!
+        guard let url = URL(string: priceListURL) else {
+            throw NetworkError.invalidURL(priceListURL)
+        }
         var request = URLRequest(url: url)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
@@ -102,22 +80,22 @@ struct CardKingdomPriceService: CardKingdomPriceServiceProtocol {
         do {
             (data, response) = try await httpClient.data(for: request)
         } catch {
-            throw CardKingdomError.networkError(error.localizedDescription)
+            throw NetworkError.networkError(error.localizedDescription)
         }
 
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw CardKingdomError.networkError("Invalid response type")
+            throw NetworkError.networkError("Invalid response type")
         }
 
         guard (200..<300).contains(httpResponse.statusCode) else {
-            throw CardKingdomError.serverError(statusCode: httpResponse.statusCode)
+            throw NetworkError.serverError(statusCode: httpResponse.statusCode)
         }
 
         let dto: CardKingdomResponseDTO
         do {
             dto = try decoder.decode(CardKingdomResponseDTO.self, from: data)
         } catch {
-            throw CardKingdomError.decodingError(error.localizedDescription)
+            throw NetworkError.decodingError(error.localizedDescription)
         }
 
         // Search for matching card: name + set, NM condition, non-foil

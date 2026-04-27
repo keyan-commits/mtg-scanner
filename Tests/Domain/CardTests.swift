@@ -35,7 +35,8 @@ struct CardTests {
             usdFoil: usdFoil,
             eur: eur,
             eurFoil: eurFoil,
-            tix: tix
+            tix: tix,
+            previousUsd: nil
         )
     }
 
@@ -79,7 +80,11 @@ struct CardTests {
             prices: prices ?? makePrices(),
             legalities: legalities,
             imageURIs: imageURIs,
-            relatedPrintingsURI: relatedPrintingsURI
+            relatedPrintingsURI: relatedPrintingsURI,
+            lang: "en",
+            printedName: nil,
+            promoTypes: [],
+            finishes: ["nonfoil"]
         )
     }
 
@@ -114,7 +119,11 @@ struct CardTests {
             prices: prices,
             legalities: legalities,
             imageURIs: ["normal": "https://example.com/bolt.jpg"],
-            relatedPrintingsURI: "/prints/bolt"
+            relatedPrintingsURI: "/prints/bolt",
+            lang: "en",
+            printedName: nil,
+            promoTypes: [],
+            finishes: ["nonfoil"]
         )
 
         #expect(card.id == "abc-123")
@@ -220,7 +229,7 @@ struct CardTests {
 
     @Test("Formatted price returns nil when all prices are nil")
     func formattedPriceReturnsNilForEmptyPrices() {
-        let prices = CardPrices(usd: nil, usdFoil: nil, eur: nil, eurFoil: nil, tix: nil)
+        let prices = CardPrices(usd: nil, usdFoil: nil, eur: nil, eurFoil: nil, tix: nil, previousUsd: nil)
         #expect(prices.formattedPrice == nil)
     }
 

@@ -19,27 +19,6 @@ struct EDHRECCommander: Sendable, Identifiable {
     let imageURI: String?
 }
 
-// MARK: - EDHREC Error
-
-enum EDHRECError: Error, Equatable, Sendable {
-    case cardNotFound
-    case networkError(String)
-    case decodingError(String)
-
-    static func == (lhs: EDHRECError, rhs: EDHRECError) -> Bool {
-        switch (lhs, rhs) {
-        case (.cardNotFound, .cardNotFound):
-            return true
-        case (.networkError(let l), .networkError(let r)):
-            return l == r
-        case (.decodingError(let l), .decodingError(let r)):
-            return l == r
-        default:
-            return false
-        }
-    }
-}
-
 // MARK: - EDHREC Service Protocol
 
 protocol EDHRECServiceProtocol: Sendable {
@@ -58,7 +37,10 @@ struct EDHRECService: EDHRECServiceProtocol {
 
     func fetchCardData(name: String) async throws -> EDHRECCardData {
         let sanitized = sanitizeName(name)
-        let url = URL(string: "\(baseURL)/\(sanitized).json")!
+        let urlString = "\(baseURL)/\(sanitized).json"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL(urlString)
+        }
         let request = URLRequest(url: url)
 
         let data: Data
@@ -67,19 +49,19 @@ struct EDHRECService: EDHRECServiceProtocol {
         do {
             (data, response) = try await httpClient.data(for: request)
         } catch {
-            throw EDHRECError.networkError(error.localizedDescription)
+            throw NetworkError.networkError(error.localizedDescription)
         }
 
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw EDHRECError.networkError("Invalid response type")
+            throw NetworkError.networkError("Invalid response type")
         }
 
         if httpResponse.statusCode == 404 {
-            throw EDHRECError.cardNotFound
+            throw NetworkError.notFound
         }
 
         if httpResponse.statusCode < 200 || httpResponse.statusCode >= 300 {
-            throw EDHRECError.networkError("HTTP \(httpResponse.statusCode)")
+            throw NetworkError.networkError("HTTP \(httpResponse.statusCode)")
         }
 
         return try parseResponse(data: data)
@@ -102,7 +84,7 @@ struct EDHRECService: EDHRECServiceProtocol {
         do {
             json = try JSONSerialization.jsonObject(with: data, options: [])
         } catch {
-            throw EDHRECError.decodingError(error.localizedDescription)
+            throw NetworkError.decodingError(error.localizedDescription)
         }
 
         guard let root = json as? [String: Any],
@@ -113,7 +95,7 @@ struct EDHRECService: EDHRECServiceProtocol {
               let numDecks = card["num_decks"] as? Int,
               let potentialDecks = card["potential_decks"] as? Int
         else {
-            throw EDHRECError.decodingError("Missing required card fields in response")
+            throw NetworkError.decodingError("Missing required card fields in response")
         }
 
         let inclusionPercent = potentialDecks > 0

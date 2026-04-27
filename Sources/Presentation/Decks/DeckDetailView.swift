@@ -308,9 +308,10 @@ struct DeckDetailView: View {
                 format: deck.format,
                 mainboard: items.filter { $0.zone == "mainboard" }.map { ($0.cardName, $0.quantity) },
                 sideboard: items.filter { $0.zone == "sideboard" }.map { ($0.cardName, $0.quantity) },
-                source: deck.referenceURL?.hasPrefix("source:") == true
-                    ? String(deck.referenceURL!.dropFirst(7))
-                    : (deck.referenceURL != nil ? "MTGTop8 tournament deck" : nil),
+                source: deck.sourceInfo
+                    ?? (deck.referenceURL?.hasPrefix("source:") == true
+                        ? String(deck.referenceURL!.dropFirst(7)) : nil)
+                    ?? (deck.referenceURL != nil ? "MTGTop8 tournament deck" : nil),
                 cardRepository: cardRepository,
                 deckItemPrintings: Dictionary(
                     items.map { ($0.cardName.lowercased(), (set: $0.setCode, collector: $0.collectorNumber)) },
@@ -967,7 +968,7 @@ struct DeckDetailView: View {
             VStack(spacing: 4) {
                 ZStack(alignment: .topLeading) {
                     if let card, let url = imageURL(for: card) {
-                        AsyncImage(url: url) { phase in
+                        CachedPhaseImage(url: url) { phase in
                             switch phase {
                             case .success(let image):
                                 image.resizable()
@@ -1019,8 +1020,8 @@ struct DeckDetailView: View {
     }
 
     private func imageURL(for card: Card) -> URL? {
-        let str = card.imageURIs["normal"]
-            ?? card.imageURIs["small"]
+        let str = card.imageURIs["small"]
+            ?? card.imageURIs["normal"]
             ?? card.imageURIs["large"]
         guard let str else { return nil }
         return URL(string: str)
@@ -1600,7 +1601,7 @@ struct DeckDetailView: View {
         Return exactly 15 card names (accounting for quantities). Use exact card names from the list above. No other text.
         """
 
-        guard let result = await GeminiVisionService.generateInsight(prompt: prompt) else {
+        guard let result = await GeminiVisionService.shared.generateInsight(prompt: prompt) else {
             fixDeckError = "Failed to get AI suggestion. Try again."
             return
         }

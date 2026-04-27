@@ -394,7 +394,7 @@ struct CardAuthenticityView: View {
                 HStack(spacing: 8) {
                     VStack(spacing: 2) {
                         Button { zoomedImageURL = realURL } label: {
-                            AsyncImage(url: realURL) { phase in
+                            CachedPhaseImage(url: realURL) { phase in
                                 switch phase {
                                 case .success(let img):
                                     img.resizable().scaledToFit()
@@ -414,7 +414,7 @@ struct CardAuthenticityView: View {
                     }
                     VStack(spacing: 2) {
                         Button { zoomedImageURL = fakeURL } label: {
-                            AsyncImage(url: fakeURL) { phase in
+                            CachedPhaseImage(url: fakeURL) { phase in
                                 switch phase {
                                 case .success(let img):
                                     img.resizable().scaledToFit()
@@ -454,7 +454,7 @@ struct CardAuthenticityView: View {
         overallVerdict = nil
         defer { isAnalyzing = false }
 
-        guard let apiKey = GeminiVisionService.activeApiKey else {
+        guard let apiKey = await GeminiVisionService.shared.activeApiKey else {
             error = "No API key configured"
             return
         }
@@ -513,7 +513,7 @@ struct CardAuthenticityView: View {
             return
         }
         request.httpBody = bodyData
-        GeminiVisionService.recordUsage()
+        await GeminiVisionService.shared.recordUsage()
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -589,7 +589,7 @@ private struct ZoomableImageView: View {
         NavigationStack {
             GeometryReader { geo in
                 ScrollView([.horizontal, .vertical]) {
-                    AsyncImage(url: url) { phase in
+                    CachedPhaseImage(url: url) { phase in
                         switch phase {
                         case .success(let image):
                             image

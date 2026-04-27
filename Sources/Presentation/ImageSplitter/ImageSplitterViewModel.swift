@@ -85,7 +85,7 @@ final class ImageSplitterViewModel {
         guard let image = sourceImage else { return }
 
         // === Gemini first: send whole image, skip detection if successful ===
-        if GeminiVisionService.isActive, let pipeline {
+        if GeminiVisionService.shared.isActiveSync, let pipeline {
             isIdentifying = true
             let geminiResult = await pipeline.identifyAllWithGemini(image: image)
             geminiAnalysis = geminiResult.analysis
@@ -375,7 +375,7 @@ final class ImageSplitterViewModel {
                 card = await pipeline.identifyCropped(cardImage: cardImage, visualOnly: false)
             }
             // Strategy 3: Per-card Gemini fallback (if whole-image didn't run)
-            if card == nil && GeminiVisionService.isActive {
+            if card == nil && GeminiVisionService.shared.isActiveSync {
                 card = await pipeline.identifyWithGemini(cgImage: cardImage)
                 if card != nil {
                     geminiIdentified.insert(index)

@@ -21,9 +21,17 @@ struct DeckGuideView: View {
     @State private var showFullGuide: Bool = false
     /// Lookup of deck card names → resolved Card for correct version matching.
     @State private var deckCardLookup: [String: Card] = [:]
+    @State private var resolvedCards: [String: Card] = [:]
+    @State private var selectedCard: Card?
+    @State private var showCardDetail: Bool = false
+
+    private let sectionHeaders: Set<String> = [
+        "how to play", "key cards & synergies", "matchups to watch",
+        "sideboard strategy", "improvement suggestions"
+    ]
 
     private var isConfigured: Bool { GeminiVisionService.isConfigured }
-    private var remainingQuota: Int { max(0, 1000 - GeminiVisionService.dailyUsage) }
+    private var remainingQuota: Int { max(0, 1000 - GeminiVisionService.shared.dailyUsageSync) }
 
     // Persist guides keyed by deck name + format
     private var storageKey: String { "deckGuide_\(deckName)_\(format ?? "freeform")" }
@@ -64,12 +72,12 @@ struct DeckGuideView: View {
 
                 // Content
                 if let guide {
-                    LinkedCardText(
-                        text: String(guide.prefix(300)),
-                        cardRepository: cardRepository,
-                        deckCards: deckCardLookup,
-                        font: MD3Typography.bodySmall
-                    )
+                    Text(buildLinkedText(from: String(guide.prefix(300))))
+                        .font(MD3Typography.bodySmall)
+                        .environment(\.openURL, OpenURLAction { url in
+                            handleCardURL(url)
+                            return .handled
+                        })
                     Button {
                         showFullGuide = true
                     } label: {
@@ -134,16 +142,23 @@ struct DeckGuideView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     if let guide {
-                        LinkedCardText(
-                            text: guide,
-                            cardRepository: cardRepository,
-                            deckCards: deckCardLookup
-                        )
+                        Text(buildLinkedText(from: guide))
+                            .font(.body)
+                            .textSelection(.enabled)
+                            .environment(\.openURL, OpenURLAction { url in
+                                handleCardURL(url)
+                                return .handled
+                            })
                     }
                 }
                 .padding(20)
             }
             .background(MD3Theme.background)
+            .navigationDestination(isPresented: $showCardDetail) {
+                if let card = selectedCard {
+                    CardDetailView(card: card, repository: cardRepository, deckRepository: nil, onScanAnother: {})
+                }
+            }
             .navigationTitle("Deck Guide — \(deckName)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -151,6 +166,77 @@ struct DeckGuideView: View {
                     Button("Done") { showFullGuide = false }
                 }
             }
+        }
+    }
+
+    // MARK: - Inline Card Links
+
+    private func buildLinkedText(from text: String) -> AttributedString {
+        var result = AttributedString()
+        var remaining = text
+
+        while let starRange = remaining.range(of: "**") {
+            let before = String(remaining[remaining.startIndex..<starRange.lowerBound])
+            if !before.isEmpty {
+                result += AttributedString(before)
+            }
+            remaining = String(remaining[starRange.upperBound...])
+
+            if let closeRange = remaining.range(of: "**") {
+                let name = String(remaining[remaining.startIndex..<closeRange.lowerBound])
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                remaining = String(remaining[closeRange.upperBound...])
+
+                var attr = AttributedString(name)
+                if sectionHeaders.contains(name.lowercased()) || name.hasSuffix(":") {
+                    attr.font = .body.bold()
+                } else if name.count >= 3 {
+                    attr.font = .body.bold()
+                    attr.foregroundColor = .purple
+                    attr.underlineStyle = .single
+                    if let encoded = name.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed),
+                       let url = URL(string: "mtgcard://\(encoded)") {
+                        attr.link = url
+                    }
+                    Task { await resolveCard(name) }
+                } else {
+                    attr.font = .body.bold()
+                }
+                result += attr
+            } else {
+                result += AttributedString("**" + remaining)
+                remaining = ""
+            }
+        }
+
+        if !remaining.isEmpty {
+            result += AttributedString(remaining)
+        }
+        return result
+    }
+
+    private func handleCardURL(_ url: URL) {
+        if url.scheme == "mtgcard",
+           let name = url.host?.removingPercentEncoding {
+            let key = name.lowercased()
+            if let card = resolvedCards[key] ?? deckCardLookup[key] {
+                selectedCard = card
+                showCardDetail = true
+            }
+        }
+    }
+
+    private func resolveCard(_ name: String) async {
+        let key = name.lowercased()
+        guard resolvedCards[key] == nil else { return }
+        if let deckCard = deckCardLookup[key] {
+            resolvedCards[key] = deckCard
+            return
+        }
+        guard let repo = cardRepository else { return }
+        let resolver = CardResolver(cardRepository: repo)
+        if let card = await resolver.resolve(name: name, strategy: .cheapest, allowFuzzyFallback: false) {
+            resolvedCards[key] = card
         }
     }
 
@@ -221,7 +307,7 @@ struct DeckGuideView: View {
         Be specific to this exact decklist. Reference actual card names from the list.
         """
 
-        guard let result = await GeminiVisionService.generateInsight(prompt: prompt) else {
+        guard let result = await GeminiVisionService.shared.generateInsight(prompt: prompt) else {
             error = "Failed to generate guide. Check Gemini settings."
             return
         }
@@ -491,7 +577,7 @@ struct DeckGuideSheet: View {
         Be specific to this exact decklist. Reference actual card names from the list.
         """
 
-        guard let result = await GeminiVisionService.generateInsight(prompt: prompt) else {
+        guard let result = await GeminiVisionService.shared.generateInsight(prompt: prompt) else {
             error = "Failed to generate guide. Check Gemini settings."
             return
         }

@@ -145,7 +145,7 @@ struct DeckScanScreen: View {
             ProgressView()
                 .scaleEffect(1.2)
 
-            if GeminiVisionService.isActive {
+            if GeminiVisionService.shared.isActiveSync {
                 Text("Identifying with Gemini Vision...")
                     .font(MD3Typography.titleMedium)
                     .foregroundStyle(MD3Theme.onBackground)

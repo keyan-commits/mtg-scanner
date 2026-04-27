@@ -41,10 +41,14 @@ struct PrintingResolutionTests {
             frameEffects: frameEffects,
             illustrationID: illustrationID,
             edhrecRank: nil,
-            prices: CardPrices(usd: nil, usdFoil: nil, eur: nil, eurFoil: nil, tix: nil),
+            prices: CardPrices(usd: nil, usdFoil: nil, eur: nil, eurFoil: nil, tix: nil, previousUsd: nil),
             legalities: FormatLegality([:]),
             imageURIs: imageURIs,
-            relatedPrintingsURI: nil
+            relatedPrintingsURI: nil,
+            lang: "en",
+            printedName: nil,
+            promoTypes: [],
+            finishes: ["nonfoil"]
         )
     }
 

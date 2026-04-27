@@ -23,6 +23,8 @@ struct CardCopiesDetailView: View {
     @State private var showFullImage: Bool = false
     @State private var phListings: [TCGPHListing] = []
     @State private var phLoading: Bool = false
+    @State private var otherPrintings: [Card] = []
+    @State private var showAllPrintings: Bool = false
     @Environment(\.dismiss) private var dismiss
 
     init(
@@ -67,9 +69,20 @@ struct CardCopiesDetailView: View {
                         CardInsightView(card: card, cardRepository: cardRepository)
                             .padding(.horizontal, 16)
                     }
-                    phStoresSection(card)
+                    PHStoresSection(
+                        cardName: card.name,
+                        listings: phListings,
+                        isLoading: phLoading,
+                        tcgphURL: nil
+                    )
+                    .padding(.horizontal, 16)
+                    cardListTags(card)
                         .padding(.horizontal, 16)
-                    legalitySection(card)
+                    otherPrintingsSection
+                        .padding(.horizontal, 16)
+                    classicArchetypesSection(card)
+                        .padding(.horizontal, 16)
+                    LegalitySectionView(legalities: card.legalities, useCard: false)
                         .padding(.horizontal, 16)
                 }
 
@@ -123,90 +136,7 @@ struct CardCopiesDetailView: View {
             reload()
             await loadCard()
             await loadPHListings()
-        }
-    }
-
-    // MARK: - PH Stores
-
-    @ViewBuilder
-    private func phStoresSection(_ card: Card) -> some View {
-        if phLoading {
-            MD3Card {
-                HStack(spacing: 8) {
-                    ProgressView().scaleEffect(0.7)
-                    Text("Checking PH stores\u{2026}")
-                        .font(MD3Typography.bodySmall)
-                        .foregroundStyle(MD3Theme.onSurfaceVariant)
-                }
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        } else {
-            MD3Card {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Text("PH Stores")
-                            .font(MD3Typography.titleMedium)
-                            .foregroundStyle(MD3Theme.onSurface)
-                        Spacer()
-                        if !phListings.isEmpty {
-                            Text("\(phListings.count) listing\(phListings.count == 1 ? "" : "s")")
-                                .font(.caption)
-                                .foregroundStyle(MD3Theme.onSurfaceVariant)
-                        }
-                    }
-
-                    if phListings.isEmpty {
-                        Text("No listings found")
-                            .font(.caption)
-                            .foregroundStyle(MD3Theme.onSurfaceVariant)
-                    } else {
-                        ForEach(phListings) { listing in
-                            HStack(spacing: 8) {
-                                Text(listing.storeName)
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundStyle(MD3Theme.onSurface)
-                                    .lineLimit(1)
-                                Spacer()
-                                Text("₱\(String(format: "%.0f", listing.price))")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundStyle(MD3Theme.primary)
-                            }
-                        }
-                    }
-
-                    // Links
-                    HStack(spacing: 16) {
-                        let slug = card.name.lowercased()
-                            .replacingOccurrences(of: " ", with: "-")
-                            .replacingOccurrences(of: ",", with: "")
-                            .replacingOccurrences(of: "'", with: "")
-                        if let url = URL(string: "https://tcgph.com/card/\(slug)") {
-                            Link(destination: url) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "magnifyingglass").font(.caption)
-                                    Text("tcgph.com")
-                                }
-                                .font(MD3Typography.labelLarge)
-                                .foregroundStyle(MD3Theme.primary)
-                            }
-                        }
-                        Spacer()
-                        let query = card.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-                        if let url = URL(string: "https://www.facebook.com/groups/135914699791891/search/?q=\(query)") {
-                            Link(destination: url) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "person.3.fill").font(.caption)
-                                    Text("MTG Tambayan")
-                                }
-                                .font(MD3Typography.labelLarge)
-                                .foregroundStyle(.blue)
-                            }
-                        }
-                    }
-                }
-                .padding(16)
-            }
+            await loadOtherPrintings()
         }
     }
 
@@ -284,12 +214,12 @@ struct CardCopiesDetailView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             HStack(spacing: 8) {
-                Text(rarityLabel(card.rarity))
+                Text(RarityFormatter.label(card.rarity))
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(rarityColor(card.rarity))
+                    .foregroundStyle(RarityFormatter.color(card.rarity))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
-                    .background(rarityColor(card.rarity).opacity(0.15))
+                    .background(RarityFormatter.color(card.rarity).opacity(0.15))
                     .clipShape(Capsule())
                 if let artist = card.artist, !artist.isEmpty {
                     Text("Illus. \(artist)")
@@ -308,83 +238,132 @@ struct CardCopiesDetailView: View {
         )
     }
 
+    // MARK: - Card List Tags
+
     @ViewBuilder
-    private func legalitySection(_ card: Card) -> some View {
-        let formats: [(String, String)] = [
-            ("Standard", "standard"),
-            ("Pioneer", "pioneer"),
-            ("Modern", "modern"),
-            ("Legacy", "legacy"),
-            ("Vintage", "vintage"),
-            ("Pauper", "pauper"),
-            ("Commander", "commander"),
-            ("Premodern", "premodern"),
-        ]
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Text("Format Legality")
-                    .font(.subheadline.weight(.semibold))
+    private func cardListTags(_ card: Card) -> some View {
+        let tags = CardDetailView.computeListTags(for: card.name)
+        if !tags.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Appears In")
+                    .font(MD3Typography.titleSmall)
                     .foregroundStyle(MD3Theme.onSurface)
-                HelpButton("Whether this card is allowed in each tournament format. Restricted = limited to 1 copy in the deck.")
-            }
-            ForEach(formats, id: \.1) { name, key in
-                let status = card.legalities.status(for: key) ?? .notLegal
-                HStack {
-                    Circle()
-                        .fill(legalityColor(status))
-                        .frame(width: 8, height: 8)
-                    Text(name)
-                        .font(.caption)
-                        .foregroundStyle(MD3Theme.onSurface)
-                    Spacer()
-                    Text(legalityLabel(status))
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(legalityColor(status))
+                FlowLayout(spacing: 6) {
+                    ForEach(tags, id: \.self) { tag in
+                        Text(tag)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(MD3Theme.onSecondaryContainer)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(MD3Theme.secondaryContainer)
+                            .clipShape(Capsule())
+                    }
                 }
             }
-        }
-        .padding(14)
-        .background(MD3Theme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(MD3Theme.outlineVariant, lineWidth: 1)
-        )
-    }
-
-    private func rarityLabel(_ rarity: CardRarity) -> String {
-        switch rarity {
-        case .mythic: return "Mythic"
-        case .rare: return "Rare"
-        case .uncommon: return "Uncommon"
-        case .common: return "Common"
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    private func rarityColor(_ rarity: CardRarity) -> Color {
-        switch rarity {
-        case .mythic: return .orange
-        case .rare: return .yellow
-        case .uncommon: return .gray
-        case .common: return Color(white: 0.5)
+    // MARK: - Other Printings
+
+    @ViewBuilder
+    private var otherPrintingsSection: some View {
+        if !otherPrintings.isEmpty {
+            MD3Card {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Other Printings")
+                            .font(MD3Typography.titleMedium)
+                            .foregroundStyle(MD3Theme.onSurface)
+                        Spacer()
+                        Text("\(otherPrintings.count)")
+                            .font(MD3Typography.labelSmall)
+                            .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    }
+
+                    let displayed = showAllPrintings ? otherPrintings : Array(otherPrintings.prefix(5))
+                    ForEach(displayed) { printing in
+                        HStack(spacing: 8) {
+                            if let urlString = printing.imageURIs["small"],
+                               let url = URL(string: urlString) {
+                                CachedPhaseImage(url: url) { phase in
+                                    switch phase {
+                                    case .success(let image):
+                                        image.resizable().aspectRatio(contentMode: .fill)
+                                    default:
+                                        RoundedRectangle(cornerRadius: 3).fill(MD3Theme.surfaceVariant)
+                                    }
+                                }
+                                .frame(width: 32, height: 44)
+                                .clipShape(RoundedRectangle(cornerRadius: 3))
+                            }
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(printing.setNameWithYear)
+                                    .font(MD3Typography.bodySmall)
+                                    .foregroundStyle(MD3Theme.onSurface)
+                                    .lineLimit(1)
+                                Text("#\(printing.collectorNumber)")
+                                    .font(MD3Typography.labelSmall)
+                                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+                            }
+                            Spacer()
+                            if let usd = printing.prices.usd {
+                                Text("$\(usd)")
+                                    .font(MD3Typography.labelMedium)
+                                    .foregroundStyle(MD3Theme.primary)
+                            }
+                        }
+                    }
+
+                    if otherPrintings.count > 5 && !showAllPrintings {
+                        Button {
+                            showAllPrintings = true
+                        } label: {
+                            Text("Show all \(otherPrintings.count) printings")
+                                .font(MD3Typography.labelLarge)
+                                .foregroundStyle(MD3Theme.primary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 4)
+                        }
+                    }
+                }
+                .padding(16)
+            }
         }
     }
 
-    private func legalityColor(_ status: LegalityStatus) -> Color {
-        switch status {
-        case .legal: return .green
-        case .banned: return .red
-        case .restricted: return .orange
-        case .notLegal: return .gray
-        }
-    }
+    // MARK: - Classic Archetypes
 
-    private func legalityLabel(_ status: LegalityStatus) -> String {
-        switch status {
-        case .legal: return "Legal"
-        case .banned: return "Banned"
-        case .restricted: return "Restricted"
-        case .notLegal: return "Not legal"
+    @ViewBuilder
+    private func classicArchetypesSection(_ card: Card) -> some View {
+        let loweredName = card.name.lowercased()
+        let matches = ClassicArchetypes.all.filter { archetype in
+            archetype.mainboard.keys.contains { $0.lowercased() == loweredName }
+                || (archetype.sideboard?.keys.contains { $0.lowercased() == loweredName } ?? false)
+        }
+        if !matches.isEmpty {
+            MD3Card {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Played in Classic Decks")
+                            .font(MD3Typography.titleMedium)
+                            .foregroundStyle(MD3Theme.onSurface)
+                        Spacer()
+                        Text("\(matches.count)")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    }
+                    ForEach(matches) { archetype in
+                        let mainQty = archetype.mainboard.first { $0.key.lowercased() == loweredName }?.value ?? 0
+                        let sideQty = archetype.sideboard?.first { $0.key.lowercased() == loweredName }?.value ?? 0
+                        ArchetypeRowView(archetype: archetype, mainQty: mainQty, sideQty: sideQty)
+                        if archetype.id != matches.last?.id {
+                            Divider()
+                        }
+                    }
+                }
+                .padding(16)
+            }
         }
     }
 
@@ -484,7 +463,7 @@ struct CardCopiesDetailView: View {
         VStack(spacing: 8) {
             if let urlString = card.imageURIs["normal"] ?? card.imageURIs["large"],
                let url = URL(string: urlString) {
-                AsyncImage(url: url) { phase in
+                CachedPhaseImage(url: url) { phase in
                     switch phase {
                     case .success(let image):
                         image.resizable().scaledToFit()
@@ -498,7 +477,7 @@ struct CardCopiesDetailView: View {
                 .fullScreenCover(isPresented: $showFullImage) {
                     ZStack(alignment: .topTrailing) {
                         Color.black.ignoresSafeArea()
-                        AsyncImage(url: url) { phase in
+                        CachedPhaseImage(url: url) { phase in
                             switch phase {
                             case .success(let image):
                                 image.resizable().aspectRatio(contentMode: .fit).ignoresSafeArea()
@@ -739,6 +718,14 @@ struct CardCopiesDetailView: View {
     private func loadCard() async {
         guard let cardRepository, card == nil else { return }
         card = try? await cardRepository.fetchCard(set: setCode, collectorNumber: collectorNumber)
+    }
+
+    private func loadOtherPrintings() async {
+        guard let cardRepository else { return }
+        let all = (try? await cardRepository.findAllPrintings(name: cardName)) ?? []
+        otherPrintings = all.filter {
+            !($0.set.code == setCode && $0.collectorNumber == collectorNumber)
+        }
     }
 
     private func markAll(_ status: PurchaseStatus) {

@@ -384,8 +384,7 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         // Strategy 3: Gemini Vision API fallback
         if GeminiVisionService.isConfigured {
             print("[MTGScanner] Local pipeline failed, trying Gemini Vision...")
-            let gemini = GeminiVisionService()
-            if let result = await gemini.identifyCard(image: finalImage) {
+            if let result = await GeminiVisionService.shared.identifyCard(image: finalImage) {
                 // Look up the card name in local DB
                 if let printings = try? await repository.findAllPrintings(name: result.cardName),
                    !printings.isEmpty {
@@ -549,8 +548,7 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
 
     func identifyAllWithGemini(image: CGImage) async -> (analysis: String?, cards: [(card: Card, bbox: CGRect?)]) {
         guard GeminiVisionService.isConfigured else { return (nil, []) }
-        let gemini = GeminiVisionService()
-        guard let result = await gemini.identifyAllCards(image: image) else { return (nil, []) }
+        guard let result = await GeminiVisionService.shared.identifyAllCards(image: image) else { return (nil, []) }
         let results = result.cards
         let analysis = result.analysis
 
@@ -614,8 +612,7 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
 
     func identifyWithGemini(cgImage: CGImage) async -> Card? {
         guard GeminiVisionService.isConfigured else { return nil }
-        let gemini = GeminiVisionService()
-        guard let result = await gemini.identifyCard(image: cgImage) else { return nil }
+        guard let result = await GeminiVisionService.shared.identifyCard(image: cgImage) else { return nil }
 
         // Look up in local DB
         guard let printings = try? await repository.findAllPrintings(name: result.cardName),

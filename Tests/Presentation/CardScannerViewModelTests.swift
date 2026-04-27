@@ -85,7 +85,7 @@ private func makeTestCard(
         frameEffects: [],
         illustrationID: nil,
         edhrecRank: nil,
-        prices: CardPrices(usd: "1.50", usdFoil: nil, eur: "1.20", eurFoil: nil, tix: nil),
+        prices: CardPrices(usd: "1.50", usdFoil: nil, eur: "1.20", eurFoil: nil, tix: nil, previousUsd: nil),
         legalities: FormatLegality([
             "standard": .notLegal,
             "modern": .legal,
@@ -94,7 +94,11 @@ private func makeTestCard(
             "pioneer": .notLegal
         ]),
         imageURIs: ["normal": "https://example.com/bolt.jpg"],
-        relatedPrintingsURI: nil
+        relatedPrintingsURI: nil,
+        lang: "en",
+        printedName: nil,
+        promoTypes: [],
+        finishes: ["nonfoil"]
     )
 }
 
@@ -122,6 +126,21 @@ struct MockPipeline: CardIdentificationPipelineProtocol {
         if let cards = resultCards { return cards }
         if let card = resultCard { return [card] }
         return []
+    }
+
+    func identifyWithGemini(cgImage: CGImage) async -> Card? {
+        return resultCard
+    }
+
+    func identifyAllWithGemini(image: CGImage) async -> (analysis: String?, cards: [(card: Card, bbox: CGRect?)]) {
+        if let cards = resultCards {
+            return (nil, cards.map { ($0, nil) })
+        }
+        return (nil, [])
+    }
+
+    func learnFromIdentification(cardImage: CGImage, card: Card) async {
+        // No-op for tests
     }
 
     func clearFeaturePrintCache() async {

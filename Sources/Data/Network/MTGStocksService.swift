@@ -13,6 +13,12 @@ actor MTGStocksService {
     private let baseURL = "https://api.mtgstocks.com"
     private let session: URLSession
 
+    // MARK: - Cache Size Limits
+
+    private let maxIDCacheSize = 500
+    private let maxDetailCacheSize = 200
+    private let maxHistoryCacheSize = 200
+
     /// Card name → MTGStocks print ID (persists for the process lifetime).
     private var idCache: [String: Int] = [:]
     /// Print ID → card detail (24h TTL).
@@ -67,6 +73,7 @@ actor MTGStocksService {
                 let cnStr = cn.map(String.init)
                 return (abbr == lowerSet || icon == lowerSet) && cnStr == collectorNumber
             }), let printID = printing["id"] as? Int {
+                evictIDCacheIfNeeded()
                 idCache[cacheKey] = printID
                 return printID
             }
@@ -76,12 +83,14 @@ actor MTGStocksService {
                 let icon = (entry["icon_class"] as? String)?.lowercased()
                 return abbr == lowerSet || icon == lowerSet
             }), let printID = printing["id"] as? Int {
+                evictIDCacheIfNeeded()
                 idCache[cacheKey] = printID
                 return printID
             }
         }
 
         // No set match — use the card-level default
+        evictIDCacheIfNeeded()
         idCache[cacheKey] = cardID
         return cardID
     }
@@ -96,6 +105,7 @@ actor MTGStocksService {
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let card = MTGStocksCard.from(json: json) else { return nil }
 
+        evictDetailCacheIfNeeded()
         detailCache[id] = (card, Date())
         return card
     }
@@ -109,6 +119,7 @@ actor MTGStocksService {
         guard let data = await fetch("/prints/\(id)/prices") else { return nil }
         guard let history = try? JSONDecoder().decode(MTGStocksPriceHistory.self, from: data) else { return nil }
 
+        evictHistoryCacheIfNeeded()
         historyCache[id] = (history, Date())
         return history
     }
@@ -191,6 +202,32 @@ actor MTGStocksService {
     /// Returns the MTGStocks web URL for a card (for "View on MTGStocks" links).
     func webURL(id: Int) -> URL? {
         URL(string: "https://www.mtgstocks.com/prints/\(id)")
+    }
+
+    // MARK: - Cache Eviction
+
+    /// Evict a random entry from idCache if at capacity (no timestamps to sort by).
+    private func evictIDCacheIfNeeded() {
+        guard idCache.count >= maxIDCacheSize else { return }
+        if let key = idCache.keys.randomElement() {
+            idCache.removeValue(forKey: key)
+        }
+    }
+
+    /// Evict the oldest entry from detailCache if at capacity.
+    private func evictDetailCacheIfNeeded() {
+        guard detailCache.count >= maxDetailCacheSize else { return }
+        if let oldest = detailCache.min(by: { $0.value.fetchedAt < $1.value.fetchedAt }) {
+            detailCache.removeValue(forKey: oldest.key)
+        }
+    }
+
+    /// Evict the oldest entry from historyCache if at capacity.
+    private func evictHistoryCacheIfNeeded() {
+        guard historyCache.count >= maxHistoryCacheSize else { return }
+        if let oldest = historyCache.min(by: { $0.value.fetchedAt < $1.value.fetchedAt }) {
+            historyCache.removeValue(forKey: oldest.key)
+        }
     }
 
     // MARK: - Network

@@ -133,11 +133,11 @@ struct EDHRECServiceTests {
 
         do {
             _ = try await service.fetchCardData(name: "Nonexistent Card")
-            Issue.record("Expected EDHRECError.cardNotFound")
-        } catch let error as EDHRECError {
-            #expect(error == .cardNotFound)
+            Issue.record("Expected NetworkError.notFound")
+        } catch let error as NetworkError {
+            #expect(error == .notFound)
         } catch {
-            Issue.record("Expected EDHRECError.cardNotFound but got \(error)")
+            Issue.record("Expected NetworkError.notFound but got \(error)")
         }
     }
 
@@ -149,15 +149,15 @@ struct EDHRECServiceTests {
 
         do {
             _ = try await service.fetchCardData(name: "Sol Ring")
-            Issue.record("Expected EDHRECError.networkError")
-        } catch let error as EDHRECError {
+            Issue.record("Expected NetworkError.networkError")
+        } catch let error as NetworkError {
             if case .networkError = error {
                 // Expected
             } else {
-                Issue.record("Expected EDHRECError.networkError but got \(error)")
+                Issue.record("Expected NetworkError.networkError but got \(error)")
             }
         } catch {
-            Issue.record("Expected EDHRECError.networkError but got \(error)")
+            Issue.record("Expected NetworkError.networkError but got \(error)")
         }
     }
 
@@ -172,15 +172,15 @@ struct EDHRECServiceTests {
 
         do {
             _ = try await service.fetchCardData(name: "Sol Ring")
-            Issue.record("Expected EDHRECError.decodingError")
-        } catch let error as EDHRECError {
+            Issue.record("Expected NetworkError.decodingError")
+        } catch let error as NetworkError {
             if case .decodingError = error {
                 // Expected
             } else {
-                Issue.record("Expected EDHRECError.decodingError but got \(error)")
+                Issue.record("Expected NetworkError.decodingError but got \(error)")
             }
         } catch {
-            Issue.record("Expected EDHRECError.decodingError but got \(error)")
+            Issue.record("Expected NetworkError.decodingError but got \(error)")
         }
     }
 

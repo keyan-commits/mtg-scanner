@@ -18,7 +18,7 @@ struct CardInsightView: View {
     @State private var usedKeyLabel: String?
 
     private var isConfigured: Bool { GeminiVisionService.isConfigured }
-    private var remainingQuota: Int { max(0, 1000 - GeminiVisionService.dailyUsage) }
+    private var remainingQuota: Int { max(0, 1000 - GeminiVisionService.shared.dailyUsageSync) }
 
     var body: some View {
         MD3Card {
@@ -335,12 +335,12 @@ struct CardInsightView: View {
         budget_alternatives: 2-3 cheaper cards that do a similar job. gameplay_alternatives: 2-3 cards at any price that are the best strategic substitutes or upgrades. All must be legal in the same formats. Use exact Scryfall English names.
         """
 
-        usedKeyLabel = GeminiVisionService.isUsingAltKey ? "alt" : "primary"
-        guard let result = await GeminiVisionService.generateInsight(prompt: prompt) else {
+        usedKeyLabel = GeminiVisionService.shared.isUsingAltKeySync ? "alt" : "primary"
+        guard let result = await GeminiVisionService.shared.generateInsight(prompt: prompt) else {
             error = "Failed to generate insight. Check Gemini settings."
             return
         }
-        usedKeyLabel = GeminiVisionService.lastUsedKey
+        usedKeyLabel = await GeminiVisionService.shared.lastUsedKey
 
         // Parse JSON response
         let cleaned = result

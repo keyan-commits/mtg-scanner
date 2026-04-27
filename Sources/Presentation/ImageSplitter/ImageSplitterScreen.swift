@@ -30,7 +30,7 @@ struct ImageSplitterScreen: View {
             } else if viewModel.isDetecting {
                 ProgressView("Detecting cards...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if viewModel.isIdentifying && viewModel.identifiedCards.isEmpty && GeminiVisionService.isActive {
+            } else if viewModel.isIdentifying && viewModel.identifiedCards.isEmpty && GeminiVisionService.shared.isActiveSync {
                 geminiProcessingView
             } else {
                 splitPreviewView
@@ -117,7 +117,7 @@ struct ImageSplitterScreen: View {
             VStack(spacing: 12) {
                 ProgressView()
                     .scaleEffect(1.2)
-                if GeminiVisionService.isActive {
+                if GeminiVisionService.shared.isActiveSync {
                     Text("Identifying cards with Gemini Vision...")
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
                         .foregroundStyle(MD3Theme.onSurface)

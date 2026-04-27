@@ -9,27 +9,6 @@ struct HareruyaPrice: Sendable {
     let formattedPrice: String
 }
 
-// MARK: - Hareruya Error
-
-enum HareruyaError: Error, Equatable, Sendable {
-    case networkError(String)
-    case serverError(statusCode: Int)
-    case decodingError(String)
-
-    static func == (lhs: HareruyaError, rhs: HareruyaError) -> Bool {
-        switch (lhs, rhs) {
-        case (.networkError(let l), .networkError(let r)):
-            return l == r
-        case (.serverError(let l), .serverError(let r)):
-            return l == r
-        case (.decodingError(let l), .decodingError(let r)):
-            return l == r
-        default:
-            return false
-        }
-    }
-}
-
 // MARK: - Hareruya Response DTOs
 
 private struct HareruyaResponseDTO: Decodable {
@@ -75,10 +54,13 @@ struct HareruyaPriceService: HareruyaPriceServiceProtocol {
 
     func fetchNMPrice(cardName: String) async throws -> HareruyaPrice? {
         guard let encodedName = cardName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
-            throw HareruyaError.networkError("Invalid card name encoding")
+            throw NetworkError.networkError("Invalid card name encoding")
         }
 
-        let url = URL(string: "\(baseURL)?cardName=\(encodedName)")!
+        let urlString = "\(baseURL)?cardName=\(encodedName)"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL(urlString)
+        }
         var request = URLRequest(url: url)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
@@ -88,22 +70,22 @@ struct HareruyaPriceService: HareruyaPriceServiceProtocol {
         do {
             (data, response) = try await httpClient.data(for: request)
         } catch {
-            throw HareruyaError.networkError(error.localizedDescription)
+            throw NetworkError.networkError(error.localizedDescription)
         }
 
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw HareruyaError.networkError("Invalid response type")
+            throw NetworkError.networkError("Invalid response type")
         }
 
         guard (200..<300).contains(httpResponse.statusCode) else {
-            throw HareruyaError.serverError(statusCode: httpResponse.statusCode)
+            throw NetworkError.serverError(statusCode: httpResponse.statusCode)
         }
 
         let dto: HareruyaResponseDTO
         do {
             dto = try decoder.decode(HareruyaResponseDTO.self, from: data)
         } catch {
-            throw HareruyaError.decodingError(error.localizedDescription)
+            throw NetworkError.decodingError(error.localizedDescription)
         }
 
         // Filter for NM (card_condition == 1) and non-foil (foil_flg == 0)

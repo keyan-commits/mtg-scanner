@@ -3,7 +3,7 @@
 #
 # Usage:
 #   ./scripts/deploy.sh                    # auto-detects first connected device
-#   ./scripts/deploy.sh <DEVICE_ID>        # use a specific device
+#   ./scripts/deploy.sh <DEVICE_NAME>      # use a specific device by name
 
 set -e
 
@@ -14,31 +14,49 @@ BUNDLE_ID="com.nikoe.mtgcardscanner"
 
 cd "$PROJECT_ROOT"
 
-# 1. Resolve device ID
+# 1. Resolve device — get both xcodebuild ID and devicectl UUID
 if [ -n "$1" ]; then
-    DEVICE_ID="$1"
+    DEVICE_FILTER="$1"
 else
-    echo "→ Detecting connected iOS device..."
-    DEVICE_ID=$(xcrun devicectl list devices 2>/dev/null \
-        | awk '/connected/ && /iPhone|iPad/ {print $NF}' \
-        | head -1)
+    # Default to Niko's iPhone when no device specified
+    # Device names use smart apostrophe (Unicode RIGHT SINGLE QUOTATION MARK)
+    DEVICE_FILTER="Niko"
 fi
 
-if [ -z "$DEVICE_ID" ]; then
+echo "→ Detecting connected iOS device..."
+
+# Get xcodebuild-compatible device ID and name from destinations
+DEST_LINE=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" -showdestinations 2>/dev/null \
+    | grep 'platform:iOS, arch:' \
+    | grep -v 'Simulator' \
+    | grep -v 'placeholder')
+
+if [ -n "$DEVICE_FILTER" ]; then
+    DEST_LINE=$(echo "$DEST_LINE" | grep -i "$DEVICE_FILTER" | head -1)
+else
+    DEST_LINE=$(echo "$DEST_LINE" | head -1)
+fi
+
+if [ -z "$DEST_LINE" ]; then
     echo "✗ No connected iOS device found."
-    echo "  Run 'xcrun devicectl list devices' to see what's available,"
-    echo "  then pass the device ID as the first argument."
+    echo "  Run 'xcodebuild -project $PROJECT -scheme $SCHEME -showdestinations'"
+    echo "  to see what's available."
     exit 1
 fi
 
-echo "→ Using device: $DEVICE_ID"
+# Extract xcodebuild device ID
+XCODE_DEVICE_ID=$(echo "$DEST_LINE" | sed 's/.*id://' | sed 's/[,}].*//' | tr -d '[:space:]')
+# Extract device name
+DEVICE_NAME=$(echo "$DEST_LINE" | sed 's/.*name://' | sed 's/[,}].*//' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
 
-# 2. Build for the device (Release configuration via 'install' action)
+echo "→ Using device: $DEVICE_NAME ($XCODE_DEVICE_ID)"
+
+# 2. Build for the device
 echo "→ Building MTGCardScanner..."
 xcodebuild \
     -project "$PROJECT" \
     -scheme "$SCHEME" \
-    -destination "id=$DEVICE_ID" \
+    -destination "id=$XCODE_DEVICE_ID" \
     -allowProvisioningUpdates \
     -quiet \
     clean build install
@@ -57,12 +75,22 @@ fi
 
 echo "→ Built: $APP_PATH"
 
-# 4. Install
-echo "→ Installing to device..."
-xcrun devicectl device install app --device "$DEVICE_ID" "$APP_PATH"
+# 4. Get devicectl UUID for install/launch (different from xcodebuild ID)
+DEVICECTL_UUID=$(xcrun devicectl list devices 2>/dev/null \
+    | grep -i "$DEVICE_NAME" \
+    | awk '{for(i=1;i<=NF;i++){if($i ~ /^[0-9A-F]{8}-[0-9A-F]{4}-/){print $i; exit}}}')
 
-# 5. Launch
+if [ -z "$DEVICECTL_UUID" ]; then
+    echo "⚠ Could not find devicectl UUID for '$DEVICE_NAME', trying xcodebuild ID..."
+    DEVICECTL_UUID="$XCODE_DEVICE_ID"
+fi
+
+# 5. Install
+echo "→ Installing to device..."
+xcrun devicectl device install app --device "$DEVICECTL_UUID" "$APP_PATH"
+
+# 6. Launch
 echo "→ Launching..."
-xcrun devicectl device process launch --device "$DEVICE_ID" "$BUNDLE_ID"
+xcrun devicectl device process launch --device "$DEVICECTL_UUID" "$BUNDLE_ID"
 
 echo "✓ Done."

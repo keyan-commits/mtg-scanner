@@ -153,16 +153,16 @@ struct ScryfallAPIClientTests {
         )
         let client = ScryfallAPIClient(httpClient: httpClient)
 
-        await #expect(throws: ScryfallError.self) {
+        await #expect(throws: NetworkError.self) {
             _ = try await client.fetchCardByName("Nonexistent Card")
         }
 
         do {
             _ = try await client.fetchCardByName("Nonexistent Card")
-        } catch let error as ScryfallError {
-            #expect(error == .cardNotFound)
+        } catch let error as NetworkError {
+            #expect(error == .notFound)
         } catch {
-            Issue.record("Expected ScryfallError.cardNotFound but got \(error)")
+            Issue.record("Expected NetworkError.notFound but got \(error)")
         }
     }
 
@@ -176,11 +176,11 @@ struct ScryfallAPIClientTests {
 
         do {
             _ = try await client.fetchCardByName("Lightning Bolt")
-            Issue.record("Expected ScryfallError.rateLimited")
-        } catch let error as ScryfallError {
+            Issue.record("Expected NetworkError.rateLimited")
+        } catch let error as NetworkError {
             #expect(error == .rateLimited)
         } catch {
-            Issue.record("Expected ScryfallError.rateLimited but got \(error)")
+            Issue.record("Expected NetworkError.rateLimited but got \(error)")
         }
     }
 
@@ -194,11 +194,11 @@ struct ScryfallAPIClientTests {
 
         do {
             _ = try await client.fetchCardByName("Lightning Bolt")
-            Issue.record("Expected ScryfallError.serverError")
-        } catch let error as ScryfallError {
+            Issue.record("Expected NetworkError.serverError")
+        } catch let error as NetworkError {
             #expect(error == .serverError(statusCode: 500))
         } catch {
-            Issue.record("Expected ScryfallError.serverError but got \(error)")
+            Issue.record("Expected NetworkError.serverError but got \(error)")
         }
     }
 
@@ -211,15 +211,15 @@ struct ScryfallAPIClientTests {
 
         do {
             _ = try await client.fetchCardByName("Lightning Bolt")
-            Issue.record("Expected ScryfallError.decodingError")
-        } catch let error as ScryfallError {
+            Issue.record("Expected NetworkError.decodingError")
+        } catch let error as NetworkError {
             if case .decodingError = error {
                 // Expected
             } else {
-                Issue.record("Expected ScryfallError.decodingError but got \(error)")
+                Issue.record("Expected NetworkError.decodingError but got \(error)")
             }
         } catch {
-            Issue.record("Expected ScryfallError.decodingError but got \(error)")
+            Issue.record("Expected NetworkError.decodingError but got \(error)")
         }
     }
 
@@ -233,15 +233,15 @@ struct ScryfallAPIClientTests {
 
         do {
             _ = try await client.fetchCardByName("Lightning Bolt")
-            Issue.record("Expected ScryfallError.networkError")
-        } catch let error as ScryfallError {
+            Issue.record("Expected NetworkError.networkError")
+        } catch let error as NetworkError {
             if case .networkError = error {
                 // Expected
             } else {
-                Issue.record("Expected ScryfallError.networkError but got \(error)")
+                Issue.record("Expected NetworkError.networkError but got \(error)")
             }
         } catch {
-            Issue.record("Expected ScryfallError.networkError but got \(error)")
+            Issue.record("Expected NetworkError.networkError but got \(error)")
         }
     }
 

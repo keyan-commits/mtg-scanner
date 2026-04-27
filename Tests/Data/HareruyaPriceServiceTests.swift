@@ -164,26 +164,26 @@ struct HareruyaPriceServiceTests {
 
     // MARK: - Network Error
 
-    @Test("Network failure throws HareruyaError.networkError")
+    @Test("Network failure throws NetworkError.networkError")
     func handlesNetworkError() async {
         let httpClient = MockHTTPClient.failure(URLError(.notConnectedToInternet))
         let service = HareruyaPriceService(httpClient: httpClient)
 
         do {
             _ = try await service.fetchNMPrice(cardName: "Lightning Bolt")
-            Issue.record("Expected HareruyaError.networkError")
-        } catch let error as HareruyaError {
+            Issue.record("Expected NetworkError.networkError")
+        } catch let error as NetworkError {
             if case .networkError = error {
                 // Expected
             } else {
-                Issue.record("Expected HareruyaError.networkError but got \(error)")
+                Issue.record("Expected NetworkError.networkError but got \(error)")
             }
         } catch {
-            Issue.record("Expected HareruyaError but got \(error)")
+            Issue.record("Expected NetworkError but got \(error)")
         }
     }
 
-    @Test("Malformed JSON throws HareruyaError.decodingError")
+    @Test("Malformed JSON throws NetworkError.decodingError")
     func handlesDecodingError() async {
         let httpClient = MockHTTPClient.success(
             data: HareruyaFixtures.malformedJSON,
@@ -193,15 +193,15 @@ struct HareruyaPriceServiceTests {
 
         do {
             _ = try await service.fetchNMPrice(cardName: "Lightning Bolt")
-            Issue.record("Expected HareruyaError.decodingError")
-        } catch let error as HareruyaError {
+            Issue.record("Expected NetworkError.decodingError")
+        } catch let error as NetworkError {
             if case .decodingError = error {
                 // Expected
             } else {
-                Issue.record("Expected HareruyaError.decodingError but got \(error)")
+                Issue.record("Expected NetworkError.decodingError but got \(error)")
             }
         } catch {
-            Issue.record("Expected HareruyaError but got \(error)")
+            Issue.record("Expected NetworkError but got \(error)")
         }
     }
 
@@ -222,7 +222,7 @@ struct HareruyaPriceServiceTests {
         #expect(!requestedURL.contains(" "))
     }
 
-    @Test("Server error throws HareruyaError.serverError")
+    @Test("Server error throws NetworkError.serverError")
     func handlesServerError() async {
         let httpClient = MockHTTPClient.success(
             data: Data(),
@@ -233,15 +233,15 @@ struct HareruyaPriceServiceTests {
 
         do {
             _ = try await service.fetchNMPrice(cardName: "Lightning Bolt")
-            Issue.record("Expected HareruyaError.serverError")
-        } catch let error as HareruyaError {
+            Issue.record("Expected NetworkError.serverError")
+        } catch let error as NetworkError {
             if case .serverError = error {
                 // Expected
             } else {
-                Issue.record("Expected HareruyaError.serverError but got \(error)")
+                Issue.record("Expected NetworkError.serverError but got \(error)")
             }
         } catch {
-            Issue.record("Expected HareruyaError but got \(error)")
+            Issue.record("Expected NetworkError but got \(error)")
         }
     }
 }

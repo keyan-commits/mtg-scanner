@@ -62,10 +62,14 @@ struct IdentifyCardUseCaseTests {
             frameEffects: [],
             illustrationID: nil,
             edhrecRank: nil,
-            prices: CardPrices(usd: "1.00", usdFoil: nil, eur: nil, eurFoil: nil, tix: nil),
+            prices: CardPrices(usd: "1.00", usdFoil: nil, eur: nil, eurFoil: nil, tix: nil, previousUsd: nil),
             legalities: FormatLegality(["modern": .legal]),
             imageURIs: [:],
-            relatedPrintingsURI: nil
+            relatedPrintingsURI: nil,
+            lang: "en",
+            printedName: nil,
+            promoTypes: [],
+            finishes: ["nonfoil"]
         )
     }
 

@@ -151,7 +151,7 @@ struct CardDetailView: View {
     private var cardImage: some View {
         Group {
             if let url = viewModel.cardImageURL {
-                AsyncImage(url: url) { phase in
+                CachedPhaseImage(url: url) { phase in
                     switch phase {
                     case .success(let image):
                         image
@@ -183,7 +183,7 @@ struct CardDetailView: View {
     private func fullImageView(url: URL) -> some View {
         ZStack(alignment: .topTrailing) {
             Color.black.ignoresSafeArea()
-            AsyncImage(url: url) { phase in
+            CachedPhaseImage(url: url) { phase in
                 switch phase {
                 case .success(let image):
                     image
@@ -238,12 +238,12 @@ struct CardDetailView: View {
                     .font(MD3Typography.bodyMedium)
                     .foregroundStyle(MD3Theme.onSurfaceVariant)
 
-                Text(rarityLabel(viewModel.card.rarity))
+                Text(RarityFormatter.label(viewModel.card.rarity))
                     .font(MD3Typography.labelMedium)
-                    .foregroundStyle(rarityColor(viewModel.card.rarity))
+                    .foregroundStyle(RarityFormatter.color(viewModel.card.rarity))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
-                    .background(rarityColor(viewModel.card.rarity).opacity(0.15))
+                    .background(RarityFormatter.color(viewModel.card.rarity).opacity(0.15))
                     .clipShape(Capsule())
 
                 if let variant = viewModel.variantLabel {
@@ -356,7 +356,7 @@ struct CardDetailView: View {
 
     /// Computes all list memberships for a card by name.
     /// Excludes expansion-specific categories (those with non-empty setCodes).
-    private static func computeListTags(for cardName: String) -> [String] {
+    static func computeListTags(for cardName: String) -> [String] {
         var tags: [String] = []
         let lowered = cardName.lowercased()
 
@@ -423,6 +423,8 @@ struct CardDetailView: View {
                             .foregroundStyle(MD3Theme.onSurfaceVariant)
                     }
                     ForEach(matches) { archetype in
+                        let mainQty = archetype.mainboard.first { $0.key.lowercased() == cardName }?.value ?? 0
+                        let sideQty = archetype.sideboard?.first { $0.key.lowercased() == cardName }?.value ?? 0
                         if let repo = repository, let deckRepo = deckRepository {
                             NavigationLink {
                                 ClassicDeckDetailView(
@@ -431,10 +433,10 @@ struct CardDetailView: View {
                                     cardRepository: repo
                                 )
                             } label: {
-                                archetypeRow(archetype, cardName: cardName)
+                                ArchetypeRowView(archetype: archetype, mainQty: mainQty, sideQty: sideQty)
                             }
                         } else {
-                            archetypeRow(archetype, cardName: cardName)
+                            ArchetypeRowView(archetype: archetype, mainQty: mainQty, sideQty: sideQty)
                         }
                         if archetype.id != matches.last?.id {
                             Divider()
@@ -446,35 +448,6 @@ struct CardDetailView: View {
         }
     }
 
-    private func archetypeRow(_ archetype: ClassicArchetype, cardName: String) -> some View {
-        let mainQty = archetype.mainboard.first { $0.key.lowercased() == cardName }?.value ?? 0
-        let sideQty = archetype.sideboard?.first { $0.key.lowercased() == cardName }?.value ?? 0
-        return HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(archetype.name)
-                    .font(MD3Typography.bodyMedium)
-                    .foregroundStyle(MD3Theme.onSurface)
-                Text("\(archetype.format) · \(archetype.era)")
-                    .font(.caption2)
-                    .foregroundStyle(MD3Theme.onSurfaceVariant)
-            }
-            Spacer()
-            HStack(spacing: 4) {
-                if mainQty > 0 {
-                    Text("\(mainQty)×")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(MD3Theme.primary)
-                        .monospacedDigit()
-                }
-                if sideQty > 0 {
-                    Text("(SB \(sideQty))")
-                        .font(.caption2)
-                        .foregroundStyle(MD3Theme.onSurfaceVariant)
-                }
-            }
-        }
-        .padding(.vertical, 4)
-    }
 
     // MARK: - PH Stores (tcgph.com)
 
@@ -603,10 +576,10 @@ struct CardDetailView: View {
                 HStack(spacing: 6) {
                     Text(listing.condition)
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(conditionColor(listing.condition))
+                        .foregroundStyle(ConditionFormatter.color(listing.condition))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 1)
-                        .background(conditionColor(listing.condition).opacity(0.15))
+                        .background(ConditionFormatter.color(listing.condition).opacity(0.15))
                         .clipShape(Capsule())
                     if listing.quantity > 1 {
                         Text("\(listing.quantity) avail")
@@ -638,15 +611,6 @@ struct CardDetailView: View {
         return URL(string: "https://www.facebook.com/groups/135914699791891/search/?q=\(query)")
     }
 
-    private func conditionColor(_ condition: String) -> Color {
-        switch condition {
-        case "NM": return .green
-        case "LP": return .yellow
-        case "MP": return .orange
-        case "HP", "DMG": return .red
-        default: return .gray
-        }
-    }
 
     private func loadPHListings() async {
         phLoading = true
@@ -675,7 +639,7 @@ struct CardDetailView: View {
                 ForEach(viewModel.legalFormats, id: \.0) { format, status in
                     HStack {
                         Circle()
-                            .fill(legalityColor(for: status))
+                            .fill(LegalityFormatter.color(status))
                             .frame(width: 10, height: 10)
 
                         Text(format)
@@ -684,9 +648,9 @@ struct CardDetailView: View {
 
                         Spacer()
 
-                        Text(legalityLabel(for: status))
+                        Text(LegalityFormatter.label(status))
                             .font(MD3Typography.labelMedium)
-                            .foregroundStyle(legalityColor(for: status))
+                            .foregroundStyle(LegalityFormatter.color(status))
                     }
                 }
             }
@@ -870,13 +834,10 @@ struct CardDetailView: View {
                             HStack(spacing: 8) {
                                 if let urlString = printing.imageURIs["small"],
                                    let url = URL(string: urlString) {
-                                    AsyncImage(url: url) { phase in
-                                        switch phase {
-                                        case .success(let image):
-                                            image.resizable().aspectRatio(contentMode: .fill)
-                                        default:
-                                            RoundedRectangle(cornerRadius: 3).fill(MD3Theme.surfaceVariant)
-                                        }
+                                    CachedAsyncImage(url: url) { image in
+                                        image.resizable().aspectRatio(contentMode: .fill)
+                                    } placeholder: {
+                                        RoundedRectangle(cornerRadius: 3).fill(MD3Theme.surfaceVariant)
                                     }
                                     .frame(width: 32, height: 44)
                                     .clipShape(RoundedRectangle(cornerRadius: 3))
@@ -1005,51 +966,4 @@ struct CardDetailView: View {
         }
     }
 
-    // MARK: - Rarity
-
-    private func rarityLabel(_ rarity: CardRarity) -> String {
-        switch rarity {
-        case .mythic: return "Mythic"
-        case .rare: return "Rare"
-        case .uncommon: return "Uncommon"
-        case .common: return "Common"
-        }
-    }
-
-    private func rarityColor(_ rarity: CardRarity) -> Color {
-        switch rarity {
-        case .mythic: return .orange
-        case .rare: return .yellow
-        case .uncommon: return .gray
-        case .common: return Color(white: 0.5)
-        }
-    }
-
-    // MARK: - Helpers
-
-    private func legalityColor(for status: LegalityStatus) -> Color {
-        switch status {
-        case .legal:
-            return .green
-        case .banned:
-            return .red
-        case .restricted:
-            return .orange
-        case .notLegal:
-            return .gray
-        }
-    }
-
-    private func legalityLabel(for status: LegalityStatus) -> String {
-        switch status {
-        case .legal:
-            return "Legal"
-        case .banned:
-            return "Banned"
-        case .restricted:
-            return "Restricted"
-        case .notLegal:
-            return "Not Legal"
-        }
-    }
 }

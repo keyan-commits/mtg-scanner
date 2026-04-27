@@ -199,7 +199,7 @@ struct SettingsScreen: View {
                     } else if !geminiEnabled {
                         Text("Disabled")
                             .foregroundStyle(.orange)
-                    } else if GeminiVisionService.isDailyLimitReached {
+                    } else if GeminiVisionService.shared.isDailyLimitReachedSync {
                         Text("Daily limit reached")
                             .foregroundStyle(.red)
                     } else {
@@ -209,15 +209,15 @@ struct SettingsScreen: View {
                 }
                 if !geminiAPIKey.isEmpty {
                     Button {
-                        manualUsageText = "\(GeminiVisionService.dailyUsage)"
+                        manualUsageText = "\(GeminiVisionService.shared.dailyUsageSync)"
                         showUsageEditor = true
                     } label: {
                         HStack {
                             Text("Today's usage")
                                 .foregroundStyle(MD3Theme.onSurface)
                             Spacer()
-                            Text("\(GeminiVisionService.dailyUsage) / 1,000")
-                                .foregroundStyle(GeminiVisionService.isDailyLimitReached ? .red : .secondary)
+                            Text("\(GeminiVisionService.shared.dailyUsageSync) / 1,000")
+                                .foregroundStyle(GeminiVisionService.shared.isDailyLimitReachedSync ? .red : .secondary)
                             Image(systemName: "pencil")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
@@ -228,7 +228,7 @@ struct SettingsScreen: View {
                     HStack {
                         Text("Active key")
                         Spacer()
-                        if GeminiVisionService.isUsingAltKey {
+                        if GeminiVisionService.shared.isUsingAltKeySync {
                             Text("Alt")
                                 .font(.caption.weight(.bold))
                                 .foregroundStyle(.orange)
@@ -242,7 +242,7 @@ struct SettingsScreen: View {
                         HStack {
                             Text("Alt key status")
                             Spacer()
-                            if GeminiVisionService.isAltDailyLimitReached {
+                            if GeminiVisionService.shared.isAltDailyLimitReachedSync {
                                 Text("Daily limit reached")
                                     .foregroundStyle(.red)
                             } else {
@@ -251,22 +251,22 @@ struct SettingsScreen: View {
                             }
                         }
                         Button {
-                            manualUsageText = "\(GeminiVisionService.altDailyUsage)"
+                            manualUsageText = "\(GeminiVisionService.shared.altDailyUsageSync)"
                             showAltUsageEditor = true
                         } label: {
                             HStack {
                                 Text("Alt key usage")
                                     .foregroundStyle(MD3Theme.onSurface)
                                 Spacer()
-                                Text("\(GeminiVisionService.altDailyUsage) / 1,000")
-                                    .foregroundStyle(GeminiVisionService.isAltDailyLimitReached ? .red : .secondary)
+                                Text("\(GeminiVisionService.shared.altDailyUsageSync) / 1,000")
+                                    .foregroundStyle(GeminiVisionService.shared.isAltDailyLimitReachedSync ? .red : .secondary)
                                 Image(systemName: "pencil")
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
                         }
                     }
-                    if let error = GeminiVisionService.lastError {
+                    if let error = GeminiVisionService.shared.lastErrorSync {
                         HStack {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundStyle(.orange)
@@ -433,7 +433,7 @@ struct SettingsScreen: View {
                 .keyboardType(.numberPad)
             Button("Save") {
                 if let count = Int(manualUsageText) {
-                    GeminiVisionService.setDailyUsage(count)
+                    Task { await GeminiVisionService.shared.setDailyUsage(count) }
                 }
             }
             Button("Cancel", role: .cancel) {}
@@ -445,7 +445,7 @@ struct SettingsScreen: View {
                 .keyboardType(.numberPad)
             Button("Save") {
                 if let count = Int(manualUsageText) {
-                    GeminiVisionService.setAltDailyUsage(count)
+                    Task { await GeminiVisionService.shared.setAltDailyUsage(count) }
                 }
             }
             Button("Cancel", role: .cancel) {}
@@ -508,7 +508,7 @@ struct SettingsScreen: View {
             geminiTestResult = primaryResult
         }
         if primaryResult == "OK" || altResult == "OK" {
-            GeminiVisionService.lastError = nil
+            await GeminiVisionService.shared.clearLastError()
         }
     }
 

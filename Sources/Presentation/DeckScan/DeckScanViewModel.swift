@@ -121,8 +121,8 @@ final class DeckScanViewModel {
         scanState = .processing(current: 0, total: 1)
 
         // === Gemini whole-image mode: skip detection entirely ===
-        print("[DeckScan] Gemini active: \(GeminiVisionService.isActive) (configured: \(GeminiVisionService.isConfigured), enabled: \(GeminiVisionService.isEnabled), limit: \(GeminiVisionService.isDailyLimitReached))")
-        if GeminiVisionService.isActive {
+        print("[DeckScan] Gemini active: \(GeminiVisionService.shared.isActiveSync) (configured: \(GeminiVisionService.isConfigured), enabled: \(GeminiVisionService.isEnabled), limit: \(GeminiVisionService.shared.isDailyLimitReachedSync))")
+        if GeminiVisionService.shared.isActiveSync {
             print("[DeckScan] Sending whole image to Gemini...")
             scanState = .processing(current: 0, total: 1)
             let geminiResult = await pipeline.identifyAllWithGemini(image: image)

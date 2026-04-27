@@ -31,6 +31,9 @@ final class DeckList {
     /// look up the exact printing.
     var customSignatureScryfallID: String?
     var referenceURL: String?
+    /// Human-readable source description (e.g. "InQuest Magazine Issue #1").
+    /// Replaces the old "source:" prefix hack on referenceURL.
+    var sourceInfo: String?
     @Relationship(deleteRule: .cascade, inverse: \PurchaseItem.deck)
     var items: [PurchaseItem] = []
 

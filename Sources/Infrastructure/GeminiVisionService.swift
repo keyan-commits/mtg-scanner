@@ -7,6 +7,10 @@ import UIKit
 /// Free tier: 15 requests/minute, 1,500/day.
 actor GeminiVisionService {
 
+    static let shared = GeminiVisionService()
+
+    // MARK: - Static Configuration (UserDefaults-backed, thread-safe)
+
     private static let apiKeyKey = "geminiAPIKey"
     private static let altApiKeyKey = "geminiAltAPIKey"
     // Gemini 3 Flash Preview: 15 RPM, 1000 RPD free tier
@@ -21,23 +25,6 @@ actor GeminiVisionService {
     static var altApiKey: String? {
         get { UserDefaults.standard.string(forKey: altApiKeyKey) }
         set { UserDefaults.standard.set(newValue, forKey: altApiKeyKey) }
-    }
-
-    /// Returns the best available API key (primary, or alt if primary is rate-limited/exhausted).
-    static var activeApiKey: String? {
-        let primaryOK = !isRateLimited && !isDailyLimitReached
-        if primaryOK, let key = apiKey, !key.isEmpty { return key }
-        if !isAltDailyLimitReached, let alt = altApiKey, !alt.isEmpty { return alt }
-        if let key = apiKey, !key.isEmpty { return key }
-        return nil
-    }
-
-    /// Whether the active key is the alt key.
-    static var isUsingAltKey: Bool {
-        let primaryOK = !isRateLimited && !isDailyLimitReached
-        if primaryOK, let key = apiKey, !key.isEmpty { return false }
-        if let alt = altApiKey, !alt.isEmpty { return true }
-        return false
     }
 
     private static let enabledKey = "geminiEnabled"
@@ -61,56 +48,86 @@ actor GeminiVisionService {
         return !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    /// Tracks which key to try first (persists across calls).
+    /// Starts with "primary", swaps to "alt" on failure, and back.
+    private static let preferredKeyKey = "geminiPreferredKey"
+    static var preferredKey: String {
+        get { UserDefaults.standard.string(forKey: preferredKeyKey) ?? "primary" }
+        set { UserDefaults.standard.set(newValue, forKey: preferredKeyKey) }
+    }
+
+    // MARK: - Instance Runtime State
+
+    private let dailyLimitKey = "geminiDailyCount"
+    private let dailyDateKey = "geminiDailyDate"
+    private let altDailyLimitKey = "geminiAltDailyCount"
+    private let altDailyDateKey = "geminiAltDailyDate"
+    // Gemini 3 Flash Preview free tier: 15 RPM, 1000 RPD
+    private let dailyLimit = 1000
+
+    /// Which key was used for the last insight call.
+    var lastUsedKey: String = "primary"
+
+    /// Returns the best available API key (primary, or alt if primary is rate-limited/exhausted).
+    var activeApiKey: String? {
+        let primaryOK = !isRateLimited && !isDailyLimitReached
+        if primaryOK, let key = Self.apiKey, !key.isEmpty { return key }
+        if !isAltDailyLimitReached, let alt = Self.altApiKey, !alt.isEmpty { return alt }
+        if let key = Self.apiKey, !key.isEmpty { return key }
+        return nil
+    }
+
+    /// Whether the active key is the alt key.
+    var isUsingAltKey: Bool {
+        let primaryOK = !isRateLimited && !isDailyLimitReached
+        if primaryOK, let key = Self.apiKey, !key.isEmpty { return false }
+        if let alt = Self.altApiKey, !alt.isEmpty { return true }
+        return false
+    }
+
     /// Whether Gemini should be used right now (configured + enabled + within limit + not rate-limited).
-    static var isActive: Bool {
-        isConfigured && isEnabled && !isDailyLimitReached && !isRateLimited
+    var isActive: Bool {
+        Self.isConfigured && Self.isEnabled && !isDailyLimitReached && !isRateLimited
     }
 
     /// Last error message from Gemini (shown to user).
-    static var lastError: String? {
+    var lastError: String? {
         get { UserDefaults.standard.string(forKey: "geminiLastError") }
         set { UserDefaults.standard.set(newValue, forKey: "geminiLastError") }
     }
 
     /// Whether Gemini hit a rate limit (429) — auto-resets after 60 seconds.
-    private static var isRateLimited: Bool {
+    private var isRateLimited: Bool {
         let rateLimitedAt = UserDefaults.standard.double(forKey: "geminiRateLimitedAt")
         guard rateLimitedAt > 0 else { return false }
         return Date().timeIntervalSince1970 - rateLimitedAt < 60
     }
 
-    private static func markRateLimited() {
+    private func markRateLimited() {
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "geminiRateLimitedAt")
     }
 
     // MARK: - Daily Usage Tracking
 
-    private static let dailyLimitKey = "geminiDailyCount"
-    private static let dailyDateKey = "geminiDailyDate"
-    private static let altDailyLimitKey = "geminiAltDailyCount"
-    private static let altDailyDateKey = "geminiAltDailyDate"
-    // Gemini 3 Flash Preview free tier: 15 RPM, 1000 RPD
-    private static let dailyLimit = 1000
-
     /// Number of Gemini requests made today.
-    static var dailyUsage: Int {
+    var dailyUsage: Int {
         resetIfNewDay()
         return UserDefaults.standard.integer(forKey: dailyLimitKey)
     }
 
     /// Whether the daily free-tier limit has been reached.
-    static var isDailyLimitReached: Bool {
+    var isDailyLimitReached: Bool {
         dailyUsage >= dailyLimit
     }
 
     /// Manually sets the daily usage count (for syncing with Google's dashboard).
-    static func setDailyUsage(_ count: Int) {
+    func setDailyUsage(_ count: Int) {
         resetIfNewDay()
         UserDefaults.standard.set(count, forKey: dailyLimitKey)
     }
 
     /// Records one API usage for the currently active key.
-    static func recordUsage() {
+    func recordUsage() {
         resetIfNewDay()
         if isUsingAltKey {
             recordAltUsage()
@@ -120,7 +137,7 @@ actor GeminiVisionService {
         }
     }
 
-    private static func resetIfNewDay() {
+    private func resetIfNewDay() {
         let today = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
         let stored = UserDefaults.standard.double(forKey: dailyDateKey)
         if stored < today {
@@ -136,30 +153,84 @@ actor GeminiVisionService {
 
     // MARK: - Alt Key Usage
 
-    static var altDailyUsage: Int {
+    var altDailyUsage: Int {
         resetIfNewDay()
         return UserDefaults.standard.integer(forKey: altDailyLimitKey)
     }
 
-    static var isAltDailyLimitReached: Bool {
+    var isAltDailyLimitReached: Bool {
         altDailyUsage >= dailyLimit
     }
 
-    static func recordAltUsage() {
+    func recordAltUsage() {
         resetIfNewDay()
         let count = UserDefaults.standard.integer(forKey: altDailyLimitKey)
         UserDefaults.standard.set(count + 1, forKey: altDailyLimitKey)
     }
 
-    static func setAltDailyUsage(_ count: Int) {
+    func setAltDailyUsage(_ count: Int) {
         resetIfNewDay()
         UserDefaults.standard.set(count, forKey: altDailyLimitKey)
     }
 
+    // MARK: - Nonisolated Accessors for Synchronous UI Access
+
+    /// Synchronous accessors that read directly from UserDefaults (thread-safe).
+    /// These allow SwiftUI views to read values without async/await.
+    nonisolated var dailyUsageSync: Int {
+        let today = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
+        let stored = UserDefaults.standard.double(forKey: dailyDateKey)
+        if stored < today { return 0 }
+        return UserDefaults.standard.integer(forKey: dailyLimitKey)
+    }
+
+    nonisolated var altDailyUsageSync: Int {
+        let today = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
+        let stored = UserDefaults.standard.double(forKey: altDailyDateKey)
+        if stored < today { return 0 }
+        return UserDefaults.standard.integer(forKey: altDailyLimitKey)
+    }
+
+    nonisolated var isDailyLimitReachedSync: Bool {
+        dailyUsageSync >= 1000
+    }
+
+    nonisolated var isAltDailyLimitReachedSync: Bool {
+        altDailyUsageSync >= 1000
+    }
+
+    nonisolated var isActiveSync: Bool {
+        Self.isConfigured && Self.isEnabled && !isDailyLimitReachedSync && !isRateLimitedSync
+    }
+
+    nonisolated var isUsingAltKeySync: Bool {
+        let primaryOK = !isRateLimitedSync && !isDailyLimitReachedSync
+        if primaryOK, let key = Self.apiKey, !key.isEmpty { return false }
+        if let alt = Self.altApiKey, !alt.isEmpty { return true }
+        return false
+    }
+
+    nonisolated var lastErrorSync: String? {
+        UserDefaults.standard.string(forKey: "geminiLastError")
+    }
+
+    private nonisolated var isRateLimitedSync: Bool {
+        let rateLimitedAt = UserDefaults.standard.double(forKey: "geminiRateLimitedAt")
+        guard rateLimitedAt > 0 else { return false }
+        return Date().timeIntervalSince1970 - rateLimitedAt < 60
+    }
+
+    /// Clears the last error (convenience for callers outside the actor).
+    func clearLastError() {
+        lastError = nil
+    }
+
+    // MARK: - Card Identification
+
     /// Identifies a card from a CGImage. Returns (cardName, setCode?, collectorNumber?) or nil.
     func identifyCard(image: CGImage) async -> GeminiCardResult? {
-        guard let apiKey = Self.activeApiKey else { return nil }
-        Self.recordUsage()
+        guard let apiKey = activeApiKey else { return nil }
+        recordUsage()
 
         // Convert to JPEG
         let uiImage = UIImage(cgImage: image)
@@ -195,17 +266,17 @@ actor GeminiVisionService {
             let (data, response) = try await URLSession.shared.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
-                Self.lastError = "No response from Gemini"
+                lastError = "No response from Gemini"
                 return nil
             }
             if httpResponse.statusCode == 429 {
-                Self.markRateLimited()
-                Self.lastError = "Rate limited — waiting 60s before retrying"
+                markRateLimited()
+                lastError = "Rate limited — waiting 60s before retrying"
                 print("[Gemini] Rate limited (429)")
                 return nil
             }
             guard httpResponse.statusCode == 200 else {
-                Self.lastError = "HTTP \(httpResponse.statusCode)"
+                lastError = "HTTP \(httpResponse.statusCode)"
                 print("[Gemini] HTTP error: \(httpResponse.statusCode)")
                 return nil
             }
@@ -238,7 +309,7 @@ actor GeminiVisionService {
             let printedName = result["printed_name"] as? String
             let lang = result["lang"] as? String
 
-            Self.lastError = nil
+            lastError = nil
             let langLabel = lang != nil && lang != "en" ? " lang=\(lang!)" : ""
             print("[Gemini] Identified: \(cardName) [\(setCode ?? "?")] #\(collectorNumber ?? "?")\(langLabel)")
             return GeminiCardResult(
@@ -259,8 +330,8 @@ actor GeminiVisionService {
     /// Identifies ALL cards in a full binder page photo. Returns an array of results.
     /// Uses a single API call instead of one per card.
     func identifyAllCards(image: CGImage) async -> (analysis: String?, cards: [GeminiCardResult])? {
-        guard let apiKey = Self.activeApiKey else { return nil }
-        Self.recordUsage()
+        guard let apiKey = activeApiKey else { return nil }
+        recordUsage()
 
         var uiImage = UIImage(cgImage: image)
         // Downscale very large images to keep payload reasonable
@@ -310,17 +381,17 @@ actor GeminiVisionService {
             let (data, response) = try await URLSession.shared.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
-                Self.lastError = "No response from Gemini"
+                lastError = "No response from Gemini"
                 return nil
             }
             if httpResponse.statusCode == 429 {
-                Self.markRateLimited()
-                Self.lastError = "Rate limited — waiting 60s before retrying"
+                markRateLimited()
+                lastError = "Rate limited — waiting 60s before retrying"
                 print("[Gemini] Batch: rate limited (429)")
                 return nil
             }
             guard httpResponse.statusCode == 200 else {
-                Self.lastError = "HTTP \(httpResponse.statusCode)"
+                lastError = "HTTP \(httpResponse.statusCode)"
                 print("[Gemini] Batch HTTP error: \(httpResponse.statusCode)")
                 return nil
             }
@@ -347,7 +418,7 @@ actor GeminiVisionService {
             }
             guard let parsed = try? JSONSerialization.jsonObject(with: resultData) else {
                 print("[Gemini] Batch: failed to parse JSON from: \(cleaned.prefix(300))")
-                Self.lastError = "Failed to parse Gemini response as JSON"
+                lastError = "Failed to parse Gemini response as JSON"
                 return nil
             }
 
@@ -363,7 +434,7 @@ actor GeminiVisionService {
                 print("[Gemini] Parsed plain array: \(array.count) items")
             } else {
                 print("[Gemini] Batch: unexpected JSON structure: \(type(of: parsed))")
-                Self.lastError = "Unexpected Gemini response format"
+                lastError = "Unexpected Gemini response format"
                 return nil
             }
 
@@ -391,11 +462,11 @@ actor GeminiVisionService {
                 )
             }
 
-            Self.lastError = nil
+            lastError = nil
             print("[Gemini] Batch: identified \(results.count) cards\(analysis.map { " — \($0)" } ?? "")")
             return (analysis: analysis, cards: results)
         } catch {
-            Self.lastError = "Request failed: \(error.localizedDescription)"
+            lastError = "Request failed: \(error.localizedDescription)"
             print("[Gemini] Batch request failed: \(error.localizedDescription)")
             return nil
         }
@@ -406,47 +477,36 @@ actor GeminiVisionService {
     /// Text-only insight uses the same model as the scanner so the
     /// user's API key always works (gemini-3-flash-preview handles both
     /// text and vision prompts).
-    private static let textEndpoint = endpoint
-
-    /// Which key was used for the last insight call.
-    static var lastUsedKey: String = "primary"
-
-    /// Tracks which key to try first (persists across calls).
-    /// Starts with "primary", swaps to "alt" on failure, and back.
-    private static let preferredKeyKey = "geminiPreferredKey"
-    static var preferredKey: String {
-        get { UserDefaults.standard.string(forKey: preferredKeyKey) ?? "primary" }
-        set { UserDefaults.standard.set(newValue, forKey: preferredKeyKey) }
-    }
+    private var textEndpoint: String { Self.endpoint }
 
     /// Generates a card insight using Gemini text model (no image).
     /// Uses the preferred key first. On rate limit/failure, swaps to
     /// the other key and retries. Loops between keys on errors.
-    static func generateInsight(prompt: String) async -> String? {
+    func generateInsight(prompt: String) async -> String? {
         var allKeys: [(key: String, label: String)] = []
-        if let primary = apiKey, !primary.isEmpty { allKeys.append((primary, "primary")) }
-        if let alt = altApiKey, !alt.isEmpty { allKeys.append((alt, "alt")) }
+        if let primary = Self.apiKey, !primary.isEmpty { allKeys.append((primary, "primary")) }
+        if let alt = Self.altApiKey, !alt.isEmpty { allKeys.append((alt, "alt")) }
         guard !allKeys.isEmpty else { return nil }
 
         // Put preferred key first
-        let sorted = allKeys.sorted { a, _ in a.label == preferredKey }
+        let sorted = allKeys.sorted { a, _ in a.label == Self.preferredKey }
 
         for (key, label) in sorted {
             if let result = await callGemini(prompt: prompt, apiKey: key) {
                 lastUsedKey = label
-                preferredKey = label // Stick with working key
+                Self.preferredKey = label // Stick with working key
                 if label == "primary" { recordUsage() }
                 else { recordAltUsage() }
                 return result
             }
             // This key failed — swap preference to the other
-            preferredKey = (label == "primary") ? "alt" : "primary"
+            Self.preferredKey = (label == "primary") ? "alt" : "primary"
             lastUsedKey = label + " (failed)"
         }
         return nil
     }
 
-    private static func callGemini(prompt: String, apiKey: String) async -> String? {
+    private func callGemini(prompt: String, apiKey: String) async -> String? {
         guard let url = URL(string: "\(textEndpoint)?key=\(apiKey)") else { return nil }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"

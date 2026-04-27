@@ -181,26 +181,26 @@ struct CardKingdomPriceServiceTests {
 
     // MARK: - Network Error
 
-    @Test("Network failure throws CardKingdomError.networkError")
+    @Test("Network failure throws NetworkError.networkError")
     func handlesNetworkError() async {
         let httpClient = MockHTTPClient.failure(URLError(.notConnectedToInternet))
         let service = CardKingdomPriceService(httpClient: httpClient)
 
         do {
             _ = try await service.fetchNMPrice(cardName: "Lightning Bolt", setName: "Double Masters")
-            Issue.record("Expected CardKingdomError.networkError")
-        } catch let error as CardKingdomError {
+            Issue.record("Expected NetworkError.networkError")
+        } catch let error as NetworkError {
             if case .networkError = error {
                 // Expected
             } else {
-                Issue.record("Expected CardKingdomError.networkError but got \(error)")
+                Issue.record("Expected NetworkError.networkError but got \(error)")
             }
         } catch {
-            Issue.record("Expected CardKingdomError but got \(error)")
+            Issue.record("Expected NetworkError but got \(error)")
         }
     }
 
-    @Test("Malformed JSON throws CardKingdomError.decodingError")
+    @Test("Malformed JSON throws NetworkError.decodingError")
     func handlesDecodingError() async {
         let httpClient = MockHTTPClient.success(
             data: CardKingdomFixtures.malformedJSON,
@@ -210,19 +210,19 @@ struct CardKingdomPriceServiceTests {
 
         do {
             _ = try await service.fetchNMPrice(cardName: "Lightning Bolt", setName: "Double Masters")
-            Issue.record("Expected CardKingdomError.decodingError")
-        } catch let error as CardKingdomError {
+            Issue.record("Expected NetworkError.decodingError")
+        } catch let error as NetworkError {
             if case .decodingError = error {
                 // Expected
             } else {
-                Issue.record("Expected CardKingdomError.decodingError but got \(error)")
+                Issue.record("Expected NetworkError.decodingError but got \(error)")
             }
         } catch {
-            Issue.record("Expected CardKingdomError but got \(error)")
+            Issue.record("Expected NetworkError but got \(error)")
         }
     }
 
-    @Test("Server error throws CardKingdomError.serverError")
+    @Test("Server error throws NetworkError.serverError")
     func handlesServerError() async {
         let httpClient = MockHTTPClient.success(
             data: Data(),
@@ -233,15 +233,15 @@ struct CardKingdomPriceServiceTests {
 
         do {
             _ = try await service.fetchNMPrice(cardName: "Lightning Bolt", setName: "Double Masters")
-            Issue.record("Expected CardKingdomError.serverError")
-        } catch let error as CardKingdomError {
+            Issue.record("Expected NetworkError.serverError")
+        } catch let error as NetworkError {
             if case .serverError = error {
                 // Expected
             } else {
-                Issue.record("Expected CardKingdomError.serverError but got \(error)")
+                Issue.record("Expected NetworkError.serverError but got \(error)")
             }
         } catch {
-            Issue.record("Expected CardKingdomError but got \(error)")
+            Issue.record("Expected NetworkError but got \(error)")
         }
     }
 }

@@ -63,10 +63,10 @@ struct MockEDHRECService: EDHRECServiceProtocol {
 
     func fetchCardData(name: String) async throws -> EDHRECCardData {
         if shouldFail {
-            throw EDHRECError.networkError("Mock failure")
+            throw NetworkError.networkError("Mock failure")
         }
         guard let data = cardData else {
-            throw EDHRECError.cardNotFound
+            throw NetworkError.notFound
         }
         return data
     }
@@ -94,10 +94,14 @@ private func makeCard(
         frameEffects: [],
         illustrationID: nil,
         edhrecRank: 1,
-        prices: CardPrices(usd: "0.50", usdFoil: "1.00", eur: "0.40", eurFoil: "0.80", tix: "0.01"),
+        prices: CardPrices(usd: "0.50", usdFoil: "1.00", eur: "0.40", eurFoil: "0.80", tix: "0.01", previousUsd: nil),
         legalities: FormatLegality(legalities),
         imageURIs: [:],
-        relatedPrintingsURI: nil
+        relatedPrintingsURI: nil,
+        lang: "en",
+        printedName: nil,
+        promoTypes: [],
+        finishes: ["nonfoil"]
     )
 }
 

@@ -293,11 +293,11 @@ struct ClassicDeckDetailView: View {
         } label: {
             VStack(spacing: 4) {
                 ZStack(alignment: .topLeading) {
-                    if let urlString = entry.card.imageURIs["normal"]
-                        ?? entry.card.imageURIs["small"]
+                    if let urlString = entry.card.imageURIs["small"]
+                        ?? entry.card.imageURIs["normal"]
                         ?? entry.card.imageURIs["large"],
                        let url = URL(string: urlString) {
-                        AsyncImage(url: url) { phase in
+                        CachedPhaseImage(url: url) { phase in
                             switch phase {
                             case .success(let image):
                                 image.resizable()
@@ -790,7 +790,7 @@ struct ClassicDeckDetailView: View {
         ) else { return }
 
         // Store source so AI Deck Guide knows the origin
-        deck.referenceURL = "source:\(archetype.source)"
+        deck.sourceInfo = archetype.source
 
         for entry in resolved {
             _ = try? deckRepository.addItem(
