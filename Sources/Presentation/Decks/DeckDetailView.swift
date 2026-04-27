@@ -1635,6 +1635,23 @@ struct DeckDetailView: View {
         // (e.g., from ImportDecklistSheet). `deck.items` may be stale.
         items = (try? repository.fetchItems(deckID: deck.id)) ?? []
         spentByCurrency = (try? repository.totalSpent(deckID: deck.id)) ?? [:]
+        // Auto-match collection on every reload so deck always reflects owned cards.
+        // Only marks items as .arrived — never downgrades .ordered or .arrived items.
+        let ownedByName = (try? repository.ownedQuantitiesByName()) ?? [:]
+        if !ownedByName.isEmpty {
+            var used: [String: Int] = [:]
+            for item in items where item.status == .needed {
+                let name = item.cardName
+                let totalOwned = ownedByName[name] ?? 0
+                let alreadyUsed = used[name] ?? 0
+                // Also count items already arrived/ordered for this name
+                let alreadyMatched = items.filter { $0.cardName == name && $0.status != .needed }.count
+                if alreadyUsed + alreadyMatched < totalOwned {
+                    item.status = .arrived
+                    used[name] = alreadyUsed + 1
+                }
+            }
+        }
         // Compute "owned from collection" count.
         if let owned = try? repository.ownedQuantitiesByScryfallID() {
             // For each printing the deck wants, take min(deckQty, ownedQty).
