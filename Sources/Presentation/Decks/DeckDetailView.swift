@@ -54,6 +54,16 @@ struct DeckDetailView: View {
     @State private var isFixingDeck: Bool = false
     @State private var fixDeckError: String?
     @State private var showDeckGuide: Bool = false
+    // Cached computed values — recomputed only in reload()
+    @State private var cachedZoneSections: [ZoneSection] = []
+    @State private var cachedCategorizedSections: [CategorySection] = []
+    @State private var mainboardCount: Int = 0
+    @State private var sideboardCount: Int = 0
+    @State private var neededCount: Int = 0
+    @State private var orderedCount: Int = 0
+    @State private var arrivedCount: Int = 0
+    /// Navigation destination for card copies pager (avoids eager NavigationLink).
+    @State private var selectedCardGroup: CardGroup?
 
     enum DeckViewMode: String, CaseIterable, Identifiable {
         case list = "List"
@@ -96,6 +106,27 @@ struct DeckDetailView: View {
         }
         .navigationTitle(deck.name)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(item: $selectedCardGroup) { group in
+            if let cardRepository {
+                let allGroups = cachedZoneSections.flatMap { $0.sections.flatMap(\.groups) }
+                let pagerEntries = allGroups.map {
+                    CardCopiesPagerView.Entry(
+                        id: $0.id,
+                        cardName: $0.representative.cardName,
+                        setCode: $0.representative.setCode,
+                        collectorNumber: $0.representative.collectorNumber
+                    )
+                }
+                let idx = allGroups.firstIndex(where: { $0.id == group.id }) ?? 0
+                CardCopiesPagerView(
+                    entries: pagerEntries,
+                    initialIndex: idx,
+                    deckRepository: repository,
+                    cardRepository: cardRepository,
+                    deckID: deck.id
+                )
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 12) {
@@ -172,8 +203,7 @@ struct DeckDetailView: View {
                             }
                             .disabled(items.isEmpty || changingAllPrintings)
 
-                            let mainCount = items.filter { $0.zone == "mainboard" }.count
-                            if mainCount > 60 {
+                            if mainboardCount > 60 {
                                 Button {
                                     Task { await aiFixDeck() }
                                 } label: {
@@ -614,7 +644,7 @@ struct DeckDetailView: View {
     /// Card groups (one per printing) that are flagged for the current format.
     private var illegalGroups: [(group: CardGroup, status: LegalityStatus)] {
         guard deckFormat.scryfallKey != nil else { return [] }
-        return groupedCards.compactMap { group in
+        return groupedCards().compactMap { group in
             guard let status = legalityCache[legalityKey(group.representative)],
                   status != .legal else { return nil }
             return (group, status)
@@ -685,15 +715,18 @@ struct DeckDetailView: View {
     // MARK: - Grouping
 
     /// A group of PurchaseItem copies that share the same card identity (name + set + collector).
-    struct CardGroup: Identifiable {
+    struct CardGroup: Identifiable, Hashable {
         let id: String // composite key
         let items: [PurchaseItem]
         var representative: PurchaseItem { items[0] }
         var quantity: Int { items.count }
+
+        static func == (lhs: CardGroup, rhs: CardGroup) -> Bool { lhs.id == rhs.id }
+        func hash(into hasher: inout Hasher) { hasher.combine(id) }
     }
 
     /// Items grouped by card identity, sorted alphabetically by card name.
-    private var groupedCards: [CardGroup] {
+    private func groupedCards() -> [CardGroup] {
         let byKey = Dictionary(grouping: items) { item in
             "\(item.cardName)|\(item.setCode)|\(item.collectorNumber)"
         }
@@ -708,13 +741,6 @@ struct DeckDetailView: View {
     }
 
     private var totalCards: Int { items.count }
-    private var mainboardItems: [PurchaseItem] { items.filter { $0.zone == "mainboard" } }
-    private var sideboardItems: [PurchaseItem] { items.filter { $0.zone == "sideboard" } }
-    private var mainboardCount: Int { mainboardItems.count }
-    private var sideboardCount: Int { sideboardItems.count }
-    private var neededCount: Int { items.filter { $0.status == .needed }.count }
-    private var orderedCount: Int { items.filter { $0.status == .ordered }.count }
-    private var arrivedCount: Int { items.filter { $0.status == .arrived }.count }
 
     private var totalSpent: Double {
         items.compactMap { $0.pricePaid }.reduce(0, +)
@@ -831,33 +857,15 @@ struct DeckDetailView: View {
                 }
                 .buttonStyle(.plain)
             }
-            ForEach(zoneSections) { zoneSection in
+            ForEach(cachedZoneSections) { zoneSection in
                 Section {
                     zoneHeader(zoneSection)
                 }
                 ForEach(zoneSection.sections, id: \.category) { section in
                     Section {
-                        let allZoneGroups = zoneSection.sections.flatMap(\.groups)
-                        let pagerEntries = allZoneGroups.map {
-                            CardCopiesPagerView.Entry(
-                                id: $0.id,
-                                cardName: $0.representative.cardName,
-                                setCode: $0.representative.setCode,
-                                collectorNumber: $0.representative.collectorNumber
-                            )
-                        }
                         ForEach(section.groups) { group in
-                            NavigationLink {
-                                if let cardRepository {
-                                    let idx = allZoneGroups.firstIndex(where: { $0.id == group.id }) ?? 0
-                                    CardCopiesPagerView(
-                                        entries: pagerEntries,
-                                        initialIndex: idx,
-                                        deckRepository: repository,
-                                        cardRepository: cardRepository,
-                                        deckID: deck.id
-                                    )
-                                }
+                            Button {
+                                selectedCardGroup = group
                             } label: {
                                 cardRowCompact(group, zone: zoneSection.zone)
                             }
@@ -899,7 +907,7 @@ struct DeckDetailView: View {
                     }
                     .padding(.vertical, 40)
                 } else {
-                    ForEach(zoneSections) { zoneSection in
+                    ForEach(cachedZoneSections) { zoneSection in
                         zoneHeader(zoneSection)
                             .padding(.horizontal, 16)
                             .padding(.top, 8)
@@ -944,26 +952,8 @@ struct DeckDetailView: View {
         let item = group.representative
         let card = resolvedCards[item.scryfallID]
         let arrived = group.items.filter { $0.status == .arrived }.count
-        let sectionGroups = section?.groups ?? [group]
-        let pagerEntries = sectionGroups.map {
-            CardCopiesPagerView.Entry(
-                id: $0.id,
-                cardName: $0.representative.cardName,
-                setCode: $0.representative.setCode,
-                collectorNumber: $0.representative.collectorNumber
-            )
-        }
-        let idx = sectionGroups.firstIndex(where: { $0.id == group.id }) ?? 0
-        NavigationLink {
-            if let cardRepository {
-                CardCopiesPagerView(
-                    entries: pagerEntries,
-                    initialIndex: idx,
-                    deckRepository: repository,
-                    cardRepository: cardRepository,
-                    deckID: deck.id
-                )
-            }
+        Button {
+            selectedCardGroup = group
         } label: {
             VStack(spacing: 4) {
                 ZStack(alignment: .topLeading) {
@@ -1146,7 +1136,7 @@ struct DeckDetailView: View {
     }
 
     /// Items grouped by zone, then by card category within each zone.
-    private var zoneSections: [ZoneSection] {
+    private func computeZoneSections() -> [ZoneSection] {
         let zones = ["mainboard", "sideboard"]
         return zones.compactMap { zone in
             let zoneItems = items.filter { $0.zone == zone }
@@ -1163,8 +1153,8 @@ struct DeckDetailView: View {
     }
 
     /// Flat categorized sections (legacy, used by grid view).
-    private var categorizedSections: [CategorySection] {
-        let groups = groupedCards
+    private func computeCategorizedSections() -> [CategorySection] {
+        let groups = groupedCards()
         let byCategory = Dictionary(grouping: groups) { group in
             CardCategory.from(typeLine: group.representative.typeLine)
         }
@@ -1661,6 +1651,14 @@ struct DeckDetailView: View {
         } else {
             ownedCount = 0
         }
+        // Recompute cached aggregates
+        cachedZoneSections = computeZoneSections()
+        cachedCategorizedSections = computeCategorizedSections()
+        mainboardCount = items.filter { $0.zone == "mainboard" }.count
+        sideboardCount = items.filter { $0.zone == "sideboard" }.count
+        neededCount = items.filter { $0.status == .needed }.count
+        orderedCount = items.filter { $0.status == .ordered }.count
+        arrivedCount = items.filter { $0.status == .arrived }.count
     }
 }
 

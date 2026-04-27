@@ -24,6 +24,9 @@ struct CollectionScreen: View {
     @State private var foilsOnly: Bool = false
     @State private var priceCache: [String: Double] = [:]
     @State private var pricesLoaded: Bool = false
+    @State private var cachedAllSets: [String] = []
+    @State private var cachedFiltered: [CollectionItem] = []
+    @State private var cachedGroupedFiltered: [GroupedSection] = []
     @State private var resolvedCards: [String: Card] = [:]
     /// Maps archetype display name → set of card names belonging to
     /// that archetype. Pre-loaded from the CommonCardsAggregator cache
@@ -97,13 +100,13 @@ struct CollectionScreen: View {
         }
     }
 
-    /// Distinct set names present in the collection, for the filter menu.
-    private var allSets: [String] {
-        Array(Set(items.map(\.setName))).sorted()
+    /// Recomputes the distinct set names present in the collection.
+    private func recomputeAllSets() {
+        cachedAllSets = Array(Set(items.map(\.setName))).sorted()
     }
 
-    /// Filtered + sorted view of `items`.
-    private var filtered: [CollectionItem] {
+    /// Recomputes the filtered + sorted view of `items` and caches it.
+    private func recomputeFiltered() {
         var result = items
 
         // Text search
@@ -175,7 +178,8 @@ struct CollectionScreen: View {
             }
         }
 
-        return result
+        cachedFiltered = result
+        recomputeGroupedFiltered()
     }
 
     private var hasActiveFilter: Bool {
@@ -193,21 +197,21 @@ struct CollectionScreen: View {
         var id: String { title }
     }
 
-    private var groupedFiltered: [GroupedSection] {
-        let flat = filtered
+    private func recomputeGroupedFiltered() {
+        let flat = cachedFiltered
         switch groupMode {
         case .none:
-            return [GroupedSection(title: "\(flat.count) cards", items: flat)]
+            cachedGroupedFiltered = [GroupedSection(title: "\(flat.count) cards", items: flat)]
         case .color:
-            return groupByColor(flat)
+            cachedGroupedFiltered = groupByColor(flat)
         case .expansion:
-            return groupBySet(flat)
+            cachedGroupedFiltered = groupBySet(flat)
         case .type:
-            return groupByType(flat)
+            cachedGroupedFiltered = groupByType(flat)
         case .tribe:
-            return groupByTribe(flat)
+            cachedGroupedFiltered = groupByTribe(flat)
         case .archetype:
-            return groupByArchetype(flat)
+            cachedGroupedFiltered = groupByArchetype(flat)
         }
     }
 
@@ -325,6 +329,13 @@ struct CollectionScreen: View {
                 if searchText == newValue { debouncedSearchText = newValue }
             }
         }
+        .onChange(of: debouncedSearchText) { _, _ in recomputeFiltered() }
+        .onChange(of: setFilter) { _, _ in recomputeFiltered() }
+        .onChange(of: typeFilter) { _, _ in recomputeFiltered() }
+        .onChange(of: colorFilter) { _, _ in recomputeFiltered() }
+        .onChange(of: foilsOnly) { _, _ in recomputeFiltered() }
+        .onChange(of: sortMode) { _, _ in recomputeFiltered() }
+        .onChange(of: groupMode) { _, _ in recomputeGroupedFiltered() }
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 // View mode toggle
@@ -349,13 +360,13 @@ struct CollectionScreen: View {
                     } label: {
                         Label("Set Store (All Visible)", systemImage: "storefront")
                     }
-                    .disabled(filtered.isEmpty)
+                    .disabled(cachedFiltered.isEmpty)
                     Button {
                         exportSellSheet()
                     } label: {
                         Label("Export Sell Sheet", systemImage: "square.and.arrow.up")
                     }
-                    .disabled(filtered.isEmpty)
+                    .disabled(cachedFiltered.isEmpty)
                 } label: {
                     Image(systemName: groupMode == .none
                           ? "rectangle.3.group"
@@ -385,7 +396,7 @@ struct CollectionScreen: View {
                         Divider()
                         Menu("Set") {
                             Button("All sets") { setFilter = nil }
-                            ForEach(allSets, id: \.self) { set in
+                            ForEach(cachedAllSets, id: \.self) { set in
                                 Button(set) { setFilter = set }
                             }
                         }
@@ -441,9 +452,9 @@ struct CollectionScreen: View {
         }
         .alert("Set Store for All Visible Cards", isPresented: $showBulkStoreSheet) {
             TextField("Store / Seller name", text: $bulkStoreName)
-            Button("Apply to \(filtered.count) cards") {
+            Button("Apply to \(cachedFiltered.count) cards") {
                 let source = bulkStoreName.isEmpty ? nil : bulkStoreName
-                for item in filtered {
+                for item in cachedFiltered {
                     item.purchaseSource = source
                 }
                 bulkStoreName = ""
@@ -451,7 +462,7 @@ struct CollectionScreen: View {
             }
             Button("Cancel", role: .cancel) { bulkStoreName = "" }
         } message: {
-            Text("This will set the purchase source for all \(filtered.count) currently visible cards.")
+            Text("This will set the purchase source for all \(cachedFiltered.count) currently visible cards.")
         }
         .onAppear { reload() }
         .task {
@@ -538,7 +549,7 @@ struct CollectionScreen: View {
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                     .listRowBackground(Color.clear)
             }
-            ForEach(groupedFiltered) { section in
+            ForEach(cachedGroupedFiltered) { section in
                 Section(section.title) {
                     ForEach(section.items) { item in
                         NavigationLink {
@@ -589,7 +600,7 @@ struct CollectionScreen: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
 
-                ForEach(groupedFiltered) { section in
+                ForEach(cachedGroupedFiltered) { section in
                     VStack(alignment: .leading, spacing: 8) {
                         Text(section.title.uppercased())
                             .font(.caption.weight(.semibold))
@@ -969,6 +980,8 @@ struct CollectionScreen: View {
 
     private func reload() {
         items = (try? deckRepository.fetchCollection()) ?? []
+        recomputeAllSets()
+        recomputeFiltered()
     }
 
     // MARK: - Sell Sheet Export
@@ -976,7 +989,7 @@ struct CollectionScreen: View {
     private func exportSellSheet() {
         let preferred = LocalCurrency.current
         var lines: [String] = ["Card Name\tSet\t#\tQty\tFoil Qty\tCurrent USD\tPaid\tP&L"]
-        for item in filtered {
+        for item in cachedFiltered {
             let currentUSD = item.currentValueUSD ?? 0
             let foilUSD = item.currentValueFoilUSD ?? currentUSD
             let nonFoilCount = item.quantity - item.foilQuantity
