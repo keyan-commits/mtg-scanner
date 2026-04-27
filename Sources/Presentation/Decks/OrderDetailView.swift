@@ -138,12 +138,12 @@ struct OrderDetailView: View {
     }
 
     private var allArrived: Bool {
-        !order.items.isEmpty && order.items.allSatisfy { $0.status == .arrived }
+        !order.items.isEmpty && order.items.allSatisfy { $0.status.isCollected }
     }
 
     @ViewBuilder
     private func itemGroupRow(name: String, items: [PurchaseItem]) -> some View {
-        let arrived = items.filter { $0.status == .arrived }.count
+        let arrived = items.filter { $0.status.isCollected }.count
         let total = items.count
         let representative = items[0]
         let deckName = representative.deck?.name ?? "—"

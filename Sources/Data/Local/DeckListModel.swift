@@ -7,13 +7,21 @@ enum PurchaseStatus: String, Codable, CaseIterable, Sendable {
     case needed
     case ordered
     case arrived
+    /// Card matched from collection — user already owns it (not purchased via order flow).
+    case owned
 
     var displayName: String {
         switch self {
         case .needed: return "Needed"
         case .ordered: return "Ordered"
         case .arrived: return "Arrived"
+        case .owned: return "Owned"
         }
+    }
+
+    /// Whether this status means the card is collected (either arrived via order or already owned).
+    var isCollected: Bool {
+        self == .arrived || self == .owned
     }
 }
 

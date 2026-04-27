@@ -184,7 +184,7 @@ struct DecksScreen: View {
         let total = deck.items.count
         let needed = deck.items.filter { $0.status == .needed }.count
         let ordered = deck.items.filter { $0.status == .ordered }.count
-        let arrived = deck.items.filter { $0.status == .arrived }.count
+        let arrived = deck.items.filter { $0.status.isCollected }.count
         let spentTotals = (try? repository.totalSpent(deckID: deck.id)) ?? [:]
         let spentLabel = CurrencyTotals.format(spentTotals)
         // TCGMid market value: sum of priceAtAddUSD across all items

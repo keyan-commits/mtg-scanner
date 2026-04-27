@@ -415,7 +415,7 @@ struct CardCopiesDetailView: View {
     @ViewBuilder
     private func relatedOrderRow(_ order: Order) -> some View {
         let copiesInOrder = copies.filter { $0.order?.id == order.id }
-        let arrived = copiesInOrder.filter { $0.status == .arrived }.count
+        let arrived = copiesInOrder.filter { $0.status.isCollected }.count
         HStack(spacing: 10) {
             Image(systemName: arrived == copiesInOrder.count ? "checkmark.seal.fill" : "shippingbox.fill")
                 .foregroundStyle(arrived == copiesInOrder.count ? .green : .orange)
@@ -535,12 +535,15 @@ struct CardCopiesDetailView: View {
     private var summaryStats: some View {
         let needed = copies.filter { $0.status == .needed }.count
         let ordered = copies.filter { $0.status == .ordered }.count
-        let arrived = copies.filter { $0.status == .arrived }.count
+        let arrived = copies.filter { $0.status.isCollected }.count
+        let owned = copies.filter { $0.status == .owned }.count
         return HStack(spacing: 16) {
             statTile(label: "Total", value: copies.count, color: MD3Theme.onSurface)
             statTile(label: "Needed", value: needed, color: MD3Theme.error)
             statTile(label: "Ordered", value: ordered, color: .orange)
-            statTile(label: "Arrived", value: arrived, color: .green)
+            if arrived > 0 { statTile(label: "Arrived", value: arrived, color: .green) }
+            if owned > 0 { statTile(label: "Owned", value: owned, color: .blue) }
+            if arrived == 0 && owned == 0 { statTile(label: "Have", value: 0, color: .green) }
             Spacer()
         }
     }
@@ -704,6 +707,17 @@ struct CardCopiesDetailView: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
             .background(Color.green)
+            .clipShape(Capsule())
+        case .owned:
+            HStack(spacing: 4) {
+                Image(systemName: "rectangle.stack.fill")
+                Text("Owned")
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(Color.blue)
             .clipShape(Capsule())
         }
     }

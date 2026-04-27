@@ -271,6 +271,8 @@ final class DeckListRepository {
             case .needed:
                 item.orderedAt = nil
                 item.arrivedAt = nil
+            case .owned:
+                break // No date tracking needed — matched from collection
             }
         }
         if let store { item.store = store.isEmpty ? nil : store }

@@ -1189,7 +1189,7 @@ struct HomeView: View {
 
     private func recentDeckCard(_ deck: DeckList) -> some View {
         let total = deck.items.count
-        let arrived = deck.items.filter { $0.status == .arrived }.count
+        let arrived = deck.items.filter { $0.status.isCollected }.count
         let progress: Double = total > 0 ? Double(arrived) / Double(total) : 0
         return ZStack(alignment: .topLeading) {
             // Art-crop background (or fallback solid surface).
@@ -1490,7 +1490,7 @@ struct HomeView: View {
         let collection = (try? deckRepository.fetchCollection()) ?? []
         let orders = (try? deckRepository.fetchOrders()) ?? []
         let pendingOrders = orders.filter { order in
-            order.items.contains { $0.status != .arrived }
+            order.items.contains { !$0.status.isCollected }
         }.count
 
         var spent: [String: Double] = [:]
@@ -1532,7 +1532,7 @@ struct HomeView: View {
 
         await Task.detached(priority: .userInitiated) { @Sendable in
             let pendingOrders = orders.filter { order in
-                order.items.contains { $0.status != .arrived }
+                order.items.contains { !$0.status.isCollected }
             }.count
 
             var spent: [String: Double] = [:]

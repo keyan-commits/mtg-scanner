@@ -363,7 +363,7 @@ struct DeckDetailView: View {
                     let totalOwned = owned[name] ?? 0
                     let alreadyUsed = used[name] ?? 0
                     if alreadyUsed < totalOwned {
-                        item.status = .arrived
+                        item.status = .owned
                         used[name] = alreadyUsed + 1
                     }
                 }
@@ -951,7 +951,7 @@ struct DeckDetailView: View {
     private func gridCard(_ group: CardGroup, section: CategorySection? = nil) -> some View {
         let item = group.representative
         let card = resolvedCards[item.scryfallID]
-        let arrived = group.items.filter { $0.status == .arrived }.count
+        let arrived = group.items.filter { $0.status.isCollected }.count
         Button {
             selectedCardGroup = group
         } label: {
@@ -1209,7 +1209,7 @@ struct DeckDetailView: View {
     @ViewBuilder
     private func cardRowCompact(_ group: CardGroup, zone: String = "mainboard") -> some View {
         let item = group.representative
-        let arrived = group.items.filter { $0.status == .arrived }.count
+        let arrived = group.items.filter { $0.status.isCollected }.count
         let ordered = group.items.filter { $0.status == .ordered }.count
         // Pick the first copy with a recorded price for the per-card spend line.
         let pricedCopy = group.items.first { $0.pricePaid != nil }
@@ -1647,7 +1647,7 @@ struct DeckDetailView: View {
                 // Also count items already arrived/ordered for this name
                 let alreadyMatched = items.filter { $0.cardName == name && $0.status != .needed }.count
                 if alreadyUsed + alreadyMatched < totalOwned {
-                    item.status = .arrived
+                    item.status = .owned
                     used[name] = alreadyUsed + 1
                 }
             }
@@ -1675,7 +1675,7 @@ struct DeckDetailView: View {
         sideboardCount = items.filter { $0.zone == "sideboard" }.count
         neededCount = items.filter { $0.status == .needed }.count
         orderedCount = items.filter { $0.status == .ordered }.count
-        arrivedCount = items.filter { $0.status == .arrived }.count
+        arrivedCount = items.filter { $0.status.isCollected }.count
     }
 }
 
