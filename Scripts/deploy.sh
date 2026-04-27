@@ -18,9 +18,8 @@ cd "$PROJECT_ROOT"
 if [ -n "$1" ]; then
     DEVICE_FILTER="$1"
 else
-    # Default to Niko's iPhone when no device specified
-    # Device names use smart apostrophe (Unicode RIGHT SINGLE QUOTATION MARK)
-    DEVICE_FILTER="Niko"
+    # Default to Niko's iPhone (00008101-000519A91468001E)
+    DEVICE_FILTER="00008101-000519A91468001E"
 fi
 
 echo "→ Detecting connected iOS device..."
@@ -75,22 +74,11 @@ fi
 
 echo "→ Built: $APP_PATH"
 
-# 4. Get devicectl UUID for install/launch (different from xcodebuild ID)
-DEVICECTL_UUID=$(xcrun devicectl list devices 2>/dev/null \
-    | grep -i "$DEVICE_NAME" \
-    | awk '{for(i=1;i<=NF;i++){if($i ~ /^[0-9A-F]{8}-[0-9A-F]{4}-/){print $i; exit}}}')
-
-if [ -z "$DEVICECTL_UUID" ]; then
-    echo "⚠ Could not find devicectl UUID for '$DEVICE_NAME', trying xcodebuild ID..."
-    DEVICECTL_UUID="$XCODE_DEVICE_ID"
-fi
-
-# 5. Install
+# 4. Install & Launch using xcodebuild device ID
 echo "→ Installing to device..."
-xcrun devicectl device install app --device "$DEVICECTL_UUID" "$APP_PATH"
+xcrun devicectl device install app --device "$XCODE_DEVICE_ID" "$APP_PATH"
 
-# 6. Launch
 echo "→ Launching..."
-xcrun devicectl device process launch --device "$DEVICECTL_UUID" "$BUNDLE_ID"
+xcrun devicectl device process launch --device "$XCODE_DEVICE_ID" "$BUNDLE_ID"
 
 echo "✓ Done."
