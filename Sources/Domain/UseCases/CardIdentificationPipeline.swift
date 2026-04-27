@@ -82,6 +82,10 @@ protocol CardIdentificationPipelineProtocol: Sendable {
     /// Used to feed Gemini-identified results back into local ML.
     func learnFromIdentification(cardImage: CGImage, card: Card) async
 
+    /// Identifies multiple individual card images via Gemini batch API.
+    /// Returns resolved Card objects mapped by input index, plus payload size.
+    func identifyBatch(images: [CGImage]) async -> (cards: [(index: Int, card: Card)], payloadBytes: Int)
+
     /// Clears the FeaturePrint cache (e.g., before batch identification of a new photo).
     func clearFeaturePrintCache() async
 }
@@ -644,6 +648,45 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
         }
 
         return card
+    }
+
+    // MARK: - Batch Identification
+
+    /// Identifies multiple individual card images via Gemini batch API.
+    /// Returns resolved Card objects mapped by input index, plus payload size.
+    func identifyBatch(images: [CGImage]) async -> (cards: [(index: Int, card: Card)], payloadBytes: Int) {
+        guard GeminiVisionService.isConfigured else { return ([], 0) }
+        guard let result = await GeminiVisionService.shared.identifyCardBatch(images: images) else { return ([], 0) }
+
+        var resolved: [(index: Int, card: Card)] = []
+        for batchResult in result.cards {
+            var printings = (try? await repository.findAllPrintings(name: batchResult.cardName)) ?? []
+
+            // Fuzzy fallback
+            if printings.isEmpty {
+                if let searchResults = try? await repository.searchCards(query: batchResult.cardName),
+                   !searchResults.isEmpty {
+                    let exact = searchResults.filter { $0.name.lowercased() == batchResult.cardName.lowercased() }
+                    printings = exact.isEmpty ? searchResults : exact
+                }
+            }
+
+            if !printings.isEmpty {
+                var card: Card?
+                if let sc = batchResult.setCode, let cn = batchResult.collectorNumber {
+                    card = printings.first(where: { $0.set.code == sc && $0.collectorNumber == cn })
+                }
+                if card == nil, let sc = batchResult.setCode {
+                    card = printings.first(where: { $0.set.code == sc })
+                }
+                if card == nil { card = printings.first }
+
+                if let card {
+                    resolved.append((index: batchResult.index, card: card))
+                }
+            }
+        }
+        return (cards: resolved, payloadBytes: result.payloadBytes)
     }
 
     // MARK: - Step 2: OCR Signal Extraction

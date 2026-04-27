@@ -542,6 +542,134 @@ actor GeminiVisionService {
             return nil
         }
     }
+
+    // MARK: - Batch Card Identification
+
+    /// Identifies multiple individual card images in a single API call.
+    /// Each image should be one card. Downscales each to 384px max for efficiency.
+    /// Returns identified cards with their index mapping to the input array.
+    /// Also returns the total payload size in bytes for UI display.
+    func identifyCardBatch(images: [CGImage]) async -> (cards: [BatchCardResult], payloadBytes: Int)? {
+        guard let apiKey = activeApiKey else { return nil }
+        guard !images.isEmpty else { return nil }
+        recordUsage()
+
+        // Downscale each image to 384px max dimension and convert to JPEG
+        var parts: [[String: Any]] = []
+        var totalBytes = 0
+        for image in images {
+            let downscaled = downsampleForBatch(image, maxDimension: 384)
+            let uiImage = UIImage(cgImage: downscaled)
+            guard let jpegData = uiImage.jpegData(compressionQuality: 0.6) else { continue }
+            totalBytes += jpegData.count
+            let base64 = jpegData.base64EncodedString()
+            parts.append(["inline_data": ["mime_type": "image/jpeg", "data": base64]])
+        }
+
+        // Add prompt
+        let prompt = """
+        You are given \(images.count) individual Magic: The Gathering card photos, numbered 0 to \(images.count - 1) in order.
+        Identify each card. Return ONLY a JSON array:
+        [{"index": 0, "card_name": "exact English name", "set_code": "3-letter Scryfall code or null", "collector_number": "collector number or null"}, ...]
+        Match each result to the image index (0-based). Do not include explanation or markdown.
+        """
+        parts.append(["text": prompt])
+
+        guard let url = URL(string: "\(Self.endpoint)?key=\(apiKey)") else { return nil }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 60 // longer timeout for batch
+
+        let body: [String: Any] = ["contents": [["parts": parts]]]
+        guard let httpBody = try? JSONSerialization.data(withJSONObject: body) else { return nil }
+        request.httpBody = httpBody
+
+        let payloadSize = httpBody.count
+        print("[Gemini Batch] Sending \(images.count) images, payload: \(ByteCountFormatter.string(fromByteCount: Int64(payloadSize), countStyle: .file))")
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                lastError = "No response from Gemini"
+                return nil
+            }
+            if httpResponse.statusCode == 429 {
+                markRateLimited()
+                lastError = "Rate limited — waiting 60s"
+                return nil
+            }
+            guard httpResponse.statusCode == 200 else {
+                lastError = "HTTP \(httpResponse.statusCode)"
+                return nil
+            }
+
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let candidates = json["candidates"] as? [[String: Any]],
+                  let content = candidates.first?["content"] as? [String: Any],
+                  let jsonParts = content["parts"] as? [[String: Any]],
+                  let text = jsonParts.first?["text"] as? String else {
+                return nil
+            }
+
+            let cleaned = text
+                .replacingOccurrences(of: "```json", with: "")
+                .replacingOccurrences(of: "```", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+
+            guard let resultData = cleaned.data(using: .utf8),
+                  let results = try JSONSerialization.jsonObject(with: resultData) as? [[String: Any]] else {
+                print("[Gemini Batch] Failed to parse response: \(text.prefix(200))")
+                return nil
+            }
+
+            var cards: [BatchCardResult] = []
+            for item in results {
+                guard let cardName = (item["card_name"] as? String) ?? (item["name"] as? String) else { continue }
+                let index = item["index"] as? Int ?? cards.count
+                cards.append(BatchCardResult(
+                    index: index,
+                    cardName: cardName,
+                    setCode: item["set_code"] as? String,
+                    collectorNumber: item["collector_number"] as? String
+                ))
+            }
+
+            lastError = nil
+            print("[Gemini Batch] Identified \(cards.count)/\(images.count) cards")
+            return (cards: cards, payloadBytes: payloadSize)
+        } catch {
+            print("[Gemini Batch] Request failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    /// Downscales a CGImage so its max dimension is <= maxDimension.
+    private func downsampleForBatch(_ image: CGImage, maxDimension: Int) -> CGImage {
+        let w = image.width
+        let h = image.height
+        let maxDim = max(w, h)
+        guard maxDim > maxDimension else { return image }
+        let scale = CGFloat(maxDimension) / CGFloat(maxDim)
+        let newW = Int(CGFloat(w) * scale)
+        let newH = Int(CGFloat(h) * scale)
+        guard let context = CGContext(
+            data: nil, width: newW, height: newH,
+            bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return image }
+        context.interpolationQuality = .high
+        context.draw(image, in: CGRect(x: 0, y: 0, width: newW, height: newH))
+        return context.makeImage() ?? image
+    }
+}
+
+struct BatchCardResult: Sendable {
+    let index: Int
+    let cardName: String
+    let setCode: String?
+    let collectorNumber: String?
 }
 
 struct GeminiCardResult {

@@ -15,6 +15,7 @@ struct ScannerScreen: View {
     @State private var selectedItems: [PhotosPickerItem] = []
     @State private var showDeckScan = false
     @State private var showImageSplitter = false
+    @State private var showBatchScan = false
 
     var body: some View {
         ZStack {
@@ -48,6 +49,11 @@ struct ScannerScreen: View {
         .sheet(isPresented: $showImageSplitter) {
             NavigationStack {
                 ImageSplitterScreen(pipeline: pipeline, deckRepository: deckRepository, cardRepository: repository, correctionService: viewModel.correctionService)
+            }
+        }
+        .sheet(isPresented: $showBatchScan) {
+            NavigationStack {
+                BatchScanScreen(pipeline: pipeline, cardRepository: repository, deckRepository: deckRepository)
             }
         }
     }
@@ -147,6 +153,21 @@ struct ScannerScreen: View {
                         Capsule()
                             .stroke(MD3Theme.outline, lineWidth: 1)
                     )
+                }
+
+                Button {
+                    showBatchScan = true
+                } label: {
+                    HStack {
+                        Image(systemName: "photo.stack")
+                        Text("Batch Scan Photos")
+                    }
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 12)
+                    .background(Color.purple)
+                    .clipShape(Capsule())
                 }
             }
             .padding(.top, 8)

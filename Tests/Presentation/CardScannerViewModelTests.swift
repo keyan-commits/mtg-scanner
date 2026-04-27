@@ -143,6 +143,10 @@ struct MockPipeline: CardIdentificationPipelineProtocol {
         // No-op for tests
     }
 
+    func identifyBatch(images: [CGImage]) async -> (cards: [(index: Int, card: Card)], payloadBytes: Int) {
+        return ([], 0)
+    }
+
     func clearFeaturePrintCache() async {
         // No-op for tests
     }
