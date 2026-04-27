@@ -59,7 +59,6 @@ final class PriceRefreshService {
             progress = 0.5
 
             print("[PriceRefresh] Updating \(jsonArray.count) card prices…")
-            let context = ModelContext(databaseManager.modelContainer)
 
             // Build price lookup from downloaded data: scryfallID → prices
             var priceLookup: [String: (usd: String?, usdFoil: String?, eur: String?, eurFoil: String?, tix: String?, reserved: Bool)] = [:]
@@ -77,57 +76,63 @@ final class PriceRefreshService {
             }
             progress = 0.6
 
-            // Fetch all existing records and update prices in batches
-            let descriptor = FetchDescriptor<CardRecord>()
-            let records = try context.fetch(descriptor)
-            let total = records.count
-            var updated = 0
+            // Run heavy DB updates on a background thread to avoid blocking UI
+            let container = databaseManager.modelContainer
+            let lookup = priceLookup
+            let (updatedCount, collectionTotal) = try await Task.detached(priority: .utility) {
+                let context = ModelContext(container)
 
-            for record in records {
-                if let prices = priceLookup[record.scryfallID] {
-                    // Save previous price for 24h change tracking
-                    record.previousPriceUSD = record.priceUSD
-                    record.priceUSD = prices.usd
-                    record.priceUSDFoil = prices.usdFoil
-                    record.priceEUR = prices.eur
-                    record.priceEURFoil = prices.eurFoil
-                    record.priceTix = prices.tix
-                    record.isReserved = prices.reserved
-                    updated += 1
+                // Fetch all existing records and update prices in batches
+                let descriptor = FetchDescriptor<CardRecord>()
+                let records = try context.fetch(descriptor)
+                var updated = 0
+
+                for record in records {
+                    if let prices = lookup[record.scryfallID] {
+                        record.previousPriceUSD = record.priceUSD
+                        record.priceUSD = prices.usd
+                        record.priceUSDFoil = prices.usdFoil
+                        record.priceEUR = prices.eur
+                        record.priceEURFoil = prices.eurFoil
+                        record.priceTix = prices.tix
+                        record.isReserved = prices.reserved
+                        updated += 1
+                    }
+
+                    if updated % 5000 == 0 && updated > 0 {
+                        try context.save()
+                    }
+                }
+                try context.save()
+
+                // Update collection item values
+                let collectionDescriptor = FetchDescriptor<CollectionItem>()
+                let collectionItems = (try? context.fetch(collectionDescriptor)) ?? []
+                for item in collectionItems {
+                    if let prices = lookup[item.scryfallID] {
+                        if let usdString = prices.usd, let usd = Double(usdString) {
+                            item.currentValueUSD = usd
+                        }
+                        if let foilString = prices.usdFoil, let foil = Double(foilString) {
+                            item.currentValueFoilUSD = foil
+                        }
+                    }
+                }
+                if !collectionItems.isEmpty { try context.save() }
+
+                // Compute total collection value
+                let totalValue = collectionItems.reduce(0.0) { sum, item in
+                    let nonFoilCount = item.quantity - item.foilQuantity
+                    let nonFoilValue = (item.currentValueUSD ?? 0) * Double(max(0, nonFoilCount))
+                    let foilValue = (item.currentValueFoilUSD ?? item.currentValueUSD ?? 0) * Double(item.foilQuantity)
+                    return sum + nonFoilValue + foilValue
                 }
 
-                if updated % 5000 == 0 && updated > 0 {
-                    try context.save()
-                    progress = 0.6 + 0.35 * Double(updated) / Double(total)
-                }
-            }
+                return (updated, totalValue)
+            }.value
 
-            try context.save()
             progress = 0.95
-
-            // Update collection item values from the price lookup
-            let collectionDescriptor = FetchDescriptor<CollectionItem>()
-            let collectionItems = (try? context.fetch(collectionDescriptor)) ?? []
-            for item in collectionItems {
-                if let prices = priceLookup[item.scryfallID] {
-                    if let usdString = prices.usd, let usd = Double(usdString) {
-                        item.currentValueUSD = usd
-                    }
-                    if let foilString = prices.usdFoil, let foil = Double(foilString) {
-                        item.currentValueFoilUSD = foil
-                    }
-                }
-            }
-            if !collectionItems.isEmpty { try context.save() }
-
-            // Compute and cache total collection value (foil + non-foil)
-            let totalValue = collectionItems.reduce(0.0) { sum, item in
-                let nonFoilCount = item.quantity - item.foilQuantity
-                let nonFoilValue = (item.currentValueUSD ?? 0) * Double(max(0, nonFoilCount))
-                let foilValue = (item.currentValueFoilUSD ?? item.currentValueUSD ?? 0) * Double(item.foilQuantity)
-                return sum + nonFoilValue + foilValue
-            }
-            UserDefaults.standard.set(totalValue, forKey: "collectionCachedValueUSD")
+            UserDefaults.standard.set(collectionTotal, forKey: "collectionCachedValueUSD")
             UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "collectionCachedValueAt")
 
             progress = 1.0
@@ -136,7 +141,7 @@ final class PriceRefreshService {
             try? FileManager.default.removeItem(at: fileURL)
 
             UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.lastRefreshKey)
-            print("[PriceRefresh] Updated \(updated) card prices, \(collectionItems.count) collection values")
+            print("[PriceRefresh] Updated \(updatedCount) card prices")
 
         } catch {
             print("[PriceRefresh] Failed: \(error.localizedDescription)")

@@ -134,9 +134,11 @@ struct CardCopiesDetailView: View {
         }
         .task {
             reload()
+            // Load card first (needed by PH listings), then parallel
             await loadCard()
-            await loadPHListings()
-            await loadOtherPrintings()
+            async let ph: () = loadPHListings()
+            async let printings: () = loadOtherPrintings()
+            _ = await (ph, printings)
         }
     }
 

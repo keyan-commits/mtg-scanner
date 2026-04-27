@@ -99,13 +99,10 @@ struct CardDetailView: View {
             await loadVariantInfo()
         }
         .task(id: viewModel.card.scryfallID) {
-            await loadPHListings()
-        }
-        .task(id: viewModel.card.scryfallID) {
-            // Refetches rulings when the user swaps to a different
-            // printing via the Other Printings list (the view model's
-            // card mutates in place rather than spawning a new view).
-            await loadRulings()
+            // Load PH listings and rulings concurrently on card change
+            async let ph: () = loadPHListings()
+            async let rulings: () = loadRulings()
+            _ = await (ph, rulings)
         }
         .sheet(isPresented: $showAddToDeck) {
             if let deckRepository {
