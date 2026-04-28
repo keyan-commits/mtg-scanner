@@ -200,45 +200,46 @@ struct BatchScanScreen: View {
     private var photoStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
-                ForEach(0..<viewModel.loadedImages.count, id: \.self) { i in
-                    photoThumbnail(at: i)
+                // Enumerate the array directly so the closure captures the CGImage by
+                // value. Previously used `ForEach(0..<count, id: \.self)` which left
+                // a window during reset() where the index outran the cleared array.
+                ForEach(Array(viewModel.loadedImages.enumerated()), id: \.offset) { offset, image in
+                    photoThumbnail(image: image, photoIndex: offset)
                 }
             }
             .padding(.horizontal, 16)
         }
     }
 
-    private func photoThumbnail(at index: Int) -> some View {
+    private func photoThumbnail(image: CGImage, photoIndex: Int) -> some View {
         let bboxes = viewModel.identifiedCards
-            .filter { $0.imageIndex == index }
+            .filter { $0.imageIndex == photoIndex }
             .compactMap(\.boundingBox)
-        return ZStack {
-            Image(decorative: viewModel.loadedImages[index], scale: 1)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 140, height: 140)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(
-                    GeometryReader { geo in
-                        ForEach(Array(bboxes.enumerated()), id: \.offset) { _, bbox in
-                            Rectangle()
-                                .stroke(Color.green, lineWidth: 2)
-                                .frame(
-                                    width: max(2, CGFloat(bbox.w) * geo.size.width),
-                                    height: max(2, CGFloat(bbox.h) * geo.size.height)
-                                )
-                                .position(
-                                    x: (CGFloat(bbox.x) + CGFloat(bbox.w) / 2) * geo.size.width,
-                                    y: (CGFloat(bbox.y) + CGFloat(bbox.h) / 2) * geo.size.height
-                                )
-                        }
+        return Image(decorative: image, scale: 1)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: 140, height: 140)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                GeometryReader { geo in
+                    ForEach(Array(bboxes.enumerated()), id: \.offset) { _, bbox in
+                        Rectangle()
+                            .stroke(Color.green, lineWidth: 2)
+                            .frame(
+                                width: max(2, CGFloat(bbox.w) * geo.size.width),
+                                height: max(2, CGFloat(bbox.h) * geo.size.height)
+                            )
+                            .position(
+                                x: (CGFloat(bbox.x) + CGFloat(bbox.w) / 2) * geo.size.width,
+                                y: (CGFloat(bbox.y) + CGFloat(bbox.h) / 2) * geo.size.height
+                            )
                     }
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(MD3Theme.outlineVariant, lineWidth: 1)
-                )
-        }
+                }
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(MD3Theme.outlineVariant, lineWidth: 1)
+            )
     }
 
     @ViewBuilder
