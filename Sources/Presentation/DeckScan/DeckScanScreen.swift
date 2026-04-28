@@ -181,7 +181,7 @@ struct DeckScanScreen: View {
 
     private func loadImage(from item: PhotosPickerItem) async {
         guard let data = try? await item.loadTransferable(type: Data.self),
-              let uiImage = UIImage(data: data),
+              let uiImage = UIImage(data: data)?.orientationNormalized(),
               let cgImage = uiImage.cgImage else {
             return
         }

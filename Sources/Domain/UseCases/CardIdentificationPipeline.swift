@@ -95,12 +95,23 @@ protocol CardIdentificationPipelineProtocol: Sendable {
 
 /// Result of a multi-photo batch identification pass.
 /// `cards` lists one entry per detected card (quantities already expanded).
+/// Each entry carries the bbox in the source photo when Gemini returned one.
+/// `analysis` is an optional aggregate prose summary suitable for an "analysis" UI card.
 /// `error` is non-nil only when the API call failed end-to-end; an empty `cards`
 /// with `error == nil` means "Gemini ran but saw no recognizable cards".
 struct BatchIdentificationResult {
-    let cards: [(imageIndex: Int, card: Card)]
+    let cards: [BatchIdentifiedCard]
     let payloadBytes: Int
+    let analysis: String?
     let error: String?
+}
+
+struct BatchIdentifiedCard: Equatable {
+    let imageIndex: Int
+    let card: Card
+    /// Fractional coords (0–1) within the source photo at `imageIndex`. Nil when Gemini
+    /// didn't report a bounding box for this detection.
+    let boundingBox: BatchBoundingBox?
 }
 
 // MARK: - Implementation
@@ -671,14 +682,14 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
     /// 4× of the same card produces 4 entries, all sharing the same `imageIndex`.
     func identifyBatch(images: [CGImage]) async -> BatchIdentificationResult {
         guard GeminiVisionService.isConfigured else {
-            return BatchIdentificationResult(cards: [], payloadBytes: 0, error: "Gemini is not configured. Add an API key in Settings.")
+            return BatchIdentificationResult(cards: [], payloadBytes: 0, analysis: nil, error: "Gemini is not configured. Add an API key in Settings.")
         }
         let response = await GeminiVisionService.shared.identifyCardBatch(images: images)
         if let error = response.error {
-            return BatchIdentificationResult(cards: [], payloadBytes: response.payloadBytes, error: error)
+            return BatchIdentificationResult(cards: [], payloadBytes: response.payloadBytes, analysis: response.analysis, error: error)
         }
 
-        var resolved: [(imageIndex: Int, card: Card)] = []
+        var resolved: [BatchIdentifiedCard] = []
         for batchResult in response.cards {
             var printings = (try? await repository.findAllPrintings(name: batchResult.cardName)) ?? []
 
@@ -703,11 +714,15 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
 
             if let card {
                 for _ in 0..<max(1, batchResult.quantity) {
-                    resolved.append((imageIndex: batchResult.imageIndex, card: card))
+                    resolved.append(BatchIdentifiedCard(
+                        imageIndex: batchResult.imageIndex,
+                        card: card,
+                        boundingBox: batchResult.boundingBox
+                    ))
                 }
             }
         }
-        return BatchIdentificationResult(cards: resolved, payloadBytes: response.payloadBytes, error: nil)
+        return BatchIdentificationResult(cards: resolved, payloadBytes: response.payloadBytes, analysis: response.analysis, error: nil)
     }
 
     // MARK: - Step 2: OCR Signal Extraction

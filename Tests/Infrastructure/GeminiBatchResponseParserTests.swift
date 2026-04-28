@@ -5,47 +5,75 @@ import Foundation
 @Suite("Gemini batch response parser")
 struct GeminiBatchResponseParserTests {
 
-    // MARK: - Per-photo shape (preferred)
+    // MARK: - Wrapped object shape (preferred)
 
-    @Test("Parses per-photo shape with multiple cards in one photo")
-    func perPhotoShape() {
+    @Test("Parses preferred wrapped shape with analysis + per-photo cards + bboxes")
+    func wrappedWithAnalysisAndBboxes() {
         let text = """
-        [
-          {"image_index": 0, "cards": [
-            {"card_name": "Lightning Bolt", "set_code": "lea", "collector_number": "161", "quantity": 1},
-            {"card_name": "Counterspell",   "set_code": "lea", "collector_number": "55",  "quantity": 1}
-          ]},
-          {"image_index": 1, "cards": [
-            {"card_name": "Skirk Prospector", "set_code": "ons", "collector_number": "230", "quantity": 4}
-          ]}
-        ]
+        {
+          "analysis": "Three pages from a vintage Onslaught/Urza's Saga collection.",
+          "results": [
+            {"image_index": 0, "cards": [
+              {"card_name": "Lightning Bolt", "set_code": "lea", "collector_number": "161", "quantity": 1, "x": 0.05, "y": 0.10, "w": 0.40, "h": 0.45},
+              {"card_name": "Counterspell",   "set_code": "lea", "collector_number": "55",  "quantity": 1, "x": 0.55, "y": 0.10, "w": 0.40, "h": 0.45}
+            ]},
+            {"image_index": 1, "cards": [
+              {"card_name": "Skirk Prospector", "set_code": "ons", "collector_number": "230", "quantity": 4}
+            ]}
+          ]
+        }
         """
-        let results = GeminiVisionService.parseBatchResponse(text: text)
-        #expect(results.count == 3)
-        #expect(results[0].cardName == "Lightning Bolt")
-        #expect(results[0].imageIndex == 0)
-        #expect(results[0].quantity == 1)
-        #expect(results[1].cardName == "Counterspell")
-        #expect(results[1].imageIndex == 0)
-        #expect(results[2].cardName == "Skirk Prospector")
-        #expect(results[2].imageIndex == 1)
-        #expect(results[2].quantity == 4)
-        #expect(results[2].setCode == "ons")
-        #expect(results[2].collectorNumber == "230")
+        let parsed = GeminiVisionService.parseBatchResponse(text: text)
+        #expect(parsed.analysis?.contains("Onslaught") == true)
+        #expect(parsed.cards.count == 3)
+        #expect(parsed.cards[0].cardName == "Lightning Bolt")
+        #expect(parsed.cards[0].imageIndex == 0)
+        #expect(parsed.cards[0].boundingBox?.x == 0.05)
+        #expect(parsed.cards[0].boundingBox?.w == 0.40)
+        #expect(parsed.cards[1].cardName == "Counterspell")
+        #expect(parsed.cards[2].cardName == "Skirk Prospector")
+        #expect(parsed.cards[2].quantity == 4)
+        #expect(parsed.cards[2].boundingBox == nil)
     }
 
-    @Test("Empty cards array for a photo emits no entries for that photo")
-    func emptyCardsArray() {
+    @Test("Empty analysis string is normalized to nil")
+    func emptyAnalysisIsNil() {
+        let text = """
+        {"analysis": "  ", "results": [{"image_index": 0, "cards": [{"card_name": "Test"}]}]}
+        """
+        let parsed = GeminiVisionService.parseBatchResponse(text: text)
+        #expect(parsed.analysis == nil)
+        #expect(parsed.cards.count == 1)
+    }
+
+    @Test("Bounding box with zero width/height is dropped")
+    func degenerateBboxRejected() {
+        let text = """
+        {"results": [{"image_index": 0, "cards": [
+            {"card_name": "X", "x": 0.1, "y": 0.1, "w": 0.0, "h": 0.5},
+            {"card_name": "Y", "x": 0.1, "y": 0.1, "w": 0.5, "h": -0.1}
+        ]}]}
+        """
+        let parsed = GeminiVisionService.parseBatchResponse(text: text)
+        #expect(parsed.cards.count == 2)
+        #expect(parsed.cards[0].boundingBox == nil)
+        #expect(parsed.cards[1].boundingBox == nil)
+    }
+
+    // MARK: - Per-photo array shape (no analysis)
+
+    @Test("Parses bare per-photo array")
+    func perPhotoArray() {
         let text = """
         [
-          {"image_index": 0, "cards": []},
-          {"image_index": 1, "cards": [{"card_name": "Black Lotus", "set_code": "lea", "collector_number": "232"}]}
+          {"image_index": 0, "cards": [{"card_name": "Card A"}]},
+          {"image_index": 1, "cards": []}
         ]
         """
-        let results = GeminiVisionService.parseBatchResponse(text: text)
-        #expect(results.count == 1)
-        #expect(results[0].imageIndex == 1)
-        #expect(results[0].cardName == "Black Lotus")
+        let parsed = GeminiVisionService.parseBatchResponse(text: text)
+        #expect(parsed.analysis == nil)
+        #expect(parsed.cards.count == 1)
+        #expect(parsed.cards[0].imageIndex == 0)
     }
 
     @Test("Missing image_index falls back to positional order")
@@ -56,23 +84,25 @@ struct GeminiBatchResponseParserTests {
           {"cards": [{"card_name": "Card B"}]}
         ]
         """
-        let results = GeminiVisionService.parseBatchResponse(text: text)
-        #expect(results.count == 2)
-        #expect(results[0].imageIndex == 0)
-        #expect(results[1].imageIndex == 1)
+        let parsed = GeminiVisionService.parseBatchResponse(text: text)
+        #expect(parsed.cards.count == 2)
+        #expect(parsed.cards[0].imageIndex == 0)
+        #expect(parsed.cards[1].imageIndex == 1)
     }
+
+    // MARK: - Quantity handling
 
     @Test("Quantity defaults to 1 when missing")
     func quantityDefault() {
         let text = """
         [{"image_index": 0, "cards": [{"card_name": "Test Card"}]}]
         """
-        let results = GeminiVisionService.parseBatchResponse(text: text)
-        #expect(results.count == 1)
-        #expect(results[0].quantity == 1)
+        let parsed = GeminiVisionService.parseBatchResponse(text: text)
+        #expect(parsed.cards.count == 1)
+        #expect(parsed.cards[0].quantity == 1)
     }
 
-    @Test("Quantity floor of 1 when Gemini returns 0 or negative")
+    @Test("Quantity floor of 1 for zero or negative input")
     func quantityFloor() {
         let text = """
         [{"image_index": 0, "cards": [
@@ -80,34 +110,22 @@ struct GeminiBatchResponseParserTests {
             {"card_name": "Neg Qty",  "quantity": -3}
         ]}]
         """
-        let results = GeminiVisionService.parseBatchResponse(text: text)
-        #expect(results.count == 2)
-        #expect(results[0].quantity == 1)
-        #expect(results[1].quantity == 1)
+        let parsed = GeminiVisionService.parseBatchResponse(text: text)
+        #expect(parsed.cards.count == 2)
+        #expect(parsed.cards[0].quantity == 1)
+        #expect(parsed.cards[1].quantity == 1)
     }
 
-    // MARK: - Wrapped object shapes
+    // MARK: - Wrapped object alternative keys
 
-    @Test("Parses wrapped object under \"results\" key")
-    func wrappedResults() {
-        let text = """
-        {"results": [
-          {"image_index": 0, "cards": [{"card_name": "Wrapped Card"}]}
-        ]}
-        """
-        let results = GeminiVisionService.parseBatchResponse(text: text)
-        #expect(results.count == 1)
-        #expect(results[0].cardName == "Wrapped Card")
-    }
-
-    @Test("Parses wrapped object under \"cards\" key")
+    @Test("Wrapped under \"cards\" key")
     func wrappedCardsKey() {
         let text = """
         {"cards": [{"image_index": 0, "cards": [{"card_name": "Nested Card"}]}]}
         """
-        let results = GeminiVisionService.parseBatchResponse(text: text)
-        #expect(results.count == 1)
-        #expect(results[0].cardName == "Nested Card")
+        let parsed = GeminiVisionService.parseBatchResponse(text: text)
+        #expect(parsed.cards.count == 1)
+        #expect(parsed.cards[0].cardName == "Nested Card")
     }
 
     // MARK: - Legacy flat shape
@@ -120,14 +138,12 @@ struct GeminiBatchResponseParserTests {
           {"index": 1, "card_name": "Old Card B", "set_code": null,  "collector_number": null}
         ]
         """
-        let results = GeminiVisionService.parseBatchResponse(text: text)
-        #expect(results.count == 2)
-        #expect(results[0].imageIndex == 0)
-        #expect(results[0].cardName == "Old Card A")
-        #expect(results[0].setCode == "lea")
-        #expect(results[1].imageIndex == 1)
-        #expect(results[1].setCode == nil)
-        #expect(results[1].collectorNumber == nil)
+        let parsed = GeminiVisionService.parseBatchResponse(text: text)
+        #expect(parsed.cards.count == 2)
+        #expect(parsed.cards[0].imageIndex == 0)
+        #expect(parsed.cards[0].cardName == "Old Card A")
+        #expect(parsed.cards[1].setCode == nil)
+        #expect(parsed.cards[1].collectorNumber == nil)
     }
 
     @Test("Legacy flat array without index falls back to positional")
@@ -138,10 +154,10 @@ struct GeminiBatchResponseParserTests {
           {"card_name": "Second"}
         ]
         """
-        let results = GeminiVisionService.parseBatchResponse(text: text)
-        #expect(results.count == 2)
-        #expect(results[0].imageIndex == 0)
-        #expect(results[1].imageIndex == 1)
+        let parsed = GeminiVisionService.parseBatchResponse(text: text)
+        #expect(parsed.cards.count == 2)
+        #expect(parsed.cards[0].imageIndex == 0)
+        #expect(parsed.cards[1].imageIndex == 1)
     }
 
     // MARK: - Tolerance & error paths
@@ -153,25 +169,23 @@ struct GeminiBatchResponseParserTests {
         [{"image_index": 0, "cards": [{"card_name": "Fenced Card"}]}]
         ```
         """
-        let results = GeminiVisionService.parseBatchResponse(text: text)
-        #expect(results.count == 1)
-        #expect(results[0].cardName == "Fenced Card")
+        let parsed = GeminiVisionService.parseBatchResponse(text: text)
+        #expect(parsed.cards.count == 1)
+        #expect(parsed.cards[0].cardName == "Fenced Card")
     }
 
-    @Test("Malformed JSON returns empty array")
+    @Test("Malformed JSON returns empty parsed response")
     func malformedJSON() {
-        let results = GeminiVisionService.parseBatchResponse(text: "this is not JSON at all")
-        #expect(results.isEmpty)
+        let parsed = GeminiVisionService.parseBatchResponse(text: "this is not JSON at all")
+        #expect(parsed.cards.isEmpty)
+        #expect(parsed.analysis == nil)
     }
 
-    @Test("Empty string returns empty array")
+    @Test("Empty string returns empty parsed response")
     func emptyString() {
-        #expect(GeminiVisionService.parseBatchResponse(text: "").isEmpty)
-    }
-
-    @Test("Empty array returns empty results")
-    func emptyArray() {
-        #expect(GeminiVisionService.parseBatchResponse(text: "[]").isEmpty)
+        let parsed = GeminiVisionService.parseBatchResponse(text: "")
+        #expect(parsed.cards.isEmpty)
+        #expect(parsed.analysis == nil)
     }
 
     @Test("Items missing card_name are skipped, not fatal")
@@ -183,9 +197,9 @@ struct GeminiBatchResponseParserTests {
             {"card_name": ""}
         ]}]
         """
-        let results = GeminiVisionService.parseBatchResponse(text: text)
-        #expect(results.count == 1)
-        #expect(results[0].cardName == "Valid Card")
+        let parsed = GeminiVisionService.parseBatchResponse(text: text)
+        #expect(parsed.cards.count == 1)
+        #expect(parsed.cards[0].cardName == "Valid Card")
     }
 
     @Test("Tolerates \"name\" field as alias for card_name")
@@ -193,8 +207,8 @@ struct GeminiBatchResponseParserTests {
         let text = """
         [{"image_index": 0, "cards": [{"name": "Alias Card"}]}]
         """
-        let results = GeminiVisionService.parseBatchResponse(text: text)
-        #expect(results.count == 1)
-        #expect(results[0].cardName == "Alias Card")
+        let parsed = GeminiVisionService.parseBatchResponse(text: text)
+        #expect(parsed.cards.count == 1)
+        #expect(parsed.cards[0].cardName == "Alias Card")
     }
 }

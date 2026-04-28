@@ -875,7 +875,7 @@ struct ImageSplitterScreen: View {
     private func loadPhoto(_ item: PhotosPickerItem?) async {
         guard let item else { return }
         guard let data = try? await item.loadTransferable(type: Data.self),
-              let uiImage = UIImage(data: data),
+              let uiImage = UIImage(data: data)?.orientationNormalized(),
               let cgImage = uiImage.cgImage else { return }
         viewModel = ImageSplitterViewModel(pipeline: pipeline, deckRepository: deckRepository)
         viewModel.setImage(cgImage)

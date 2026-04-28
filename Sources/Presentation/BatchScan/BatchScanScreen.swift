@@ -3,6 +3,7 @@ import PhotosUI
 
 struct BatchScanScreen: View {
     @State private var viewModel: BatchScanViewModel
+    @State private var correctingIndex: Int?
     @Environment(\.dismiss) private var dismiss
 
     init(pipeline: CardIdentificationPipelineProtocol,
@@ -35,6 +36,30 @@ struct BatchScanScreen: View {
                 if case .results = viewModel.state {
                     Button("Done") { dismiss() }
                 }
+            }
+        }
+        .sheet(item: Binding(
+            get: { correctingIndex.map { CorrectionTarget(index: $0) } },
+            set: { correctingIndex = $0?.index }
+        )) { target in
+            if let repo = viewModel.cardRepository, target.index < viewModel.identifiedCards.count {
+                CardCorrectionView(
+                    repository: repo,
+                    currentCard: viewModel.identifiedCards[target.index].card,
+                    onCorrection: { newCard in
+                        viewModel.replaceCard(at: target.index, with: newCard)
+                        correctingIndex = nil
+                    }
+                )
+            }
+        }
+        .alert("Saved to Photos", isPresented: $viewModel.showSaveAlert) {
+            Button("OK") { viewModel.showSaveAlert = false }
+        } message: {
+            if let err = viewModel.saveError {
+                Text(err)
+            } else {
+                Text("\(viewModel.savedCount) card\(viewModel.savedCount == 1 ? "" : "s") saved.")
             }
         }
     }
@@ -81,7 +106,7 @@ struct BatchScanScreen: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
-                Text("Up to 300 photos per batch \u{00B7} ~40KB each after downscaling")
+                Text("Up to 300 photos per batch \u{00B7} multi-card photos OK")
                     .font(.caption2)
                     .foregroundStyle(MD3Theme.onSurfaceVariant)
             }
@@ -131,159 +156,325 @@ struct BatchScanScreen: View {
     private var resultsView: some View {
         ScrollView {
             VStack(spacing: 16) {
-                // Summary card
-                MD3Card {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                                .font(.title2)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("\(viewModel.cardCount) card\(viewModel.cardCount == 1 ? "" : "s") from \(viewModel.photosWithCards) of \(viewModel.totalPhotos) photo\(viewModel.totalPhotos == 1 ? "" : "s")")
-                                    .font(MD3Typography.titleMedium)
-                                    .foregroundStyle(MD3Theme.onSurface)
-                                Text("Payload: \(viewModel.payloadMB)")
-                                    .font(.caption)
-                                    .foregroundStyle(MD3Theme.onSurfaceVariant)
-                            }
-                            Spacer()
-                        }
-                        if !viewModel.failedIndices.isEmpty {
-                            Text("\(viewModel.failedIndices.count) photo\(viewModel.failedIndices.count == 1 ? "" : "s") had no recognizable cards")
-                                .font(.caption)
-                                .foregroundStyle(.orange)
-                        }
-                    }
-                    .padding(16)
-                }
-                .padding(.horizontal, 16)
-
-                // Action buttons
-                if viewModel.addedToCollection > 0 {
-                    HStack(spacing: 8) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                        Text("Added \(viewModel.addedToCollection) cards to collection")
-                            .font(.subheadline.weight(.medium))
-                    }
-                    .padding(.horizontal, 16)
-                } else if viewModel.addedToDeck != nil {
-                    HStack(spacing: 8) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                        Text("Deck created!")
-                            .font(.subheadline.weight(.medium))
-                    }
-                    .padding(.horizontal, 16)
-                } else {
-                    HStack(spacing: 12) {
-                        Button {
-                            viewModel.addAllToCollection()
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "tray.and.arrow.down")
-                                Text("Add to Collection")
-                            }
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .background(MD3Theme.primary)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(viewModel.identifiedCards.isEmpty)
-
-                        Button {
-                            let dateStr = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .none)
-                            viewModel.createDeck(name: "Batch Scan \(dateStr)")
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "rectangle.stack.badge.plus")
-                                Text("Create Deck")
-                            }
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(MD3Theme.primary)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(MD3Theme.outline, lineWidth: 1)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(viewModel.identifiedCards.isEmpty)
-                    }
-                    .padding(.horizontal, 16)
-                }
-
-                // Card list — one row per detected card. Multiple rows may share
-                // the same source photo when a photo contains several cards.
-                VStack(spacing: 0) {
-                    ForEach(Array(viewModel.identifiedCards.enumerated()), id: \.offset) { offset, entry in
-                        HStack(spacing: 12) {
-                            if entry.imageIndex < viewModel.loadedImages.count {
-                                let img = viewModel.loadedImages[entry.imageIndex]
-                                Image(decorative: img, scale: 1)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 40, height: 56)
-                                    .clipShape(RoundedRectangle(cornerRadius: 4))
-                            }
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(entry.card.name)
-                                    .font(MD3Typography.bodyMedium)
-                                    .foregroundStyle(MD3Theme.onSurface)
-                                    .lineLimit(1)
-                                Text("\(entry.card.set.name) #\(entry.card.collectorNumber)")
-                                    .font(.caption2)
-                                    .foregroundStyle(MD3Theme.onSurfaceVariant)
-                            }
-
-                            Spacer()
-
-                            if let usd = entry.card.prices.usd {
-                                Text("$\(usd)")
-                                    .font(MD3Typography.labelMedium)
-                                    .foregroundStyle(MD3Theme.primary)
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-
-                        if offset < viewModel.identifiedCards.count - 1 {
-                            Divider().padding(.leading, 68)
-                        }
-                    }
-                }
-                .background(MD3Theme.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(MD3Theme.outlineVariant, lineWidth: 1)
-                )
-                .padding(.horizontal, 16)
-
-                // Scan more button
-                Button {
-                    viewModel.reset()
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.counterclockwise")
-                        Text("Scan More")
-                    }
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(MD3Theme.primary)
-                }
-                .buttonStyle(.plain)
-                .padding(.top, 8)
-
+                summaryCard
+                photoStrip
+                analysisCard
+                identifiedSection
+                actionButtons
+                rescanButton
                 Spacer(minLength: 32)
             }
-            .padding(.top, 16)
+            .padding(.top, 12)
         }
         .background(MD3Theme.background)
+    }
+
+    private var summaryCard: some View {
+        MD3Card {
+            HStack {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .font(.title2)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(viewModel.cardCount) card\(viewModel.cardCount == 1 ? "" : "s") from \(viewModel.photosWithCards) of \(viewModel.totalPhotos) photo\(viewModel.totalPhotos == 1 ? "" : "s")")
+                        .font(MD3Typography.titleMedium)
+                        .foregroundStyle(MD3Theme.onSurface)
+                    Text("Payload: \(viewModel.payloadMB)")
+                        .font(.caption)
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    if !viewModel.failedIndices.isEmpty {
+                        Text("\(viewModel.failedIndices.count) photo\(viewModel.failedIndices.count == 1 ? "" : "s") had no recognizable cards")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                }
+                Spacer()
+            }
+            .padding(16)
+        }
+        .padding(.horizontal, 16)
+    }
+
+    /// Horizontal strip of source photos with bbox overlays so the user can
+    /// visually map detections back to the photo they came from.
+    private var photoStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(0..<viewModel.loadedImages.count, id: \.self) { i in
+                    photoThumbnail(at: i)
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    private func photoThumbnail(at index: Int) -> some View {
+        let bboxes = viewModel.identifiedCards
+            .filter { $0.imageIndex == index }
+            .compactMap(\.boundingBox)
+        return ZStack {
+            Image(decorative: viewModel.loadedImages[index], scale: 1)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 140, height: 140)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    GeometryReader { geo in
+                        ForEach(Array(bboxes.enumerated()), id: \.offset) { _, bbox in
+                            Rectangle()
+                                .stroke(Color.green, lineWidth: 2)
+                                .frame(
+                                    width: max(2, CGFloat(bbox.w) * geo.size.width),
+                                    height: max(2, CGFloat(bbox.h) * geo.size.height)
+                                )
+                                .position(
+                                    x: (CGFloat(bbox.x) + CGFloat(bbox.w) / 2) * geo.size.width,
+                                    y: (CGFloat(bbox.y) + CGFloat(bbox.h) / 2) * geo.size.height
+                                )
+                        }
+                    }
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(MD3Theme.outlineVariant, lineWidth: 1)
+                )
+        }
+    }
+
+    @ViewBuilder
+    private var analysisCard: some View {
+        if let analysis = viewModel.analysis, !analysis.isEmpty {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 14))
+                    .foregroundStyle(MD3Theme.primary)
+                    .padding(.top, 2)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Gemini Analysis")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(MD3Theme.primary.opacity(0.7))
+                        .textCase(.uppercase)
+                    Text(analysis)
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(MD3Theme.onSurface)
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(MD3Theme.primary.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .padding(.horizontal, 16)
+        }
+    }
+
+    private var identifiedSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Identified Cards")
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(MD3Theme.onSurface)
+                .padding(.horizontal, 16)
+
+            VStack(spacing: 0) {
+                ForEach(Array(viewModel.identifiedCards.enumerated()), id: \.offset) { offset, entry in
+                    identifiedRow(at: offset, entry: entry)
+                    if offset < viewModel.identifiedCards.count - 1 {
+                        Divider().padding(.leading, 16)
+                    }
+                }
+            }
+            .background(MD3Theme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(MD3Theme.outlineVariant, lineWidth: 1)
+            )
+            .padding(.horizontal, 16)
+        }
+    }
+
+    private func identifiedRow(at index: Int, entry: BatchIdentifiedCard) -> some View {
+        HStack(spacing: 8) {
+            if entry.imageIndex < viewModel.loadedImages.count {
+                Image(decorative: viewModel.loadedImages[entry.imageIndex], scale: 1)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 36, height: 50)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entry.card.name)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(MD3Theme.onSurface)
+                    .lineLimit(1)
+                Text("\(entry.card.set.name) #\(entry.card.collectorNumber)")
+                    .font(.caption2)
+                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            quantityStepper(for: index)
+
+            if let usd = entry.card.prices.usd {
+                Text("$\(usd)")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(MD3Theme.primary)
+                    .monospacedDigit()
+            }
+
+            if viewModel.cardRepository != nil {
+                Button {
+                    correctingIndex = index
+                } label: {
+                    Text("Fix")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(MD3Theme.primary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(MD3Theme.outline, lineWidth: 1)
+                        )
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+
+    private func quantityStepper(for index: Int) -> some View {
+        let qty = viewModel.quantity(at: index)
+        return HStack(spacing: 4) {
+            Button {
+                viewModel.decrementQuantity(at: index)
+            } label: {
+                Image(systemName: "minus.circle.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(qty > 1 ? MD3Theme.primary : Color.gray.opacity(0.4))
+            }
+            .disabled(qty <= 1)
+
+            Text("\(qty)x")
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundStyle(MD3Theme.onSurface)
+                .monospacedDigit()
+                .frame(minWidth: 24)
+
+            Button {
+                viewModel.incrementQuantity(at: index)
+            } label: {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(qty < 20 ? MD3Theme.primary : Color.gray.opacity(0.4))
+            }
+            .disabled(qty >= 20)
+        }
+    }
+
+    private var actionButtons: some View {
+        VStack(spacing: 10) {
+            if viewModel.addedToCollection > 0 {
+                statusPill(icon: "checkmark.circle.fill", color: .green,
+                           text: "Added \(viewModel.addedToCollection) cards to collection")
+            } else if viewModel.addedToDeck != nil {
+                statusPill(icon: "checkmark.circle.fill", color: .green, text: "Deck created!")
+            } else {
+                Button {
+                    viewModel.addAllToCollection()
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "plus.rectangle.on.rectangle")
+                        Text("Add \(viewModel.cardCount) to Collection")
+                    }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(viewModel.cardCount > 0 ? Color.green : Color.gray)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .disabled(viewModel.cardCount == 0)
+
+                Button {
+                    let dateStr = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .none)
+                    viewModel.createDeck(name: "Batch Scan \(dateStr)")
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "square.stack.3d.up")
+                        Text("Create Deck")
+                    }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(viewModel.cardCount > 0 ? MD3Theme.primary : Color.gray)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .disabled(viewModel.cardCount == 0)
+            }
+
+            Button {
+                Task { await viewModel.saveCardsToPhotos() }
+            } label: {
+                HStack(spacing: 8) {
+                    if viewModel.isSaving {
+                        ProgressView().tint(.white)
+                    } else {
+                        Image(systemName: viewModel.saveSuccess ? "checkmark.circle.fill" : "square.and.arrow.down.on.square")
+                    }
+                    Text(saveButtonLabel)
+                }
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(saveButtonBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .disabled(viewModel.cardCount == 0 || viewModel.isSaving || viewModel.saveSuccess)
+        }
+        .padding(.horizontal, 16)
+    }
+
+    private var saveButtonLabel: String {
+        if viewModel.isSaving { return "Saving..." }
+        if viewModel.saveSuccess { return "Saved to Photos" }
+        return "Save \(viewModel.cardCount) Card\(viewModel.cardCount == 1 ? "" : "s") to Photos"
+    }
+
+    private var saveButtonBackground: Color {
+        if viewModel.cardCount == 0 || viewModel.isSaving || viewModel.saveSuccess {
+            return Color.gray
+        }
+        return MD3Theme.primary
+    }
+
+    private func statusPill(icon: String, color: Color, text: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon).foregroundStyle(color)
+            Text(text).font(.subheadline.weight(.medium))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(color.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var rescanButton: some View {
+        Button {
+            viewModel.reset()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.counterclockwise")
+                Text("Scan More")
+            }
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(MD3Theme.primary)
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 4)
     }
 
     // MARK: - Error
@@ -317,4 +508,9 @@ struct BatchScanScreen: View {
             Spacer()
         }
     }
+}
+
+private struct CorrectionTarget: Identifiable {
+    let index: Int
+    var id: Int { index }
 }

@@ -144,7 +144,7 @@ struct MockPipeline: CardIdentificationPipelineProtocol {
     }
 
     func identifyBatch(images: [CGImage]) async -> BatchIdentificationResult {
-        return BatchIdentificationResult(cards: [], payloadBytes: 0, error: nil)
+        return BatchIdentificationResult(cards: [], payloadBytes: 0, analysis: nil, error: nil)
     }
 
     func clearFeaturePrintCache() async {

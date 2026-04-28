@@ -205,6 +205,8 @@
 		DE33D2F06A2C8C000602BA85 /* CollectionValueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD6B755E1DDF183FEF1E6BB /* CollectionValueTests.swift */; };
 		BB11AA22CC33DD44EE55FF66 /* GeminiBatchResponseParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA22BB33CC44DD55EE66FF77 /* GeminiBatchResponseParserTests.swift */; };
 		CC33DD44EE55FF66AA77BB88 /* BatchScanViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD44EE55FF66AA77BB88CC99 /* BatchScanViewModelTests.swift */; };
+		EE55FF66AA77BB88CC99DD11 /* UIImage+Orientation.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF66AA77BB88CC99DD11EE22 /* UIImage+Orientation.swift */; };
+		AA77BB88CC99DD11EE22FF33 /* UIImageOrientationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB88CC99DD11EE22FF33AA44 /* UIImageOrientationTests.swift */; };
 		DEB0BBC5C5C0D932EB794B45 /* DeckFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8270ABBF3105C5643C5A712 /* DeckFormat.swift */; };
 		E006C416C9E1508A671BFF37 /* ClassicDeckDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FAE42AE8019C65A54C95EB1 /* ClassicDeckDetailView.swift */; };
 		E1CFA89BBA57FAD22DCD0FEF /* CopyrightYearExtractorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42A03300EA4E9CE9FBCE9CE0 /* CopyrightYearExtractorTests.swift */; };
@@ -449,6 +451,8 @@
 		DDD6B755E1DDF183FEF1E6BB /* CollectionValueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionValueTests.swift; sourceTree = "<group>"; };
 		AA22BB33CC44DD55EE66FF77 /* GeminiBatchResponseParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiBatchResponseParserTests.swift; sourceTree = "<group>"; };
 		DD44EE55FF66AA77BB88CC99 /* BatchScanViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchScanViewModelTests.swift; sourceTree = "<group>"; };
+		FF66AA77BB88CC99DD11EE22 /* UIImage+Orientation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIImage+Orientation.swift"; sourceTree = "<group>"; };
+		BB88CC99DD11EE22FF33AA44 /* UIImageOrientationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIImageOrientationTests.swift; sourceTree = "<group>"; };
 		DE57AD5A1CECE9BAF56CC887 /* ArchetypeMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchetypeMatcher.swift; sourceTree = "<group>"; };
 		E00A71B39EA6EEBFDA46EB41 /* TCGPHService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TCGPHService.swift; sourceTree = "<group>"; };
 		E00CC5B63598B175A590CCD2 /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
@@ -601,6 +605,7 @@
 			children = (
 				11B33B59868017AAA0F1788D /* ArtVariantMatcher.swift */,
 				10EA5138FB681CCADA88DD15 /* BorderColorDetector.swift */,
+				FF66AA77BB88CC99DD11EE22 /* UIImage+Orientation.swift */,
 				1D8CF55E71A7E20780ACAB35 /* CameraManager.swift */,
 				1D3DE5961526665CF7B62C16 /* CardDetector.swift */,
 				E23BC4B6964F6D705CD71D61 /* ColorSegmentationCardDetector.swift */,
@@ -725,6 +730,7 @@
 				42A03300EA4E9CE9FBCE9CE0 /* CopyrightYearExtractorTests.swift */,
 				AE45BEE0051754F8E38B520C /* FeaturePrintCacheTests.swift */,
 				AA22BB33CC44DD55EE66FF77 /* GeminiBatchResponseParserTests.swift */,
+				BB88CC99DD11EE22FF33AA44 /* UIImageOrientationTests.swift */,
 				EA66245B4C93CD4D522AB835 /* ImageMatcherTests.swift */,
 				7D22EE4AB8218C72C0EAD60D /* ImageProcessorTests.swift */,
 				9A7B4B1F2CDD27529C369C59 /* PerceptualHashTests.swift */,
@@ -1124,6 +1130,7 @@
 				CF2673DD14458A085EF886DA /* ArchetypeRowView.swift in Sources */,
 				C49461BA8496472ED9C4FBC7 /* ArchetypeSearchService.swift in Sources */,
 				DD3701D67AF3354B5BDE1D54 /* ArtVariantMatcher.swift in Sources */,
+				EE55FF66AA77BB88CC99DD11 /* UIImage+Orientation.swift in Sources */,
 				AD5228177719014722D29189 /* ArtistExtractor.swift in Sources */,
 				4D6C6E1A9E466F297465746F /* BatchScanScreen.swift in Sources */,
 				4D9776F28C9DC5A66CA9936C /* BatchScanViewModel.swift in Sources */,
@@ -1313,6 +1320,7 @@
 				DE33D2F06A2C8C000602BA85 /* CollectionValueTests.swift in Sources */,
 				BB11AA22CC33DD44EE55FF66 /* GeminiBatchResponseParserTests.swift in Sources */,
 				CC33DD44EE55FF66AA77BB88 /* BatchScanViewModelTests.swift in Sources */,
+				AA77BB88CC99DD11EE22FF33 /* UIImageOrientationTests.swift in Sources */,
 				185CE0A869BE7B1C47729D03 /* CollectorInfoExtractorTests.swift in Sources */,
 				E1CFA89BBA57FAD22DCD0FEF /* CopyrightYearExtractorTests.swift in Sources */,
 				862900D67BA32680100B613E /* DeckGuideLinkedTextTests.swift in Sources */,

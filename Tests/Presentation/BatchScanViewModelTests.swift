@@ -5,13 +5,15 @@ import CoreGraphics
 
 // MARK: - Helpers
 
-private func makeTinyCGImage() -> CGImage {
+private func makeTinyCGImage(side: Int = 200) -> CGImage {
     let context = CGContext(
-        data: nil, width: 1, height: 1,
+        data: nil, width: side, height: side,
         bitsPerComponent: 8, bytesPerRow: 0,
         space: CGColorSpaceCreateDeviceRGB(),
         bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
     )!
+    context.setFillColor(red: 1, green: 1, blue: 1, alpha: 1)
+    context.fill(CGRect(x: 0, y: 0, width: side, height: side))
     return context.makeImage()!
 }
 
@@ -43,9 +45,13 @@ private func makeBatchCard(name: String, set: String = "lea", collector: String 
     )
 }
 
+private func makeIdentified(imageIndex: Int, name: String, bbox: BatchBoundingBox? = nil) -> BatchIdentifiedCard {
+    BatchIdentifiedCard(imageIndex: imageIndex, card: makeBatchCard(name: name), boundingBox: bbox)
+}
+
 /// Minimal pipeline stub — only `identifyBatch` is exercised by these tests.
 private struct BatchStubPipeline: CardIdentificationPipelineProtocol {
-    var batchResult: BatchIdentificationResult = BatchIdentificationResult(cards: [], payloadBytes: 0, error: nil)
+    var batchResult: BatchIdentificationResult = BatchIdentificationResult(cards: [], payloadBytes: 0, analysis: nil, error: nil)
 
     func identify(imageData: Data) async -> Card? { nil }
     func identify(cgImage: CGImage) async -> Card? { nil }
@@ -71,7 +77,7 @@ struct BatchScanViewModelTests {
         let viewModel = BatchScanViewModel(pipeline: BatchStubPipeline())
         viewModel.loadedImages = [makeTinyCGImage(), makeTinyCGImage(), makeTinyCGImage()]
 
-        let result = BatchIdentificationResult(cards: [], payloadBytes: 0, error: "Rate limited — try again in a minute")
+        let result = BatchIdentificationResult(cards: [], payloadBytes: 0, analysis: nil, error: "Rate limited — try again in a minute")
         viewModel.applyBatchResult(result)
 
         #expect(viewModel.state == .error("Rate limited — try again in a minute"))
@@ -84,7 +90,7 @@ struct BatchScanViewModelTests {
         let viewModel = BatchScanViewModel(pipeline: BatchStubPipeline())
         viewModel.loadedImages = [makeTinyCGImage(), makeTinyCGImage()]
 
-        let result = BatchIdentificationResult(cards: [], payloadBytes: 1234, error: nil)
+        let result = BatchIdentificationResult(cards: [], payloadBytes: 1234, analysis: nil, error: nil)
         viewModel.applyBatchResult(result)
 
         #expect(viewModel.state == .results)
@@ -93,30 +99,75 @@ struct BatchScanViewModelTests {
         #expect(viewModel.failedIndices == [0, 1])
     }
 
-    @Test("Multiple cards from same photo all share imageIndex; cardCount is sum")
+    @Test("Multiple cards from same photo all share imageIndex; cardCount sums steppers")
     func multipleCardsFromOnePhoto() {
         let viewModel = BatchScanViewModel(pipeline: BatchStubPipeline())
         viewModel.loadedImages = [makeTinyCGImage(), makeTinyCGImage()]
 
-        let bolt = makeBatchCard(name: "Lightning Bolt")
-        let counter = makeBatchCard(name: "Counterspell")
-        let prospector = makeBatchCard(name: "Skirk Prospector", set: "ons", collector: "230")
-
         let result = BatchIdentificationResult(
             cards: [
-                (imageIndex: 0, card: bolt),
-                (imageIndex: 0, card: counter),
-                (imageIndex: 1, card: prospector),
+                makeIdentified(imageIndex: 0, name: "Lightning Bolt"),
+                makeIdentified(imageIndex: 0, name: "Counterspell"),
+                makeIdentified(imageIndex: 1, name: "Skirk Prospector"),
             ],
             payloadBytes: 5000,
+            analysis: nil,
             error: nil
         )
         viewModel.applyBatchResult(result)
 
         #expect(viewModel.state == .results)
         #expect(viewModel.cardCount == 3)
+        #expect(viewModel.detectionCount == 3)
         #expect(viewModel.photosWithCards == 2)
         #expect(viewModel.failedIndices.isEmpty)
+    }
+
+    @Test("Quantity defaults to 1; stepper changes affect cardCount")
+    func quantityStepper() {
+        let viewModel = BatchScanViewModel(pipeline: BatchStubPipeline())
+        viewModel.loadedImages = [makeTinyCGImage()]
+        viewModel.applyBatchResult(BatchIdentificationResult(
+            cards: [makeIdentified(imageIndex: 0, name: "Bolt"), makeIdentified(imageIndex: 0, name: "Counter")],
+            payloadBytes: 100, analysis: nil, error: nil
+        ))
+
+        #expect(viewModel.quantity(at: 0) == 1)
+        #expect(viewModel.cardCount == 2)
+
+        viewModel.incrementQuantity(at: 0)
+        viewModel.incrementQuantity(at: 0)
+        #expect(viewModel.quantity(at: 0) == 3)
+        #expect(viewModel.cardCount == 4)
+
+        viewModel.decrementQuantity(at: 0)
+        #expect(viewModel.quantity(at: 0) == 2)
+    }
+
+    @Test("Stepper clamps between 1 and 20")
+    func stepperClamps() {
+        let viewModel = BatchScanViewModel(pipeline: BatchStubPipeline())
+        viewModel.loadedImages = [makeTinyCGImage()]
+        viewModel.applyBatchResult(BatchIdentificationResult(
+            cards: [makeIdentified(imageIndex: 0, name: "X")],
+            payloadBytes: 0, analysis: nil, error: nil
+        ))
+        viewModel.decrementQuantity(at: 0)
+        viewModel.decrementQuantity(at: 0)
+        #expect(viewModel.quantity(at: 0) == 1)
+        viewModel.setQuantity(at: 0, to: 50)
+        #expect(viewModel.quantity(at: 0) == 20)
+    }
+
+    @Test("Analysis string surfaces through viewmodel")
+    func analysisSurfaces() {
+        let viewModel = BatchScanViewModel(pipeline: BatchStubPipeline())
+        viewModel.loadedImages = [makeTinyCGImage()]
+        viewModel.applyBatchResult(BatchIdentificationResult(
+            cards: [makeIdentified(imageIndex: 0, name: "X")],
+            payloadBytes: 0, analysis: "Fancy goblin tribal", error: nil
+        ))
+        #expect(viewModel.analysis == "Fancy goblin tribal")
     }
 
     @Test("Photos with no cards land in failedIndices")
@@ -124,11 +175,9 @@ struct BatchScanViewModelTests {
         let viewModel = BatchScanViewModel(pipeline: BatchStubPipeline())
         viewModel.loadedImages = [makeTinyCGImage(), makeTinyCGImage(), makeTinyCGImage(), makeTinyCGImage()]
 
-        let bolt = makeBatchCard(name: "Lightning Bolt")
         let result = BatchIdentificationResult(
-            cards: [(imageIndex: 2, card: bolt)],
-            payloadBytes: 1000,
-            error: nil
+            cards: [makeIdentified(imageIndex: 2, name: "X")],
+            payloadBytes: 1000, analysis: nil, error: nil
         )
         viewModel.applyBatchResult(result)
 
@@ -137,36 +186,60 @@ struct BatchScanViewModelTests {
         #expect(viewModel.failedIndices == [0, 1, 3])
     }
 
-    @Test("Quantity-expanded duplicates count as separate detections")
-    func quantityExpandedDuplicates() {
+    @Test("buildCropsForSaving uses bbox to crop, multiplies by stepper quantity")
+    func cropsRespectStepper() {
         let viewModel = BatchScanViewModel(pipeline: BatchStubPipeline())
-        viewModel.loadedImages = [makeTinyCGImage()]
+        viewModel.loadedImages = [makeTinyCGImage(side: 400)]
+        let bbox = BatchBoundingBox(x: 0.1, y: 0.1, w: 0.4, h: 0.4)  // 160×160 crop
+        viewModel.applyBatchResult(BatchIdentificationResult(
+            cards: [makeIdentified(imageIndex: 0, name: "Card", bbox: bbox)],
+            payloadBytes: 0, analysis: nil, error: nil
+        ))
 
-        // Pipeline expands quantity=4 into 4 separate entries before this VM sees them.
-        let prospector = makeBatchCard(name: "Skirk Prospector", set: "ons", collector: "230")
-        let result = BatchIdentificationResult(
-            cards: Array(repeating: (imageIndex: 0, card: prospector), count: 4),
-            payloadBytes: 800,
-            error: nil
-        )
-        viewModel.applyBatchResult(result)
+        viewModel.setQuantity(at: 0, to: 3)
+        let crops = viewModel.buildCropsForSaving()
+        #expect(crops.count == 3)
+        #expect(crops[0].width == 160)
+        #expect(crops[0].height == 160)
+    }
 
-        #expect(viewModel.cardCount == 4)
-        #expect(viewModel.photosWithCards == 1)
-        #expect(viewModel.failedIndices.isEmpty)
+    @Test("buildCropsForSaving falls back to full source when bbox is missing")
+    func cropFallsBackWithoutBbox() {
+        let viewModel = BatchScanViewModel(pipeline: BatchStubPipeline())
+        viewModel.loadedImages = [makeTinyCGImage(side: 300)]
+        viewModel.applyBatchResult(BatchIdentificationResult(
+            cards: [makeIdentified(imageIndex: 0, name: "X", bbox: nil)],
+            payloadBytes: 0, analysis: nil, error: nil
+        ))
+        let crops = viewModel.buildCropsForSaving()
+        #expect(crops.count == 1)
+        #expect(crops[0].width == 300)
+        #expect(crops[0].height == 300)
+    }
+
+    @Test("buildCropsForSaving rejects sub-50px bbox and falls back")
+    func cropRejectsTinyBbox() {
+        let viewModel = BatchScanViewModel(pipeline: BatchStubPipeline())
+        viewModel.loadedImages = [makeTinyCGImage(side: 200)]
+        let tiny = BatchBoundingBox(x: 0.1, y: 0.1, w: 0.1, h: 0.1)  // 20×20 crop
+        viewModel.applyBatchResult(BatchIdentificationResult(
+            cards: [makeIdentified(imageIndex: 0, name: "X", bbox: tiny)],
+            payloadBytes: 0, analysis: nil, error: nil
+        ))
+        let crops = viewModel.buildCropsForSaving()
+        #expect(crops.count == 1)
+        #expect(crops[0].width == 200)  // Fallback to full source
     }
 
     @Test("Reset clears all batch state back to selecting")
     func resetReturnsToSelecting() {
         let viewModel = BatchScanViewModel(pipeline: BatchStubPipeline())
         viewModel.loadedImages = [makeTinyCGImage()]
-        let bolt = makeBatchCard(name: "Lightning Bolt")
         viewModel.applyBatchResult(BatchIdentificationResult(
-            cards: [(imageIndex: 0, card: bolt)],
-            payloadBytes: 500,
-            error: nil
+            cards: [makeIdentified(imageIndex: 0, name: "X")],
+            payloadBytes: 500, analysis: "Notes", error: nil
         ))
-        viewModel.payloadBytes = 500
+        viewModel.setQuantity(at: 0, to: 5)
 
         viewModel.reset()
 
@@ -175,5 +248,7 @@ struct BatchScanViewModelTests {
         #expect(viewModel.failedIndices.isEmpty)
         #expect(viewModel.payloadBytes == 0)
         #expect(viewModel.loadedImages.isEmpty)
+        #expect(viewModel.analysis == nil)
+        #expect(viewModel.quantities.isEmpty)
     }
 }
