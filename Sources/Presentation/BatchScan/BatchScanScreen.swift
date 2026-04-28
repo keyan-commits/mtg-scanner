@@ -139,7 +139,7 @@ struct BatchScanScreen: View {
                                 .foregroundStyle(.green)
                                 .font(.title2)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("\(viewModel.identifiedCount) of \(viewModel.totalPhotos) identified")
+                                Text("\(viewModel.cardCount) card\(viewModel.cardCount == 1 ? "" : "s") from \(viewModel.photosWithCards) of \(viewModel.totalPhotos) photo\(viewModel.totalPhotos == 1 ? "" : "s")")
                                     .font(MD3Typography.titleMedium)
                                     .foregroundStyle(MD3Theme.onSurface)
                                 Text("Payload: \(viewModel.payloadMB)")
@@ -149,7 +149,7 @@ struct BatchScanScreen: View {
                             Spacer()
                         }
                         if !viewModel.failedIndices.isEmpty {
-                            Text("\(viewModel.failedIndices.count) photo\(viewModel.failedIndices.count == 1 ? "" : "s") could not be identified")
+                            Text("\(viewModel.failedIndices.count) photo\(viewModel.failedIndices.count == 1 ? "" : "s") had no recognizable cards")
                                 .font(.caption)
                                 .foregroundStyle(.orange)
                         }
@@ -217,13 +217,13 @@ struct BatchScanScreen: View {
                     .padding(.horizontal, 16)
                 }
 
-                // Card list
+                // Card list — one row per detected card. Multiple rows may share
+                // the same source photo when a photo contains several cards.
                 VStack(spacing: 0) {
-                    ForEach(Array(viewModel.identifiedCards.enumerated()), id: \.offset) { _, entry in
+                    ForEach(Array(viewModel.identifiedCards.enumerated()), id: \.offset) { offset, entry in
                         HStack(spacing: 12) {
-                            // Thumbnail
-                            if entry.index < viewModel.loadedImages.count {
-                                let img = viewModel.loadedImages[entry.index]
+                            if entry.imageIndex < viewModel.loadedImages.count {
+                                let img = viewModel.loadedImages[entry.imageIndex]
                                 Image(decorative: img, scale: 1)
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
@@ -252,7 +252,7 @@ struct BatchScanScreen: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
 
-                        if entry.index != viewModel.identifiedCards.last?.index {
+                        if offset < viewModel.identifiedCards.count - 1 {
                             Divider().padding(.leading, 68)
                         }
                     }

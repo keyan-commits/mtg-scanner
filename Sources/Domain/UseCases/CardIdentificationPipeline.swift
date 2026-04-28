@@ -82,12 +82,25 @@ protocol CardIdentificationPipelineProtocol: Sendable {
     /// Used to feed Gemini-identified results back into local ML.
     func learnFromIdentification(cardImage: CGImage, card: Card) async
 
-    /// Identifies multiple individual card images via Gemini batch API.
-    /// Returns resolved Card objects mapped by input index, plus payload size.
-    func identifyBatch(images: [CGImage]) async -> (cards: [(index: Int, card: Card)], payloadBytes: Int)
+    /// Identifies cards across multiple photos in one Gemini call.
+    /// Each photo may contain multiple cards. Each detection becomes one entry in
+    /// `cards` (Gemini's `quantity` is expanded so 4× of the same card → 4 entries).
+    /// `error` is non-nil when the API call failed end-to-end so callers can
+    /// distinguish a real failure from "Gemini saw no cards".
+    func identifyBatch(images: [CGImage]) async -> BatchIdentificationResult
 
     /// Clears the FeaturePrint cache (e.g., before batch identification of a new photo).
     func clearFeaturePrintCache() async
+}
+
+/// Result of a multi-photo batch identification pass.
+/// `cards` lists one entry per detected card (quantities already expanded).
+/// `error` is non-nil only when the API call failed end-to-end; an empty `cards`
+/// with `error == nil` means "Gemini ran but saw no recognizable cards".
+struct BatchIdentificationResult {
+    let cards: [(imageIndex: Int, card: Card)]
+    let payloadBytes: Int
+    let error: String?
 }
 
 // MARK: - Implementation
@@ -652,17 +665,23 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
 
     // MARK: - Batch Identification
 
-    /// Identifies multiple individual card images via Gemini batch API.
-    /// Returns resolved Card objects mapped by input index, plus payload size.
-    func identifyBatch(images: [CGImage]) async -> (cards: [(index: Int, card: Card)], payloadBytes: Int) {
-        guard GeminiVisionService.isConfigured else { return ([], 0) }
-        guard let result = await GeminiVisionService.shared.identifyCardBatch(images: images) else { return ([], 0) }
+    /// Identifies cards across multiple photos in one Gemini call.
+    /// See `BatchIdentificationResult` for the contract. Each Gemini detection's
+    /// `quantity` is expanded into individual entries — a single photo containing
+    /// 4× of the same card produces 4 entries, all sharing the same `imageIndex`.
+    func identifyBatch(images: [CGImage]) async -> BatchIdentificationResult {
+        guard GeminiVisionService.isConfigured else {
+            return BatchIdentificationResult(cards: [], payloadBytes: 0, error: "Gemini is not configured. Add an API key in Settings.")
+        }
+        let response = await GeminiVisionService.shared.identifyCardBatch(images: images)
+        if let error = response.error {
+            return BatchIdentificationResult(cards: [], payloadBytes: response.payloadBytes, error: error)
+        }
 
-        var resolved: [(index: Int, card: Card)] = []
-        for batchResult in result.cards {
+        var resolved: [(imageIndex: Int, card: Card)] = []
+        for batchResult in response.cards {
             var printings = (try? await repository.findAllPrintings(name: batchResult.cardName)) ?? []
 
-            // Fuzzy fallback
             if printings.isEmpty {
                 if let searchResults = try? await repository.searchCards(query: batchResult.cardName),
                    !searchResults.isEmpty {
@@ -671,22 +690,24 @@ struct CardIdentificationPipeline: CardIdentificationPipelineProtocol {
                 }
             }
 
-            if !printings.isEmpty {
-                var card: Card?
-                if let sc = batchResult.setCode, let cn = batchResult.collectorNumber {
-                    card = printings.first(where: { $0.set.code == sc && $0.collectorNumber == cn })
-                }
-                if card == nil, let sc = batchResult.setCode {
-                    card = printings.first(where: { $0.set.code == sc })
-                }
-                if card == nil { card = printings.first }
+            guard !printings.isEmpty else { continue }
 
-                if let card {
-                    resolved.append((index: batchResult.index, card: card))
+            var card: Card?
+            if let sc = batchResult.setCode, let cn = batchResult.collectorNumber {
+                card = printings.first(where: { $0.set.code == sc && $0.collectorNumber == cn })
+            }
+            if card == nil, let sc = batchResult.setCode {
+                card = printings.first(where: { $0.set.code == sc })
+            }
+            if card == nil { card = printings.first }
+
+            if let card {
+                for _ in 0..<max(1, batchResult.quantity) {
+                    resolved.append((imageIndex: batchResult.imageIndex, card: card))
                 }
             }
         }
-        return (cards: resolved, payloadBytes: result.payloadBytes)
+        return BatchIdentificationResult(cards: resolved, payloadBytes: response.payloadBytes, error: nil)
     }
 
     // MARK: - Step 2: OCR Signal Extraction

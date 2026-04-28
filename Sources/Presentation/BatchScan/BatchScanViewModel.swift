@@ -28,7 +28,8 @@ final class BatchScanViewModel {
     var state: State = .selecting
     var selectedPhotos: [PhotosPickerItem] = []
     var loadedImages: [CGImage] = []
-    var identifiedCards: [(index: Int, card: Card)] = []
+    var identifiedCards: [(imageIndex: Int, card: Card)] = []
+    /// Photo indices that produced zero recognized cards.
     var failedIndices: [Int] = []
     var payloadBytes: Int = 0
     var addedToCollection: Int = 0
@@ -42,7 +43,10 @@ final class BatchScanViewModel {
         self.deckRepository = deckRepository
     }
 
-    var identifiedCount: Int { identifiedCards.count }
+    /// Total cards detected across all photos.
+    var cardCount: Int { identifiedCards.count }
+    /// Number of source photos that produced at least one card.
+    var photosWithCards: Int { Set(identifiedCards.map(\.imageIndex)).count }
     var totalPhotos: Int { loadedImages.count }
     var payloadMB: String {
         ByteCountFormatter.string(fromByteCount: Int64(payloadBytes), countStyle: .file)
@@ -52,7 +56,6 @@ final class BatchScanViewModel {
         guard !selectedPhotos.isEmpty else { return }
         state = .processing(current: 0, total: selectedPhotos.count)
 
-        // Load all photos as CGImages
         loadedImages = []
         for (i, item) in selectedPhotos.enumerated() {
             state = .processing(current: i + 1, total: selectedPhotos.count)
@@ -68,16 +71,27 @@ final class BatchScanViewModel {
             return
         }
 
-        // Send to Gemini batch
         state = .processing(current: loadedImages.count, total: loadedImages.count)
         let result = await pipeline.identifyBatch(images: loadedImages)
-        identifiedCards = result.cards
+        applyBatchResult(result)
+    }
+
+    /// Updates state from a pipeline result. Extracted for unit testing — bypasses
+    /// the PhotosPicker loading step so tests can drive the post-API logic directly.
+    func applyBatchResult(_ result: BatchIdentificationResult) {
         payloadBytes = result.payloadBytes
 
-        // Find which indices had no match
-        let matchedIndices = Set(identifiedCards.map(\.index))
-        failedIndices = (0..<loadedImages.count).filter { !matchedIndices.contains($0) }
+        // Surface real failures instead of silently showing "0 of N identified".
+        if let error = result.error {
+            identifiedCards = []
+            failedIndices = []
+            state = .error(error)
+            return
+        }
 
+        identifiedCards = result.cards
+        let photosWithMatches = Set(identifiedCards.map(\.imageIndex))
+        failedIndices = (0..<loadedImages.count).filter { !photosWithMatches.contains($0) }
         state = .results
     }
 
