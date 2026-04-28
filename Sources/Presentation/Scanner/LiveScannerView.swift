@@ -311,11 +311,12 @@ struct LiveScannerView: View {
         lastIdentified = card
         scannedCards.append(card)
 
-        // Auto-reset after 1.5 seconds
+        // Banner fades after 1.5s for UX feedback. The scanner itself stays
+        // locked until the user physically removes the card from frame —
+        // CameraManager's empty-frame counter handles that automatically.
         Task {
             try? await Task.sleep(for: .seconds(1.5))
             lastIdentified = nil
-            cameraManager.reset()
         }
     }
 }

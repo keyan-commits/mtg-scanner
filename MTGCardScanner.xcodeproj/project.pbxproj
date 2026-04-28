@@ -209,6 +209,8 @@
 		AA77BB88CC99DD11EE22FF33 /* UIImageOrientationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB88CC99DD11EE22FF33AA44 /* UIImageOrientationTests.swift */; };
 		EE99FF11AA22BB33CC44DD55 /* SetFilterField.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF99AA11BB22CC33DD44EE55 /* SetFilterField.swift */; };
 		AA11BB22CC33DD44EE55FF66 /* SetFilterFieldTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB22CC33DD44EE55FF66AA77 /* SetFilterFieldTests.swift */; };
+		11AA22BB33CC44DD55EE66FF /* EmptyFrameCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22BB33CC44DD55EE66FF77AA /* EmptyFrameCounter.swift */; };
+		33CC44DD55EE66FF77AA88BB /* EmptyFrameCounterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44DD55EE66FF77AA88BB99CC /* EmptyFrameCounterTests.swift */; };
 		DEB0BBC5C5C0D932EB794B45 /* DeckFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8270ABBF3105C5643C5A712 /* DeckFormat.swift */; };
 		E006C416C9E1508A671BFF37 /* ClassicDeckDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FAE42AE8019C65A54C95EB1 /* ClassicDeckDetailView.swift */; };
 		E1CFA89BBA57FAD22DCD0FEF /* CopyrightYearExtractorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42A03300EA4E9CE9FBCE9CE0 /* CopyrightYearExtractorTests.swift */; };
@@ -457,6 +459,8 @@
 		BB88CC99DD11EE22FF33AA44 /* UIImageOrientationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIImageOrientationTests.swift; sourceTree = "<group>"; };
 		FF99AA11BB22CC33DD44EE55 /* SetFilterField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetFilterField.swift; sourceTree = "<group>"; };
 		BB22CC33DD44EE55FF66AA77 /* SetFilterFieldTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetFilterFieldTests.swift; sourceTree = "<group>"; };
+		22BB33CC44DD55EE66FF77AA /* EmptyFrameCounter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyFrameCounter.swift; sourceTree = "<group>"; };
+		44DD55EE66FF77AA88BB99CC /* EmptyFrameCounterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyFrameCounterTests.swift; sourceTree = "<group>"; };
 		DE57AD5A1CECE9BAF56CC887 /* ArchetypeMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchetypeMatcher.swift; sourceTree = "<group>"; };
 		E00A71B39EA6EEBFDA46EB41 /* TCGPHService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TCGPHService.swift; sourceTree = "<group>"; };
 		E00CC5B63598B175A590CCD2 /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
@@ -610,6 +614,7 @@
 				11B33B59868017AAA0F1788D /* ArtVariantMatcher.swift */,
 				10EA5138FB681CCADA88DD15 /* BorderColorDetector.swift */,
 				FF66AA77BB88CC99DD11EE22 /* UIImage+Orientation.swift */,
+				22BB33CC44DD55EE66FF77AA /* EmptyFrameCounter.swift */,
 				1D8CF55E71A7E20780ACAB35 /* CameraManager.swift */,
 				1D3DE5961526665CF7B62C16 /* CardDetector.swift */,
 				E23BC4B6964F6D705CD71D61 /* ColorSegmentationCardDetector.swift */,
@@ -735,6 +740,7 @@
 				AE45BEE0051754F8E38B520C /* FeaturePrintCacheTests.swift */,
 				AA22BB33CC44DD55EE66FF77 /* GeminiBatchResponseParserTests.swift */,
 				BB88CC99DD11EE22FF33AA44 /* UIImageOrientationTests.swift */,
+				44DD55EE66FF77AA88BB99CC /* EmptyFrameCounterTests.swift */,
 				EA66245B4C93CD4D522AB835 /* ImageMatcherTests.swift */,
 				7D22EE4AB8218C72C0EAD60D /* ImageProcessorTests.swift */,
 				9A7B4B1F2CDD27529C369C59 /* PerceptualHashTests.swift */,
@@ -1138,6 +1144,7 @@
 				DD3701D67AF3354B5BDE1D54 /* ArtVariantMatcher.swift in Sources */,
 				EE55FF66AA77BB88CC99DD11 /* UIImage+Orientation.swift in Sources */,
 				EE99FF11AA22BB33CC44DD55 /* SetFilterField.swift in Sources */,
+				11AA22BB33CC44DD55EE66FF /* EmptyFrameCounter.swift in Sources */,
 				AD5228177719014722D29189 /* ArtistExtractor.swift in Sources */,
 				4D6C6E1A9E466F297465746F /* BatchScanScreen.swift in Sources */,
 				4D9776F28C9DC5A66CA9936C /* BatchScanViewModel.swift in Sources */,
@@ -1329,6 +1336,7 @@
 				CC33DD44EE55FF66AA77BB88 /* BatchScanViewModelTests.swift in Sources */,
 				AA77BB88CC99DD11EE22FF33 /* UIImageOrientationTests.swift in Sources */,
 				AA11BB22CC33DD44EE55FF66 /* SetFilterFieldTests.swift in Sources */,
+				33CC44DD55EE66FF77AA88BB /* EmptyFrameCounterTests.swift in Sources */,
 				185CE0A869BE7B1C47729D03 /* CollectorInfoExtractorTests.swift in Sources */,
 				E1CFA89BBA57FAD22DCD0FEF /* CopyrightYearExtractorTests.swift in Sources */,
 				862900D67BA32680100B613E /* DeckGuideLinkedTextTests.swift in Sources */,

@@ -47,6 +47,9 @@ final class CameraManager: NSObject, ObservableObject {
     private var consecutiveNames: [String] = []
     private let confirmCount = 3
     private var isConfirmed = false
+    /// Counts frames where no rectangle was detected; used to auto-release the
+    /// post-confirmation lock when the user physically removes the card.
+    private var emptyFrames = EmptyFrameCounter(threshold: 6)
 
     // MARK: - Setup
 
@@ -99,6 +102,7 @@ final class CameraManager: NSObject, ObservableObject {
         confirmedCardName = nil
         consecutiveNames.removeAll()
         isConfirmed = false
+        emptyFrames.reset()
         scanState = .idle
     }
 
@@ -181,6 +185,7 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
 
             if let obs = observation {
                 self.detectedQuad = [obs.topLeft, obs.topRight, obs.bottomRight, obs.bottomLeft]
+                self.emptyFrames.observe(rectanglePresent: true)
 
                 if let name = ocrName, !self.isConfirmed {
                     self.recognizedCardName = name
@@ -209,7 +214,16 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
                 self.detectedQuad = nil
                 self.recognizedCardName = nil
                 self.consecutiveNames.removeAll()
-                if !self.isConfirmed {
+                if self.isConfirmed {
+                    // Card was committed; wait for it to leave the frame for
+                    // a sustained run before re-engaging the scanner.
+                    if self.emptyFrames.observe(rectanglePresent: false) {
+                        self.confirmedCardName = nil
+                        self.isConfirmed = false
+                        self.scanState = .idle
+                        print("[LiveOCR] Card removed — ready for next scan")
+                    }
+                } else {
                     self.scanState = .idle
                 }
             }
