@@ -589,23 +589,38 @@ actor GeminiVisionService {
         }
 
         let prompt = """
-        You are given \(images.count) photos containing Magic: The Gathering cards. Each photo may contain ONE OR MORE cards (binder pages, stacks, fanned hands, single cards on a table, etc.).
-        For each photo (numbered 0 to \(images.count - 1) in input order), identify every visible card and estimate a tight bounding box for each card.
+        You are given \(images.count) photos containing Magic: The Gathering cards. Each photo may contain ONE OR MORE cards (binder pages, stacks, fanned hands, single cards on a table).
+
+        For every visible card, identify the EXACT printing shown — NOT a reprint or the most recent edition. Use these visual cues:
+        - Frame era: pre-2003 = old beveled frame, 2003–2014 = modern frame, 2015+ = M15 frame
+        - Set expansion symbol: small icon to the right of the card type line (or right of the title for old frame)
+        - Border color: white, black, silver, borderless
+        - Copyright year and set indicator at the bottom edge of the card
+
+        If you cannot tell the exact printing with confidence, return null for set_code and collector_number. DO NOT guess. DO NOT substitute the most recent reprint. A null is far better than a wrong code.
+
+        For each photo (numbered 0 to \(images.count - 1) in input order), return every visible card with:
+        - card_name: exact English name
+        - set_code: 3-letter Scryfall code matching the visible printing, or null if uncertain
+        - collector_number: as printed on the card, or null if uncertain
+        - quantity: count of identical visible copies in this same photo
+        - x, y, w, h: tight fractional bounding box (0.0–1.0) of one representative copy
+
         Return ONLY a JSON object with this exact shape:
         {
-          "analysis": "Brief 1-2 sentence summary of what's in this batch (e.g., archetype, set, anything notable). Optional — use empty string if nothing useful to add.",
+          "analysis": "Brief 1-2 sentence summary of what's in this batch (or empty string).",
           "results": [
             {"image_index": 0, "cards": [
-              {"card_name": "exact English name", "set_code": "3-letter Scryfall code or null", "collector_number": "collector number or null", "quantity": 1, "x": 0.0, "y": 0.0, "w": 0.5, "h": 0.5},
-              ...
+              {"card_name": "...", "set_code": "...", "collector_number": "...", "quantity": 1, "x": 0.0, "y": 0.0, "w": 0.5, "h": 0.5}
             ]},
             ...
           ]
         }
-        Bounding boxes use fractional coordinates (0.0–1.0) relative to the source photo's width and height. (x, y) is the top-left corner. Tight crops, one box per card detection.
-        Within a photo, group identical cards (same name + same set/printing) by `quantity`. Different printings of the same card name are separate entries.
-        If a photo contains no recognizable cards, return {"image_index": N, "cards": []}.
-        Do not include explanation outside the analysis field, or markdown wrapping.
+
+        Bounding boxes are fractional (0.0–1.0) relative to the source photo. (x, y) is the top-left corner.
+        Within a photo, group identical cards (same name AND same printing) by `quantity`. Different printings of the same card name are separate entries.
+        If a photo contains no recognizable cards: {"image_index": N, "cards": []}.
+        No markdown wrapping.
         """
         parts.append(["text": prompt])
 

@@ -295,8 +295,10 @@ struct BatchScanScreen: View {
 
     private func identifiedRow(at index: Int, entry: BatchIdentifiedCard) -> some View {
         HStack(spacing: 8) {
-            if entry.imageIndex < viewModel.loadedImages.count {
-                Image(decorative: viewModel.loadedImages[entry.imageIndex], scale: 1)
+            // Per-card crop from the bbox; falls back to the full source photo
+            // when no bbox is available.
+            if let thumb = viewModel.cardThumbnails[index] {
+                Image(decorative: thumb, scale: 1)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: 36, height: 50)

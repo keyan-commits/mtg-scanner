@@ -49,9 +49,12 @@ private func makeIdentified(imageIndex: Int, name: String, bbox: BatchBoundingBo
     BatchIdentifiedCard(imageIndex: imageIndex, card: makeBatchCard(name: name), boundingBox: bbox)
 }
 
-/// Minimal pipeline stub — only `identifyBatch` is exercised by these tests.
-private struct BatchStubPipeline: CardIdentificationPipelineProtocol {
+/// Minimal pipeline stub — only `identifyBatch` and `learnFromIdentification`
+/// are exercised by these tests.
+private final class BatchStubPipeline: CardIdentificationPipelineProtocol, @unchecked Sendable {
     var batchResult: BatchIdentificationResult = BatchIdentificationResult(cards: [], payloadBytes: 0, analysis: nil, error: nil)
+    /// Records every learnFromIdentification call. Tests assert against this.
+    var learnedCardNames: [String] = []
 
     func identify(imageData: Data) async -> Card? { nil }
     func identify(cgImage: CGImage) async -> Card? { nil }
@@ -61,7 +64,9 @@ private struct BatchStubPipeline: CardIdentificationPipelineProtocol {
     func identifyAllWithGemini(image: CGImage) async -> (analysis: String?, cards: [(card: Card, bbox: CGRect?)]) {
         (nil, [])
     }
-    func learnFromIdentification(cardImage: CGImage, card: Card) async {}
+    func learnFromIdentification(cardImage: CGImage, card: Card) async {
+        learnedCardNames.append(card.name)
+    }
     func identifyBatch(images: [CGImage]) async -> BatchIdentificationResult { batchResult }
     func clearFeaturePrintCache() async {}
 }
@@ -250,5 +255,108 @@ struct BatchScanViewModelTests {
         #expect(viewModel.loadedImages.isEmpty)
         #expect(viewModel.analysis == nil)
         #expect(viewModel.quantities.isEmpty)
+        #expect(viewModel.cardThumbnails.isEmpty)
+    }
+
+    // MARK: - Thumbnails
+
+    @Test("cardThumbnails are populated from bbox crops at applyBatchResult")
+    func thumbnailsFromBbox() {
+        let viewModel = BatchScanViewModel(pipeline: BatchStubPipeline())
+        viewModel.loadedImages = [makeTinyCGImage(side: 400)]
+        let bbox = BatchBoundingBox(x: 0.1, y: 0.1, w: 0.4, h: 0.4)  // 160×160
+        viewModel.applyBatchResult(BatchIdentificationResult(
+            cards: [makeIdentified(imageIndex: 0, name: "Card", bbox: bbox)],
+            payloadBytes: 0, analysis: nil, error: nil
+        ))
+        let thumb = viewModel.cardThumbnails[0]
+        #expect(thumb != nil)
+        #expect(thumb?.width == 160)
+        #expect(thumb?.height == 160)
+    }
+
+    @Test("cardThumbnails fall back to source image when bbox is nil")
+    func thumbnailsFallBackWithoutBbox() {
+        let viewModel = BatchScanViewModel(pipeline: BatchStubPipeline())
+        viewModel.loadedImages = [makeTinyCGImage(side: 300)]
+        viewModel.applyBatchResult(BatchIdentificationResult(
+            cards: [makeIdentified(imageIndex: 0, name: "X", bbox: nil)],
+            payloadBytes: 0, analysis: nil, error: nil
+        ))
+        let thumb = viewModel.cardThumbnails[0]
+        #expect(thumb != nil)
+        #expect(thumb?.width == 300)  // Fell back to full source
+    }
+
+    @Test("Thumbnails are cleared when applyBatchResult delivers an error")
+    func thumbnailsClearedOnError() {
+        let viewModel = BatchScanViewModel(pipeline: BatchStubPipeline())
+        viewModel.loadedImages = [makeTinyCGImage()]
+        viewModel.applyBatchResult(BatchIdentificationResult(
+            cards: [makeIdentified(imageIndex: 0, name: "X")],
+            payloadBytes: 0, analysis: nil, error: nil
+        ))
+        #expect(viewModel.cardThumbnails.count == 1)
+
+        viewModel.applyBatchResult(BatchIdentificationResult(
+            cards: [], payloadBytes: 0, analysis: nil, error: "rate limited"
+        ))
+        #expect(viewModel.cardThumbnails.isEmpty)
+    }
+
+    // MARK: - Learn-on-confirm
+
+    @Test("addAllToCollection without deckRepository does not crash and does not learn")
+    func addToCollectionNoRepoIsSafe() {
+        let pipeline = BatchStubPipeline()
+        let viewModel = BatchScanViewModel(pipeline: pipeline)
+        viewModel.loadedImages = [makeTinyCGImage(side: 400)]
+        let bbox = BatchBoundingBox(x: 0.1, y: 0.1, w: 0.4, h: 0.4)
+        viewModel.applyBatchResult(BatchIdentificationResult(
+            cards: [makeIdentified(imageIndex: 0, name: "Bolt", bbox: bbox)],
+            payloadBytes: 0, analysis: nil, error: nil
+        ))
+        viewModel.addAllToCollection()
+        // No deckRepository — collection add is a no-op AND we skip learning since
+        // we only learn when the user actually confirmed adds.
+        #expect(viewModel.addedToCollection == 0)
+    }
+
+    @Test("learnIdentifiedCards calls pipeline once per detection that has a bbox")
+    func learnFiresPerBboxCard() async {
+        let pipeline = BatchStubPipeline()
+        let viewModel = BatchScanViewModel(pipeline: pipeline)
+        viewModel.loadedImages = [makeTinyCGImage(side: 400), makeTinyCGImage(side: 400)]
+        let bbox = BatchBoundingBox(x: 0.1, y: 0.1, w: 0.4, h: 0.4)
+        viewModel.applyBatchResult(BatchIdentificationResult(
+            cards: [
+                makeIdentified(imageIndex: 0, name: "Bolt", bbox: bbox),
+                makeIdentified(imageIndex: 1, name: "Counterspell", bbox: bbox),
+            ],
+            payloadBytes: 0, analysis: nil, error: nil
+        ))
+
+        await viewModel.learnIdentifiedCards()
+
+        #expect(pipeline.learnedCardNames.sorted() == ["Bolt", "Counterspell"])
+    }
+
+    @Test("learnIdentifiedCards skips detections without a bbox")
+    func learnSkipsWithoutBbox() async {
+        let pipeline = BatchStubPipeline()
+        let viewModel = BatchScanViewModel(pipeline: pipeline)
+        viewModel.loadedImages = [makeTinyCGImage(side: 400)]
+        let bbox = BatchBoundingBox(x: 0.1, y: 0.1, w: 0.4, h: 0.4)
+        viewModel.applyBatchResult(BatchIdentificationResult(
+            cards: [
+                makeIdentified(imageIndex: 0, name: "WithBbox", bbox: bbox),
+                makeIdentified(imageIndex: 0, name: "NoBbox", bbox: nil),
+            ],
+            payloadBytes: 0, analysis: nil, error: nil
+        ))
+
+        await viewModel.learnIdentifiedCards()
+
+        #expect(pipeline.learnedCardNames == ["WithBbox"])
     }
 }

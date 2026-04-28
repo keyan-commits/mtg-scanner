@@ -32,6 +32,10 @@ final class BatchScanViewModel {
     var identifiedCards: [BatchIdentifiedCard] = []
     /// Per-detection quantity (default 1). Keyed by index into `identifiedCards`.
     var quantities: [Int: Int] = [:]
+    /// Per-detection cropped thumbnail (bbox-cropped from the source photo).
+    /// Falls back to the full source image when bbox is missing/degenerate.
+    /// Populated once at `applyBatchResult` so rows don't recompute on every render.
+    var cardThumbnails: [Int: CGImage] = [:]
     /// Photo indices that produced zero recognized cards.
     var failedIndices: [Int] = []
     var analysis: String?
@@ -92,6 +96,10 @@ final class BatchScanViewModel {
             card: card,
             boundingBox: existing.boundingBox
         )
+        // Fix is an explicit user correction — feed it directly to the in-house scanner.
+        if let crop = cardThumbnails[index], existing.boundingBox != nil {
+            Task { await pipeline.learnFromIdentification(cardImage: crop, card: card) }
+        }
     }
 
     func loadAndProcess() async {
@@ -127,6 +135,7 @@ final class BatchScanViewModel {
         if let error = result.error {
             identifiedCards = []
             quantities = [:]
+            cardThumbnails = [:]
             failedIndices = []
             state = .error(error)
             return
@@ -134,9 +143,23 @@ final class BatchScanViewModel {
 
         identifiedCards = result.cards
         quantities = Dictionary(uniqueKeysWithValues: identifiedCards.indices.map { ($0, 1) })
+        cardThumbnails = computeThumbnails()
         let photosWithMatches = Set(identifiedCards.map(\.imageIndex))
         failedIndices = (0..<loadedImages.count).filter { !photosWithMatches.contains($0) }
         state = .results
+    }
+
+    /// Pre-computes a per-detection cropped CGImage so rows can render without
+    /// running the crop on every redraw. Falls back to the full source photo
+    /// when no usable bbox is available.
+    private func computeThumbnails() -> [Int: CGImage] {
+        var thumbs: [Int: CGImage] = [:]
+        for (i, entry) in identifiedCards.enumerated() {
+            guard entry.imageIndex < loadedImages.count else { continue }
+            let source = loadedImages[entry.imageIndex]
+            thumbs[i] = cropImage(source, withFractional: entry.boundingBox) ?? source
+        }
+        return thumbs
     }
 
     func addAllToCollection() {
@@ -150,6 +173,7 @@ final class BatchScanViewModel {
             }
         }
         addedToCollection = count
+        Task { await learnIdentifiedCards() }
     }
 
     func createDeck(name: String) {
@@ -170,6 +194,22 @@ final class BatchScanViewModel {
             _ = try? repo.addItem(card: entry.card, quantity: entry.count, to: deck)
         }
         addedToDeck = deck
+        Task { await learnIdentifiedCards() }
+    }
+
+    /// Feeds confirmed batch identifications back into the in-house scanner's
+    /// embedding store. Only runs when there's a real bbox crop — using the full
+    /// source photo as a training sample would be too noisy. Triggered on user
+    /// confirmation (Add to Collection / Create Deck), not on raw Gemini output,
+    /// because Gemini's per-card set/collector accuracy is imperfect and the
+    /// user has reviewed the list (and used Fix where needed) before tapping.
+    func learnIdentifiedCards() async {
+        for (i, entry) in identifiedCards.enumerated() {
+            // Skip when there's no real crop (full-photo fallback isn't useful training data).
+            guard entry.boundingBox != nil,
+                  let crop = cardThumbnails[i] else { continue }
+            await pipeline.learnFromIdentification(cardImage: crop, card: entry.card)
+        }
     }
 
     // MARK: - Save to Photos
@@ -251,6 +291,7 @@ final class BatchScanViewModel {
         loadedImages = []
         identifiedCards = []
         quantities = [:]
+        cardThumbnails = [:]
         failedIndices = []
         analysis = nil
         payloadBytes = 0
