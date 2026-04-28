@@ -195,12 +195,7 @@ struct CardCorrectionView: View {
     // MARK: - Printings List
 
     private var filteredPrintings: [Card] {
-        guard !setFilterText.isEmpty else { return printings }
-        let query = setFilterText.lowercased()
-        return printings.filter { card in
-            card.set.name.lowercased().contains(query) ||
-            card.set.code.lowercased().contains(query)
-        }
+        printings.filter { $0.matchesSetFilter(setFilterText) }
     }
 
     private func printingsList(for cardName: String) -> some View {
@@ -239,31 +234,9 @@ struct CardCorrectionView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
 
-            // Set filter field
-            if printings.count > 10 {
-                HStack(spacing: 8) {
-                    Image(systemName: "line.3.horizontal.decrease")
-                        .foregroundStyle(MD3Theme.onSurfaceVariant)
-                        .font(.caption)
-                    TextField("Filter by set name or code...", text: $setFilterText)
-                        .font(MD3Typography.bodySmall)
-                        .foregroundStyle(MD3Theme.onSurface)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-                    if !setFilterText.isEmpty {
-                        Button {
-                            setFilterText = ""
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(MD3Theme.onSurfaceVariant)
-                                .font(.caption)
-                        }
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(MD3Theme.surfaceVariant.opacity(0.5))
-
+            // Set filter — shown whenever there's more than one printing to filter.
+            if printings.count > 1 {
+                SetFilterField(text: $setFilterText)
                 Divider()
                     .padding(.leading, 16)
             }

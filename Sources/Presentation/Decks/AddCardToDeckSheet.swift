@@ -14,7 +14,12 @@ struct AddCardToDeckSheet: View {
     @State private var isSearching: Bool = false
     @State private var selectedCard: Card?
     @State private var quantity: Int = 4
+    @State private var setFilterText: String = ""
     @Environment(\.dismiss) private var dismiss
+
+    private var filteredResults: [Card] {
+        results.filter { $0.matchesSetFilter(setFilterText) }
+    }
 
     var body: some View {
         NavigationStack {
@@ -37,6 +42,9 @@ struct AddCardToDeckSheet: View {
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
+                    if results.count > 1 {
+                        SetFilterField(text: $setFilterText)
+                    }
                     resultsList
                 }
             }
@@ -101,7 +109,7 @@ struct AddCardToDeckSheet: View {
     // MARK: - Results List
 
     private var resultsList: some View {
-        List(results) { card in
+        List(filteredResults) { card in
             Button {
                 selectedCard = card
             } label: {

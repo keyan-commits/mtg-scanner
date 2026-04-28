@@ -16,8 +16,13 @@ struct AddToCollectionSheet: View {
     @State private var foilQuantity: Int = 0
     @State private var isSearching: Bool = false
     @State private var didAdd: Bool = false
+    @State private var setFilterText: String = ""
 
     @Environment(\.dismiss) private var dismiss
+
+    private var filteredResults: [Card] {
+        results.filter { $0.matchesSetFilter(setFilterText) }
+    }
 
     var body: some View {
         NavigationStack {
@@ -53,8 +58,29 @@ struct AddToCollectionSheet: View {
                             .disabled(quantity < 1)
                     }
                 } else if !results.isEmpty {
+                    if results.count > 1 {
+                        Section("Filter") {
+                            HStack(spacing: 8) {
+                                Image(systemName: "line.3.horizontal.decrease")
+                                    .foregroundStyle(.secondary)
+                                    .font(.caption)
+                                TextField("Set name or code…", text: $setFilterText)
+                                    .autocorrectionDisabled()
+                                    .textInputAutocapitalization(.never)
+                                if !setFilterText.isEmpty {
+                                    Button {
+                                        setFilterText = ""
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundStyle(.secondary)
+                                            .font(.caption)
+                                    }
+                                }
+                            }
+                        }
+                    }
                     Section("Pick a printing") {
-                        ForEach(results) { card in
+                        ForEach(filteredResults) { card in
                             Button {
                                 selectedCard = card
                             } label: {

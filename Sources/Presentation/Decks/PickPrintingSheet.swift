@@ -11,50 +11,60 @@ struct PickPrintingSheet: View {
 
     @State private var printings: [Card] = []
     @State private var isLoading = true
+    @State private var setFilterText = ""
     @Environment(\.dismiss) private var dismiss
+
+    private var filteredPrintings: [Card] {
+        printings.filter { $0.matchesSetFilter(setFilterText) }
+    }
 
     var body: some View {
         NavigationStack {
-            Group {
-                if isLoading {
-                    ProgressView("Loading printings…")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if printings.isEmpty {
-                    Text("No printings found")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    List(printings) { printing in
-                        Button {
-                            onPicked(printing)
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(printing.set.name)
-                                        .font(.body)
-                                        .foregroundStyle(.primary)
-                                    HStack(spacing: 8) {
-                                        Text("#\(printing.collectorNumber)")
-                                        if let released = printing.releasedAt {
-                                            Text(String(released.prefix(4)))
+            VStack(spacing: 0) {
+                if printings.count > 1 {
+                    SetFilterField(text: $setFilterText)
+                }
+                Group {
+                    if isLoading {
+                        ProgressView("Loading printings…")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if printings.isEmpty {
+                        Text("No printings found")
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        List(filteredPrintings) { printing in
+                            Button {
+                                onPicked(printing)
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(printing.set.name)
+                                            .font(.body)
+                                            .foregroundStyle(.primary)
+                                        HStack(spacing: 8) {
+                                            Text("#\(printing.collectorNumber)")
+                                            if let released = printing.releasedAt {
+                                                Text(String(released.prefix(4)))
+                                            }
+                                            if let artist = printing.artist {
+                                                Text("• \(artist)")
+                                            }
                                         }
-                                        if let artist = printing.artist {
-                                            Text("• \(artist)")
-                                        }
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
                                     }
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundStyle(.tertiary)
                                 }
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
                             }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
+                        .listStyle(.plain)
                     }
-                    .listStyle(.plain)
                 }
             }
             .navigationTitle("\(quantity)× \(cardName)")
