@@ -59,11 +59,15 @@ final class CameraManager: NSObject, ObservableObject {
         session.beginConfiguration()
         session.sessionPreset = .hd1920x1080
 
-        guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
+        // Prefer multi-lens virtual cameras so iOS can auto-engage the
+        // ultra-wide for macro when a card is close to the lens (e.g. on a
+        // scanner stand). Falls back to wide-angle on older hardware.
+        guard let device = CameraDeviceSelector.bestBackVideoDevice(),
               let input = try? AVCaptureDeviceInput(device: device) else {
             session.commitConfiguration()
             return
         }
+        print("[Camera] Using device type: \(device.deviceType.rawValue)")
 
         if session.canAddInput(input) {
             session.addInput(input)
