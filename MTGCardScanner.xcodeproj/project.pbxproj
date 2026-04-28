@@ -215,6 +215,8 @@
 		77AA88BB99CC11DD22EE33FF /* CameraFocusConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88BB99CC11DD22EE33FF44AA /* CameraFocusConfigTests.swift */; };
 		99CC11DD22EE33FF44AA55BB /* CameraDeviceSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA22BB33CC44DD55EE66FF99 /* CameraDeviceSelector.swift */; };
 		BB33CC44DD55EE66FF99AA11 /* CameraDeviceSelectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC44DD55EE66FF99AA11BB22 /* CameraDeviceSelectorTests.swift */; };
+		1234567890ABCDEF12345601 /* CardRectangleSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2345678901ABCDEF23456702 /* CardRectangleSelector.swift */; };
+		3456789012ABCDEF34567803 /* CardRectangleSelectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4567890123ABCDEF45678904 /* CardRectangleSelectorTests.swift */; };
 		DEB0BBC5C5C0D932EB794B45 /* DeckFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8270ABBF3105C5643C5A712 /* DeckFormat.swift */; };
 		E006C416C9E1508A671BFF37 /* ClassicDeckDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FAE42AE8019C65A54C95EB1 /* ClassicDeckDetailView.swift */; };
 		E1CFA89BBA57FAD22DCD0FEF /* CopyrightYearExtractorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42A03300EA4E9CE9FBCE9CE0 /* CopyrightYearExtractorTests.swift */; };
@@ -469,6 +471,8 @@
 		88BB99CC11DD22EE33FF44AA /* CameraFocusConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraFocusConfigTests.swift; sourceTree = "<group>"; };
 		AA22BB33CC44DD55EE66FF99 /* CameraDeviceSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraDeviceSelector.swift; sourceTree = "<group>"; };
 		CC44DD55EE66FF99AA11BB22 /* CameraDeviceSelectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraDeviceSelectorTests.swift; sourceTree = "<group>"; };
+		2345678901ABCDEF23456702 /* CardRectangleSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardRectangleSelector.swift; sourceTree = "<group>"; };
+		4567890123ABCDEF45678904 /* CardRectangleSelectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardRectangleSelectorTests.swift; sourceTree = "<group>"; };
 		DE57AD5A1CECE9BAF56CC887 /* ArchetypeMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchetypeMatcher.swift; sourceTree = "<group>"; };
 		E00A71B39EA6EEBFDA46EB41 /* TCGPHService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TCGPHService.swift; sourceTree = "<group>"; };
 		E00CC5B63598B175A590CCD2 /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
@@ -625,6 +629,7 @@
 				22BB33CC44DD55EE66FF77AA /* EmptyFrameCounter.swift */,
 				66FF77AA88BB99CC11DD22EE /* CameraFocusConfig.swift */,
 				AA22BB33CC44DD55EE66FF99 /* CameraDeviceSelector.swift */,
+				2345678901ABCDEF23456702 /* CardRectangleSelector.swift */,
 				1D8CF55E71A7E20780ACAB35 /* CameraManager.swift */,
 				1D3DE5961526665CF7B62C16 /* CardDetector.swift */,
 				E23BC4B6964F6D705CD71D61 /* ColorSegmentationCardDetector.swift */,
@@ -753,6 +758,7 @@
 				44DD55EE66FF77AA88BB99CC /* EmptyFrameCounterTests.swift */,
 				88BB99CC11DD22EE33FF44AA /* CameraFocusConfigTests.swift */,
 				CC44DD55EE66FF99AA11BB22 /* CameraDeviceSelectorTests.swift */,
+				4567890123ABCDEF45678904 /* CardRectangleSelectorTests.swift */,
 				EA66245B4C93CD4D522AB835 /* ImageMatcherTests.swift */,
 				7D22EE4AB8218C72C0EAD60D /* ImageProcessorTests.swift */,
 				9A7B4B1F2CDD27529C369C59 /* PerceptualHashTests.swift */,
@@ -1159,6 +1165,7 @@
 				11AA22BB33CC44DD55EE66FF /* EmptyFrameCounter.swift in Sources */,
 				55EE66FF77AA88BB99CC11DD /* CameraFocusConfig.swift in Sources */,
 				99CC11DD22EE33FF44AA55BB /* CameraDeviceSelector.swift in Sources */,
+				1234567890ABCDEF12345601 /* CardRectangleSelector.swift in Sources */,
 				AD5228177719014722D29189 /* ArtistExtractor.swift in Sources */,
 				4D6C6E1A9E466F297465746F /* BatchScanScreen.swift in Sources */,
 				4D9776F28C9DC5A66CA9936C /* BatchScanViewModel.swift in Sources */,
@@ -1353,6 +1360,7 @@
 				33CC44DD55EE66FF77AA88BB /* EmptyFrameCounterTests.swift in Sources */,
 				77AA88BB99CC11DD22EE33FF /* CameraFocusConfigTests.swift in Sources */,
 				BB33CC44DD55EE66FF99AA11 /* CameraDeviceSelectorTests.swift in Sources */,
+				3456789012ABCDEF34567803 /* CardRectangleSelectorTests.swift in Sources */,
 				185CE0A869BE7B1C47729D03 /* CollectorInfoExtractorTests.swift in Sources */,
 				E1CFA89BBA57FAD22DCD0FEF /* CopyrightYearExtractorTests.swift in Sources */,
 				862900D67BA32680100B613E /* DeckGuideLinkedTextTests.swift in Sources */,

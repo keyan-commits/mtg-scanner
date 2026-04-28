@@ -1,4 +1,5 @@
 import SwiftUI
+import AudioToolbox
 
 /// Live camera view for scanning MTG cards. Identifies cards directly from video
 /// frame OCR + DB lookup — no photo capture needed. Instant results.
@@ -325,6 +326,7 @@ struct LiveScannerView: View {
     private func addCard(_ card: Card) {
         lastIdentified = card
         scannedCards.append(card)
+        playCaptureFeedback()
 
         // Banner fades after 1.5s for UX feedback. The scanner itself stays
         // locked until the user physically removes the card from frame —
@@ -333,5 +335,14 @@ struct LiveScannerView: View {
             try? await Task.sleep(for: .seconds(1.5))
             lastIdentified = nil
         }
+    }
+
+    /// Confirms a successful capture with a haptic (always fires) and the
+    /// system "Tink" sound (only audible when the ringer switch is on, like
+    /// the camera shutter). Keeps the user aware of captures without forcing
+    /// them to look at the screen on a scanner stand.
+    private func playCaptureFeedback() {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        AudioServicesPlaySystemSound(1057)
     }
 }

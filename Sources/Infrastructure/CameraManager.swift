@@ -32,10 +32,15 @@ final class CameraManager: NSObject, ObservableObject {
 
     private nonisolated(unsafe) lazy var rectangleRequest: VNDetectRectanglesRequest = {
         let req = VNDetectRectanglesRequest()
+        // Card-like aspect range. Vision filters at the request level; we then
+        // tighten further inside CardRectangleSelector when picking among
+        // multiple candidates so squarish container rectangles get rejected.
         req.minimumAspectRatio = 0.55
         req.maximumAspectRatio = 0.85
         req.minimumSize = 0.15
-        req.maximumObservations = 1
+        // Bumped from 1 — allows us to see both the card AND any container
+        // rectangle (e.g. a scanner stand's interior), then pick the card.
+        req.maximumObservations = 5
         req.minimumConfidence = 0.7
         req.quadratureTolerance = 20
         return req
@@ -99,6 +104,9 @@ final class CameraManager: NSObject, ObservableObject {
     /// system hunting toward infinity, and continuous exposure keeps the
     /// reading legible as ambient light shifts. Subject-area change
     /// monitoring lets us notice when a new card slides in and re-focus.
+    /// On iOS 16+ multi-lens devices we also bias the constituent-device
+    /// switcher toward auto-macro so the ultra-wide engages reliably when
+    /// the card is on a scanner stand.
     private func configureFocus(on device: AVCaptureDevice) {
         let config = CameraFocusConfig.bestFor(device: device)
         do {
@@ -108,6 +116,17 @@ final class CameraManager: NSObject, ObservableObject {
             if let restriction = config.rangeRestriction { device.autoFocusRangeRestriction = restriction }
             if let exposure = config.exposureMode { device.exposureMode = exposure }
             device.isSubjectAreaChangeMonitoringEnabled = config.subjectAreaChangeMonitoring
+
+            if #available(iOS 16, *) {
+                // For virtual multi-lens devices (.builtInTripleCamera /
+                // .builtInDualWideCamera), .auto lets the system swap to the
+                // ultra-wide constituent for macro distances. The default is
+                // already .auto, but setting it explicitly ensures we don't
+                // inherit a restricted behavior from elsewhere.
+                if !device.constituentDevices.isEmpty {
+                    device.setPrimaryConstituentDeviceSwitchingBehavior(.auto, restrictedSwitchingBehaviorConditions: [])
+                }
+            }
         } catch {
             print("[Camera] Focus config failed: \(error.localizedDescription)")
         }
@@ -253,7 +272,13 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
             return
         }
 
-        let observation = rectangleRequest.results?.first
+        // Among the rectangles Vision found, pick the most card-like one — the
+        // smallest one whose aspect matches an MTG card. Prevents the OCR pass
+        // from running on the stand-interior rectangle when the card is inside
+        // a holder.
+        let allObservations = rectangleRequest.results ?? []
+        let pickedBox = CardRectangleSelector.pickBest(boundingBoxes: allObservations.map(\.boundingBox))
+        let observation = allObservations.first(where: { $0.boundingBox == pickedBox })
 
         // Step 2: Run fast OCR on card name region
         var ocrName: String?
