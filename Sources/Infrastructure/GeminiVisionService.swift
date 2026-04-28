@@ -560,11 +560,12 @@ actor GeminiVisionService {
         }
         recordUsage()
 
-        // Encode photos at 1024px max. If the total payload would blow past
-        // ~18 MB (Gemini's request soft limit), step the per-image dimension
-        // down and retry the encode pass.
+        // Encode photos at 2048px max — matches the single-photo Split Cards path,
+        // which is where this prompt's accuracy expectations come from. Set symbols
+        // and copyright text need that resolution to be legible. Step down only if
+        // the total payload would blow past ~18 MB (Gemini's request soft limit).
         let payloadCap = 18 * 1024 * 1024
-        let dimensionLadder = [1024, 768, 512, 384]
+        let dimensionLadder = [2048, 1536, 1024, 768]
         var parts: [[String: Any]] = []
         var totalBytes = 0
         var maxDim = dimensionLadder[0]
@@ -574,7 +575,7 @@ actor GeminiVisionService {
             for image in images {
                 let downscaled = downsampleForBatch(image, maxDimension: dim)
                 let uiImage = UIImage(cgImage: downscaled)
-                guard let jpegData = uiImage.jpegData(compressionQuality: 0.6) else { continue }
+                guard let jpegData = uiImage.jpegData(compressionQuality: 0.7) else { continue }
                 totalBytes += jpegData.count
                 let base64 = jpegData.base64EncodedString()
                 parts.append(["inline_data": ["mime_type": "image/jpeg", "data": base64]])
@@ -589,38 +590,26 @@ actor GeminiVisionService {
         }
 
         let prompt = """
-        You are given \(images.count) photos containing Magic: The Gathering cards. Each photo may contain ONE OR MORE cards (binder pages, stacks, fanned hands, single cards on a table).
+        List all the Magic: The Gathering cards visible across the \(images.count) photos. Each photo may contain ONE or MORE cards.
+        For each unique card, determine the exact English card name and the Scryfall 3-letter set code based on the card's appearance (frame style, art, set symbol).
+        Estimate a tight bounding box for each visible card copy as fractional coordinates (0.0–1.0) relative to its source photo's width and height.
+        Include a brief analysis of what these cards appear to be.
 
-        For every visible card, identify the EXACT printing shown — NOT a reprint or the most recent edition. Use these visual cues:
-        - Frame era: pre-2003 = old beveled frame, 2003–2014 = modern frame, 2015+ = M15 frame
-        - Set expansion symbol: small icon to the right of the card type line (or right of the title for old frame)
-        - Border color: white, black, silver, borderless
-        - Copyright year and set indicator at the bottom edge of the card
-
-        If you cannot tell the exact printing with confidence, return null for set_code and collector_number. DO NOT guess. DO NOT substitute the most recent reprint. A null is far better than a wrong code.
-
-        For each photo (numbered 0 to \(images.count - 1) in input order), return every visible card with:
-        - card_name: exact English name
-        - set_code: 3-letter Scryfall code matching the visible printing, or null if uncertain
-        - collector_number: as printed on the card, or null if uncertain
-        - quantity: count of identical visible copies in this same photo
-        - x, y, w, h: tight fractional bounding box (0.0–1.0) of one representative copy
-
-        Return ONLY a JSON object with this exact shape:
+        Return ONLY a JSON object (no other text or markdown):
         {
-          "analysis": "Brief 1-2 sentence summary of what's in this batch (or empty string).",
+          "analysis": "Brief 1-2 sentence summary",
           "results": [
             {"image_index": 0, "cards": [
-              {"card_name": "...", "set_code": "...", "collector_number": "...", "quantity": 1, "x": 0.0, "y": 0.0, "w": 0.5, "h": 0.5}
+              {"card_name": "exact name", "set_code": "abc", "collector_number": "123", "quantity": 1, "x": 0.0, "y": 0.0, "w": 0.25, "h": 0.33},
+              ...
             ]},
             ...
           ]
         }
 
-        Bounding boxes are fractional (0.0–1.0) relative to the source photo. (x, y) is the top-left corner.
-        Within a photo, group identical cards (same name AND same printing) by `quantity`. Different printings of the same card name are separate entries.
+        Photos are numbered 0 to \(images.count - 1) in the input order; use `image_index` to point each result back to its source photo.
+        Emit ONE entry per visible card copy with its own bounding box — do not merge multiple visible copies into a single quantity group.
         If a photo contains no recognizable cards: {"image_index": N, "cards": []}.
-        No markdown wrapping.
         """
         parts.append(["text": prompt])
 
