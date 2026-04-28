@@ -21,8 +21,22 @@ struct LiveScannerView: View {
 
     var body: some View {
         ZStack {
-            CameraPreviewView(session: cameraManager.session)
-                .ignoresSafeArea()
+            GeometryReader { geometry in
+                CameraPreviewView(session: cameraManager.session)
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+                    .onTapGesture { location in
+                        // Convert SwiftUI point to AVFoundation's normalized
+                        // (0,0)=top-left coordinate space and request a
+                        // momentary autofocus + autoexposure at that point.
+                        let normalized = CGPoint(
+                            x: max(0, min(1, location.x / max(1, geometry.size.width))),
+                            y: max(0, min(1, location.y / max(1, geometry.size.height)))
+                        )
+                        cameraManager.focus(at: normalized)
+                    }
+            }
+            .ignoresSafeArea()
 
             // Detection overlay
             if let quad = cameraManager.detectedQuad {
@@ -30,6 +44,7 @@ struct LiveScannerView: View {
                     quadOverlay(quad: quad, in: geometry.size)
                 }
                 .ignoresSafeArea()
+                .allowsHitTesting(false)
             }
 
             VStack {

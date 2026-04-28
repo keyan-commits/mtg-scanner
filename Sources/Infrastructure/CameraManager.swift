@@ -80,6 +80,83 @@ final class CameraManager: NSObject, ObservableObject {
         }
 
         session.commitConfiguration()
+
+        configureFocus(on: device)
+        captureDevice = device
+        subscribeToSubjectAreaChanges()
+    }
+
+    /// Holds the current capture device so we can re-issue focus commands
+    /// (subject-area change handler, tap-to-focus).
+    private var captureDevice: AVCaptureDevice?
+
+    /// Applies focus / exposure settings tuned for close-up card scanning.
+    /// Cards sit ~10–25cm from the lens; restricting AF to "near" stops the
+    /// system hunting toward infinity, and continuous exposure keeps the
+    /// reading legible as ambient light shifts. Subject-area change
+    /// monitoring lets us notice when a new card slides in and re-focus.
+    private func configureFocus(on device: AVCaptureDevice) {
+        let config = CameraFocusConfig.bestFor(device: device)
+        do {
+            try device.lockForConfiguration()
+            defer { device.unlockForConfiguration() }
+            if let mode = config.focusMode { device.focusMode = mode }
+            if let restriction = config.rangeRestriction { device.autoFocusRangeRestriction = restriction }
+            if let exposure = config.exposureMode { device.exposureMode = exposure }
+            device.isSubjectAreaChangeMonitoringEnabled = config.subjectAreaChangeMonitoring
+        } catch {
+            print("[Camera] Focus config failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func subscribeToSubjectAreaChanges() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleSubjectAreaChange),
+            name: .AVCaptureDeviceSubjectAreaDidChange,
+            object: nil
+        )
+    }
+
+    @objc private func handleSubjectAreaChange() {
+        guard let device = captureDevice else { return }
+        // A scene change usually means the user moved to a new card. Re-trigger
+        // focus and exposure at the centre so the new subject snaps sharp.
+        focus(at: CGPoint(x: 0.5, y: 0.5), holdAutoMode: false)
+    }
+
+    /// Focuses the camera at a point in normalized 0–1 coordinates (Vision
+    /// space — top-left origin). Used by tap-to-focus and the subject-area
+    /// change handler.
+    nonisolated func focus(at point: CGPoint, holdAutoMode: Bool = true) {
+        Task { @MainActor [weak self] in
+            guard let device = self?.captureDevice else { return }
+            do {
+                try device.lockForConfiguration()
+                defer { device.unlockForConfiguration() }
+                if device.isFocusPointOfInterestSupported {
+                    device.focusPointOfInterest = point
+                    if device.isFocusModeSupported(.autoFocus) {
+                        device.focusMode = .autoFocus
+                    }
+                }
+                if device.isExposurePointOfInterestSupported {
+                    device.exposurePointOfInterest = point
+                    if device.isExposureModeSupported(.autoExpose) {
+                        device.exposureMode = .autoExpose
+                    }
+                }
+                if holdAutoMode {
+                    device.isSubjectAreaChangeMonitoringEnabled = true
+                }
+            } catch {
+                print("[Camera] focus(at:) failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     func start() {
