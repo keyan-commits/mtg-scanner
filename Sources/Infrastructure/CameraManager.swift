@@ -127,6 +127,18 @@ final class CameraManager: NSObject, ObservableObject {
                     device.setPrimaryConstituentDeviceSwitchingBehavior(.auto, restrictedSwitchingBehaviorConditions: [])
                 }
             }
+
+            // iOS's auto-macro is conservative: even with Macro Control on, it
+            // may decline to swap to the ultra-wide at distances where the
+            // user's scanner stand sits (~10–15cm). Forcing the zoom factor
+            // below 1.0 on a multi-lens device pins the active constituent to
+            // the ultra-wide lens — which is the same lens iOS would swap to
+            // for macro, but now we control the swap.
+            if !device.constituentDevices.isEmpty,
+               device.minAvailableVideoZoomFactor < 1.0 {
+                device.videoZoomFactor = device.minAvailableVideoZoomFactor
+                print("[Camera] Forced ultra-wide via zoom \(device.minAvailableVideoZoomFactor) — macro lens engaged")
+            }
         } catch {
             print("[Camera] Focus config failed: \(error.localizedDescription)")
         }
