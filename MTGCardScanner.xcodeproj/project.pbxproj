@@ -208,6 +208,7 @@
 		EE55FF66AA77BB88CC99DD11 /* UIImage+Orientation.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF66AA77BB88CC99DD11EE22 /* UIImage+Orientation.swift */; };
 		AA77BB88CC99DD11EE22FF33 /* UIImageOrientationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB88CC99DD11EE22FF33AA44 /* UIImageOrientationTests.swift */; };
 		EE99FF11AA22BB33CC44DD55 /* SetFilterField.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF99AA11BB22CC33DD44EE55 /* SetFilterField.swift */; };
+		EE99FF11AA22BB33CC44DD56 /* ScannedCardQuantityStepper.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF99AA11BB22CC33DD44EE56 /* ScannedCardQuantityStepper.swift */; };
 		AA11BB22CC33DD44EE55FF66 /* SetFilterFieldTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB22CC33DD44EE55FF66AA77 /* SetFilterFieldTests.swift */; };
 		11AA22BB33CC44DD55EE66FF /* EmptyFrameCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22BB33CC44DD55EE66FF77AA /* EmptyFrameCounter.swift */; };
 		33CC44DD55EE66FF77AA88BB /* EmptyFrameCounterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44DD55EE66FF77AA88BB99CC /* EmptyFrameCounterTests.swift */; };
@@ -464,6 +465,7 @@
 		FF66AA77BB88CC99DD11EE22 /* UIImage+Orientation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIImage+Orientation.swift"; sourceTree = "<group>"; };
 		BB88CC99DD11EE22FF33AA44 /* UIImageOrientationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIImageOrientationTests.swift; sourceTree = "<group>"; };
 		FF99AA11BB22CC33DD44EE55 /* SetFilterField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetFilterField.swift; sourceTree = "<group>"; };
+		FF99AA11BB22CC33DD44EE56 /* ScannedCardQuantityStepper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannedCardQuantityStepper.swift; sourceTree = "<group>"; };
 		BB22CC33DD44EE55FF66AA77 /* SetFilterFieldTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetFilterFieldTests.swift; sourceTree = "<group>"; };
 		22BB33CC44DD55EE66FF77AA /* EmptyFrameCounter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyFrameCounter.swift; sourceTree = "<group>"; };
 		44DD55EE66FF77AA88BB99CC /* EmptyFrameCounterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyFrameCounterTests.swift; sourceTree = "<group>"; };
@@ -898,6 +900,7 @@
 				65E17B7A7899F9D84D37CB1B /* PHStoresSection.swift */,
 				160C72BE5594C994FED6E454 /* PriceSparklineView.swift */,
 				FF99AA11BB22CC33DD44EE55 /* SetFilterField.swift */,
+				FF99AA11BB22CC33DD44EE56 /* ScannedCardQuantityStepper.swift */,
 			);
 			path = DesignSystem;
 			sourceTree = "<group>";
@@ -1162,6 +1165,7 @@
 				DD3701D67AF3354B5BDE1D54 /* ArtVariantMatcher.swift in Sources */,
 				EE55FF66AA77BB88CC99DD11 /* UIImage+Orientation.swift in Sources */,
 				EE99FF11AA22BB33CC44DD55 /* SetFilterField.swift in Sources */,
+				EE99FF11AA22BB33CC44DD56 /* ScannedCardQuantityStepper.swift in Sources */,
 				11AA22BB33CC44DD55EE66FF /* EmptyFrameCounter.swift in Sources */,
 				55EE66FF77AA88BB99CC11DD /* CameraFocusConfig.swift in Sources */,
 				99CC11DD22EE33FF44AA55BB /* CameraDeviceSelector.swift in Sources */,

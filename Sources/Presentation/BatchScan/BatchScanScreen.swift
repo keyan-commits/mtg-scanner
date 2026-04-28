@@ -348,32 +348,11 @@ struct BatchScanScreen: View {
     }
 
     private func quantityStepper(for index: Int) -> some View {
-        let qty = viewModel.quantity(at: index)
-        return HStack(spacing: 4) {
-            Button {
-                viewModel.decrementQuantity(at: index)
-            } label: {
-                Image(systemName: "minus.circle.fill")
-                    .font(.system(size: 18))
-                    .foregroundStyle(qty > 1 ? MD3Theme.primary : Color.gray.opacity(0.4))
-            }
-            .disabled(qty <= 1)
-
-            Text("\(qty)x")
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundStyle(MD3Theme.onSurface)
-                .monospacedDigit()
-                .frame(minWidth: 24)
-
-            Button {
-                viewModel.incrementQuantity(at: index)
-            } label: {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 18))
-                    .foregroundStyle(qty < 20 ? MD3Theme.primary : Color.gray.opacity(0.4))
-            }
-            .disabled(qty >= 20)
-        }
+        ScannedCardQuantityStepper(
+            quantity: viewModel.quantity(at: index),
+            onDecrement: { viewModel.decrementQuantity(at: index) },
+            onIncrement: { viewModel.incrementQuantity(at: index) }
+        )
     }
 
     private var actionButtons: some View {

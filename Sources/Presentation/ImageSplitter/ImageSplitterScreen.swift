@@ -822,31 +822,12 @@ struct ImageSplitterScreen: View {
 
     private func quantityStepper(for index: Int) -> some View {
         let qty = viewModel.quantities[index] ?? 1
-        return HStack(spacing: 4) {
-            Button {
-                viewModel.setQuantity(qty - 1, for: index)
-            } label: {
-                Image(systemName: "minus.circle.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(qty > 1 ? MD3Theme.primary : Color.gray.opacity(0.4))
-            }
-            .disabled(qty <= 1)
-
-            Text("\(qty)x")
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundStyle(MD3Theme.onSurface)
-                .monospacedDigit()
-                .frame(minWidth: 28)
-
-            Button {
-                viewModel.setQuantity(qty + 1, for: index)
-            } label: {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(qty < 20 ? MD3Theme.primary : Color.gray.opacity(0.4))
-            }
-            .disabled(qty >= 20)
-        }
+        return ScannedCardQuantityStepper(
+            quantity: qty,
+            onDecrement: { viewModel.setQuantity(qty - 1, for: index) },
+            onIncrement: { viewModel.setQuantity(qty + 1, for: index) },
+            iconSize: 20
+        )
         .padding(.horizontal, 4)
     }
 

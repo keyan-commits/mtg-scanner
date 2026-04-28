@@ -21,6 +21,12 @@ final class CameraManager: NSObject, ObservableObject {
     @Published var detectedQuad: [CGPoint]?
     @Published var recognizedCardName: String?
     @Published var confirmedCardName: String? // Set when DB-validated for N frames
+    /// Cropped, upright card art emitted when frame OCR stalls for several
+    /// frames. The view consumes this and runs visual-only identification
+    /// (FeaturePrint / pHash / embedding store) — same path the photo capture
+    /// uses. Lets us identify cards whose text is too blurry to OCR but whose
+    /// art is recognizable.
+    @Published var pendingArtImage: CGImage?
 
     // MARK: - AVFoundation
 
@@ -55,6 +61,14 @@ final class CameraManager: NSObject, ObservableObject {
     /// Counts frames where no rectangle was detected; used to auto-release the
     /// post-confirmation lock when the user physically removes the card.
     private var emptyFrames = EmptyFrameCounter(threshold: 6)
+    /// Frames since rectangle stayed in view without OCR confirming a name.
+    /// Drives the visual-fallback emission once we cross the threshold.
+    private var unconfirmedFrameCount: Int = 0
+    private let unconfirmedFallbackThreshold = 15
+    /// Once we hand a frame to the visual fallback we don't re-emit until the
+    /// card leaves the frame — otherwise we'd hammer the matchers every frame.
+    private var hasEmittedFallback = false
+    private nonisolated(unsafe) lazy var ciContext = CIContext()
 
     // MARK: - Setup
 
@@ -216,6 +230,38 @@ final class CameraManager: NSObject, ObservableObject {
         isConfirmed = false
         emptyFrames.reset()
         scanState = .idle
+        unconfirmedFrameCount = 0
+        hasEmittedFallback = false
+        pendingArtImage = nil
+    }
+
+    /// Called by the view after it consumes a `pendingArtImage`. Clears the
+    /// published image but leaves `hasEmittedFallback` set so we don't re-fire
+    /// on the same card; another emission only happens after the card leaves
+    /// the frame.
+    func clearPendingArtImage() {
+        pendingArtImage = nil
+    }
+
+    /// Crops the rectangle's region from the raw camera buffer and rotates the
+    /// crop 90° CW to match the connection's portrait rotation. Returns an
+    /// upright art image suitable for the visual matchers (FeaturePrint / pHash
+    /// / embedding store), all of which compare against upright training data
+    /// captured by the photo path.
+    private nonisolated func extractArtImage(pixelBuffer: CVPixelBuffer, bbox: CGRect) -> CGImage? {
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        let extent = ciImage.extent
+        guard extent.width > 0, extent.height > 0 else { return nil }
+        let cropRect = CGRect(
+            x: bbox.origin.x * extent.width,
+            y: bbox.origin.y * extent.height,
+            width: bbox.size.width * extent.width,
+            height: bbox.size.height * extent.height
+        ).integral
+        guard cropRect.width > 0, cropRect.height > 0 else { return nil }
+        guard let croppedCG = ciContext.createCGImage(ciImage, from: cropRect) else { return nil }
+        let rotated = CIImage(cgImage: croppedCG).oriented(.right)
+        return ciContext.createCGImage(rotated, from: rotated.extent)
     }
 
     // MARK: - Frame OCR
@@ -298,12 +344,25 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
             ocrName = runFrameOCR(pixelBuffer: pixelBuffer, cardRect: obs.boundingBox)
         }
 
+        // Step 3: Pre-render the upright art crop so the @MainActor block can
+        // publish it without capturing the pixel buffer across the actor
+        // boundary. Only renders when we don't yet have OCR text — that's the
+        // case where visual fallback might be needed.
+        let artImage: CGImage? = {
+            guard let obs = observation, ocrName == nil else { return nil }
+            return extractArtImage(pixelBuffer: pixelBuffer, bbox: obs.boundingBox)
+        }()
+
         Task { @MainActor [weak self] in
             guard let self else { return }
 
             if let obs = observation {
                 self.detectedQuad = [obs.topLeft, obs.topRight, obs.bottomRight, obs.bottomLeft]
                 self.emptyFrames.observe(rectanglePresent: true)
+
+                if !self.isConfirmed {
+                    self.unconfirmedFrameCount += 1
+                }
 
                 if let name = ocrName, !self.isConfirmed {
                     self.recognizedCardName = name
@@ -324,14 +383,30 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
                             self.confirmedCardName = name
                             self.isConfirmed = true
                             self.scanState = .confirmed
+                            self.unconfirmedFrameCount = 0
+                            self.hasEmittedFallback = false
+                            self.pendingArtImage = nil
                             print("[LiveOCR] Confirmed: '\(name)'")
                         }
                     }
+                }
+
+                // Visual fallback: when OCR has been stalled across enough
+                // frames, hand the upright art crop to the view so it can run
+                // the photo-pipeline's visual-only matching path.
+                if !self.isConfirmed,
+                   !self.hasEmittedFallback,
+                   self.unconfirmedFrameCount >= self.unconfirmedFallbackThreshold,
+                   let art = artImage {
+                    self.pendingArtImage = art
+                    self.hasEmittedFallback = true
+                    print("[LiveOCR] OCR stalled at \(self.unconfirmedFrameCount) frames — emitting art for visual fallback")
                 }
             } else {
                 self.detectedQuad = nil
                 self.recognizedCardName = nil
                 self.consecutiveNames.removeAll()
+                self.unconfirmedFrameCount = 0
                 if self.isConfirmed {
                     // Card was committed; wait for it to leave the frame for
                     // a sustained run before re-engaging the scanner.
@@ -339,10 +414,16 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
                         self.confirmedCardName = nil
                         self.isConfirmed = false
                         self.scanState = .idle
+                        self.hasEmittedFallback = false
+                        self.pendingArtImage = nil
                         print("[LiveOCR] Card removed — ready for next scan")
                     }
                 } else {
                     self.scanState = .idle
+                    // Card never confirmed and is now gone — reset the
+                    // fallback gate so the next presentation gets a fresh shot.
+                    self.hasEmittedFallback = false
+                    self.pendingArtImage = nil
                 }
             }
 

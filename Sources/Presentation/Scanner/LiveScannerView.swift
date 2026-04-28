@@ -13,11 +13,17 @@ struct LiveScannerView: View {
 
     @StateObject private var cameraManager = CameraManager()
     @State private var scannedCards: [Card] = []
+    /// Quantity per scanned card, keyed by scryfallID. Re-scanning the same
+    /// card increments instead of adding a duplicate row, matching Batch /
+    /// Split behavior.
+    @State private var scannedQuantities: [String: Int] = [:]
     @State private var lastIdentified: Card?
     @State private var isLookingUp = false
     @State private var showScannedList = false
     @State private var addedToCollection: Set<String> = []
     @State private var didAddAll: Bool = false
+    /// scryfallID of the card whose Fix sheet is open, nil otherwise.
+    @State private var correctingScryfallID: String?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -88,7 +94,7 @@ struct LiveScannerView: View {
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "rectangle.stack.fill")
-                            Text("\(scannedCards.count) scanned")
+                            Text("\(totalScannedCount) scanned")
                         }
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(.white)
@@ -118,11 +124,43 @@ struct LiveScannerView: View {
                 await lookupCard(name: name)
             }
         }
+        .onChange(of: cameraManager.pendingArtImage) { _, art in
+            // Visual fallback fires when frame OCR has stalled. We hand the
+            // upright art crop to the photo pipeline's visual-only matchers
+            // (FeaturePrint cache, embedding store, pHash). Lets us identify
+            // cards whose text is too blurry to read.
+            guard let art, !isLookingUp, lastIdentified == nil else { return }
+            Task {
+                await lookupCardByArt(art)
+                cameraManager.clearPendingArtImage()
+            }
+        }
         .sheet(isPresented: $showScannedList) {
             scannedListSheet
         }
+        .sheet(item: Binding(
+            get: { correctingScryfallID.map(CorrectionTarget.init(scryfallID:)) },
+            set: { correctingScryfallID = $0?.scryfallID }
+        )) { target in
+            if let repo = repository,
+               let card = scannedCards.first(where: { $0.scryfallID == target.scryfallID }) {
+                CardCorrectionView(
+                    repository: repo,
+                    currentCard: card,
+                    onCorrection: { newCard in
+                        replaceCard(scryfallID: target.scryfallID, with: newCard)
+                        correctingScryfallID = nil
+                    }
+                )
+            }
+        }
         .navigationTitle("Live Scan")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private struct CorrectionTarget: Identifiable {
+        let scryfallID: String
+        var id: String { scryfallID }
     }
 
     // MARK: - Quad Overlay
@@ -209,7 +247,8 @@ struct LiveScannerView: View {
     private func quickAddToCollection(_ card: Card) {
         guard let deckRepository,
               !addedToCollection.contains(card.scryfallID) else { return }
-        if let _ = try? deckRepository.addToCollection(card: card) {
+        let qty = scannedQuantities[card.scryfallID] ?? 1
+        if let _ = try? deckRepository.addToCollection(card: card, quantity: qty) {
             addedToCollection.insert(card.scryfallID)
             let generator = UINotificationFeedbackGenerator()
             generator.notificationOccurred(.success)
@@ -218,24 +257,18 @@ struct LiveScannerView: View {
 
     // MARK: - Scanned Cards List
 
+    private var totalScannedCount: Int {
+        scannedCards.reduce(0) { $0 + (scannedQuantities[$1.scryfallID] ?? 1) }
+    }
+
     private var scannedListSheet: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 List(scannedCards) { card in
-                    HStack {
-                        Text(card.name)
-                            .font(.body)
-                        Spacer()
-                        if addedToCollection.contains(card.scryfallID) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                                .font(.caption)
-                        }
-                        Text(card.set.name)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    scannedRow(for: card)
+                        .listRowInsets(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
                 }
+                .listStyle(.plain)
 
                 // "Add All to Collection" footer
                 if deckRepository != nil && !scannedCards.isEmpty {
@@ -245,17 +278,19 @@ struct LiveScannerView: View {
                             HStack(spacing: 6) {
                                 Image(systemName: "checkmark.circle.fill")
                                     .foregroundStyle(.green)
-                                Text("All \(scannedCards.count) added")
+                                Text("All \(totalScannedCount) added")
                                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                                     .foregroundStyle(.green)
                             }
                             .padding(.vertical, 8)
                         } else {
-                            let unadded = scannedCards.filter { !addedToCollection.contains($0.scryfallID) }
+                            let unaddedQty = scannedCards
+                                .filter { !addedToCollection.contains($0.scryfallID) }
+                                .reduce(0) { $0 + (scannedQuantities[$1.scryfallID] ?? 1) }
                             Button {
                                 addAllScannedToCollection()
                             } label: {
-                                Label("Add All \(unadded.count) to Collection", systemImage: "rectangle.stack.fill.badge.plus")
+                                Label("Add All \(unaddedQty) to Collection", systemImage: "rectangle.stack.fill.badge.plus")
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 10)
                                     .font(.system(size: 14, weight: .semibold, design: .rounded))
@@ -270,7 +305,7 @@ struct LiveScannerView: View {
                     .padding(.bottom, 8)
                 }
             }
-            .navigationTitle("Scanned (\(scannedCards.count))")
+            .navigationTitle("Scanned (\(totalScannedCount))")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -280,16 +315,112 @@ struct LiveScannerView: View {
         }
     }
 
-    private func addAllScannedToCollection() {
-        guard let deckRepository else { return }
-        var count = 0
-        for card in scannedCards where !addedToCollection.contains(card.scryfallID) {
-            if let _ = try? deckRepository.addToCollection(card: card) {
-                addedToCollection.insert(card.scryfallID)
-                count += 1
+    @ViewBuilder
+    private func scannedRow(for card: Card) -> some View {
+        let qty = scannedQuantities[card.scryfallID] ?? 1
+        HStack(spacing: 8) {
+            CachedAsyncImage(url: card.preferredImageURL(.small)) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.gray.opacity(0.15))
+            }
+            .frame(width: 36, height: 50)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(card.name)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(MD3Theme.onSurface)
+                    .lineLimit(1)
+                Text("\(card.set.name) #\(card.collectorNumber)")
+                    .font(.caption2)
+                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            ScannedCardQuantityStepper(
+                quantity: qty,
+                onDecrement: { setQuantity(qty - 1, for: card.scryfallID) },
+                onIncrement: { setQuantity(qty + 1, for: card.scryfallID) }
+            )
+
+            if let usd = card.prices.usd {
+                Text("$\(usd)")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(MD3Theme.primary)
+                    .monospacedDigit()
+            }
+
+            if addedToCollection.contains(card.scryfallID) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .font(.caption)
+            }
+
+            if repository != nil {
+                Button {
+                    correctingScryfallID = card.scryfallID
+                } label: {
+                    Text("Fix")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(MD3Theme.primary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(MD3Theme.outline, lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
             }
         }
-        if count > 0 {
+    }
+
+    private func setQuantity(_ newQty: Int, for scryfallID: String) {
+        let clamped = max(1, min(20, newQty))
+        scannedQuantities[scryfallID] = clamped
+    }
+
+    private func replaceCard(scryfallID: String, with newCard: Card) {
+        guard let idx = scannedCards.firstIndex(where: { $0.scryfallID == scryfallID }) else { return }
+        let oldQty = scannedQuantities[scryfallID] ?? 1
+        let wasAdded = addedToCollection.contains(scryfallID)
+
+        // If the corrected card is already elsewhere in the list, merge into
+        // that entry rather than producing two rows for the same scryfallID.
+        if let dupIdx = scannedCards.firstIndex(where: { $0.scryfallID == newCard.scryfallID }), dupIdx != idx {
+            scannedQuantities[newCard.scryfallID, default: 1] += oldQty
+            scannedCards.remove(at: idx)
+            scannedQuantities.removeValue(forKey: scryfallID)
+            addedToCollection.remove(scryfallID)
+            return
+        }
+
+        scannedCards[idx] = newCard
+        scannedQuantities.removeValue(forKey: scryfallID)
+        scannedQuantities[newCard.scryfallID] = oldQty
+        if wasAdded {
+            addedToCollection.remove(scryfallID)
+            addedToCollection.insert(newCard.scryfallID)
+        }
+    }
+
+    private func addAllScannedToCollection() {
+        guard let deckRepository else { return }
+        var addedAny = false
+        for card in scannedCards where !addedToCollection.contains(card.scryfallID) {
+            let qty = scannedQuantities[card.scryfallID] ?? 1
+            if let _ = try? deckRepository.addToCollection(card: card, quantity: qty) {
+                addedToCollection.insert(card.scryfallID)
+                addedAny = true
+            }
+        }
+        if addedAny {
             didAddAll = true
             let generator = UINotificationFeedbackGenerator()
             generator.notificationOccurred(.success)
@@ -323,9 +454,35 @@ struct LiveScannerView: View {
         cameraManager.reset()
     }
 
+    /// Visual fallback used when frame OCR couldn't confirm a card name.
+    /// Hands the cropped art to the photo pipeline's visual-only matchers
+    /// (FeaturePrint, embedding store, pHash) — same code that identifies
+    /// blurry photo captures. If a match comes back we feed it through the
+    /// same `addCard` path the OCR-confirmed flow uses.
+    private func lookupCardByArt(_ art: CGImage) async {
+        guard !isLookingUp else { return }
+        isLookingUp = true
+        defer { isLookingUp = false }
+
+        if let card = await pipeline.identifyCropped(cardImage: art, visualOnly: true) {
+            print("[LiveScan] Visual fallback identified: \(card.name)")
+            addCard(card)
+        } else {
+            print("[LiveScan] Visual fallback returned no match")
+        }
+    }
+
     private func addCard(_ card: Card) {
         lastIdentified = card
-        scannedCards.append(card)
+
+        // Re-scanning the same card increments quantity instead of adding a
+        // duplicate row — matches Batch / Split behavior.
+        if scannedCards.contains(where: { $0.scryfallID == card.scryfallID }) {
+            scannedQuantities[card.scryfallID, default: 1] += 1
+        } else {
+            scannedCards.append(card)
+            scannedQuantities[card.scryfallID] = 1
+        }
         playCaptureFeedback()
 
         // Banner fades after 1.5s for UX feedback. The scanner itself stays
