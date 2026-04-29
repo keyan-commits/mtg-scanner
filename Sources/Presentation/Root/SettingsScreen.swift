@@ -27,6 +27,8 @@ struct SettingsScreen: View {
     @State private var exportURL: URL?
     @State private var importResult: String?
     @State private var showImportResult = false
+    @State private var exportError: String?
+    @State private var showExportError = false
     @FocusState private var geminiKeyFocused: Bool
     @Bindable private var currencyService = CurrencyService.shared
     @Bindable private var iconManager = AppIconManager.shared
@@ -497,8 +499,18 @@ struct SettingsScreen: View {
             Text("Enter the actual request count for the alt key from aistudio.google.com.")
         }
         .sheet(isPresented: $showExportShare) {
-            if let url = exportURL {
+            if let url = exportURL, FileManager.default.fileExists(atPath: url.path) {
                 ShareSheet(url: url)
+            } else {
+                // Defensive: previously a nil/stale exportURL could land here
+                // and silently render nothing, leaving the user staring at a
+                // blank sheet with no way to recover.
+                VStack(spacing: 12) {
+                    ProgressView()
+                    Text("Preparing export…")
+                        .foregroundStyle(.secondary)
+                }
+                .padding(40)
             }
         }
         .fileImporter(isPresented: $showImportPicker, allowedContentTypes: [.json]) { result in
@@ -527,6 +539,11 @@ struct SettingsScreen: View {
             Button("OK") {}
         } message: {
             Text(importResult ?? "")
+        }
+        .alert("Export Failed", isPresented: $showExportError) {
+            Button("OK") {}
+        } message: {
+            Text(exportError ?? "Unknown error")
         }
         .task {
             await currencyService.refreshIfStale()
@@ -672,13 +689,40 @@ struct SettingsScreen: View {
     }
 
     private func exportData() {
+        // Reset prior state so a stale URL or sheet flag from a previous run
+        // can't leak into this one.
+        exportURL = nil
+        showExportShare = false
+
         let service = UserDataService(repository: deckRepository)
-        guard let data = try? service.exportAll() else { return }
+        let data: Data
+        do {
+            data = try service.exportAll()
+        } catch {
+            exportError = "Could not build export: \(error.localizedDescription)"
+            showExportError = true
+            return
+        }
+
         let dateStr = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .none)
             .replacingOccurrences(of: "/", with: "-")
         let fileName = "MTGKeyan_Backup_\(dateStr).json"
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-        try? data.write(to: tempURL)
+
+        do {
+            try data.write(to: tempURL, options: .atomic)
+        } catch {
+            exportError = "Could not write export file: \(error.localizedDescription)"
+            showExportError = true
+            return
+        }
+
+        guard FileManager.default.fileExists(atPath: tempURL.path) else {
+            exportError = "Export file disappeared after write — try again."
+            showExportError = true
+            return
+        }
+
         exportURL = tempURL
         showExportShare = true
     }
