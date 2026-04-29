@@ -19,6 +19,7 @@ struct CardCopiesDetailView: View {
     @State private var copies: [PurchaseItem] = []
     @State private var card: Card?
     @State private var markOrderedItem: PurchaseItem?
+    @State private var editPurchaseItem: PurchaseItem?
     @State private var showChangePrinting: Bool = false
     @State private var showFullImage: Bool = false
     @State private var phListings: [TCGPHListing] = []
@@ -113,6 +114,12 @@ struct CardCopiesDetailView: View {
         .background(MD3Theme.background)
         .navigationTitle(cardName)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $editPurchaseItem) { item in
+            EditPurchaseInfoSheet(item: item, repository: deckRepository) {
+                editPurchaseItem = nil
+                reload()
+            }
+        }
         .sheet(item: $markOrderedItem) { item in
             MarkOrderedSheet(item: item, repository: deckRepository) {
                 markOrderedItem = nil
@@ -629,6 +636,15 @@ struct CardCopiesDetailView: View {
                     .font(.caption)
                     .foregroundStyle(MD3Theme.onSurfaceVariant)
             }
+            Button {
+                editPurchaseItem = copy
+            } label: {
+                Image(systemName: "pencil.circle")
+                    .font(.system(size: 18))
+                    .foregroundStyle(MD3Theme.primary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Edit purchase info")
             statusMenu(for: copy)
         }
         .padding(.horizontal, 12)

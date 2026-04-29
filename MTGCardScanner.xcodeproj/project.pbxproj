@@ -21,6 +21,7 @@
 		0777E934D2456E18C45AB1F3 /* PerceptualHash.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5D98325A859A4DD7E04589B /* PerceptualHash.swift */; };
 		09E8C96D2C7117D33D84A777 /* ArtVariantMatcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5BFAD132BA9468146FF0209 /* ArtVariantMatcherTests.swift */; };
 		0A1F5D8B5990D9D297170BD7 /* MarkOrderedSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48C8C27A8709852CE48E11B0 /* MarkOrderedSheet.swift */; };
+		0A1F5D8B5990D9D297170BD8 /* EditPurchaseInfoSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48C8C27A8709852CE48E11B1 /* EditPurchaseInfoSheet.swift */; };
 		0A45C63E58F1D79EC5DAC17F /* DeckBuilderScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14CBD28C376B0A7F27A5B665 /* DeckBuilderScreen.swift */; };
 		0B20116941D55F0D7A7E77BA /* LiveScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 059C7B7229F7FE3FA66A5BF9 /* LiveScannerView.swift */; };
 		0B7773827C86A8BC1D319BCB /* BorderColorDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10EA5138FB681CCADA88DD15 /* BorderColorDetector.swift */; };
@@ -334,6 +335,7 @@
 		44BC05551F5EFE289A2C9CFB /* SoughtAfterCardsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoughtAfterCardsScreen.swift; sourceTree = "<group>"; };
 		471757CE705CD08B49241A02 /* AddToCollectionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddToCollectionSheet.swift; sourceTree = "<group>"; };
 		48C8C27A8709852CE48E11B0 /* MarkOrderedSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkOrderedSheet.swift; sourceTree = "<group>"; };
+		48C8C27A8709852CE48E11B1 /* EditPurchaseInfoSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditPurchaseInfoSheet.swift; sourceTree = "<group>"; };
 		4A076C806EB4B6A1847CFEFC /* MTGCardScanner.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MTGCardScanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4A9AC5520A03343B21F97ECF /* LandLists.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LandLists.swift; sourceTree = "<group>"; };
 		4FA6DE08398E18F5FFD27422 /* HareruyaPriceServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HareruyaPriceServiceTests.swift; sourceTree = "<group>"; };
@@ -830,6 +832,7 @@
 				9D792D7540F931FCF2578603 /* MajorArchetypeDetailView.swift */,
 				6C73599E08CE47CBE391CE4F /* ManaSymbolView.swift */,
 				48C8C27A8709852CE48E11B0 /* MarkOrderedSheet.swift */,
+				48C8C27A8709852CE48E11B1 /* EditPurchaseInfoSheet.swift */,
 				211C338351DCBF5CC55ECC03 /* MarkOrderReceivedSheet.swift */,
 				10750FE39D60EDCD1480F512 /* OrderDetailView.swift */,
 				B788E1E30E440FE89F04FF36 /* OrderPasteParser.swift */,
@@ -1290,6 +1293,7 @@
 				391A682E5177026AD58D78DA /* ManaSymbolView.swift in Sources */,
 				0296EED390C125061743AE5B /* MarkOrderReceivedSheet.swift in Sources */,
 				0A1F5D8B5990D9D297170BD7 /* MarkOrderedSheet.swift in Sources */,
+				0A1F5D8B5990D9D297170BD8 /* EditPurchaseInfoSheet.swift in Sources */,
 				916FD20ADE7AE7E20B7A211A /* ModernStaples.swift in Sources */,
 				535D8B592AD5E22B11AC49F1 /* MultiCardDetector.swift in Sources */,
 				8BEBD9EAC838C1AA40569A27 /* NetworkError.swift in Sources */,
