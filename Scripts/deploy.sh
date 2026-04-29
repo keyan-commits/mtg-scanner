@@ -36,17 +36,24 @@ else
     DEST_LINE=$(echo "$DEST_LINE" | head -1)
 fi
 
-if [ -z "$DEST_LINE" ]; then
+if [ -n "$DEST_LINE" ]; then
+    XCODE_DEVICE_ID=$(echo "$DEST_LINE" | sed 's/.*id://' | sed 's/[,}].*//' | tr -d '[:space:]')
+    DEVICE_NAME=$(echo "$DEST_LINE" | sed 's/.*name://' | sed 's/[,}].*//' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+elif echo "$DEVICE_FILTER" | grep -qE '^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}$' \
+     && xcrun devicectl device info details --device "$DEVICE_FILTER" >/dev/null 2>&1; then
+    # xcodebuild -showdestinations cache can go stale (e.g. after re-pairing the device with another Mac).
+    # If the supplied ID looks like a UDID and devicectl can reach it, trust it and pass it straight through.
+    XCODE_DEVICE_ID="$DEVICE_FILTER"
+    DEVICE_NAME=$(xcrun devicectl device info details --device "$DEVICE_FILTER" 2>/dev/null \
+        | awk -F': ' '/^[[:space:]]*• name:/ {print $2; exit}')
+    [ -z "$DEVICE_NAME" ] && DEVICE_NAME="(by id)"
+    echo "→ xcodebuild destinations stale — using direct ID."
+else
     echo "✗ No connected iOS device found."
     echo "  Run 'xcodebuild -project $PROJECT -scheme $SCHEME -showdestinations'"
     echo "  to see what's available."
     exit 1
 fi
-
-# Extract xcodebuild device ID
-XCODE_DEVICE_ID=$(echo "$DEST_LINE" | sed 's/.*id://' | sed 's/[,}].*//' | tr -d '[:space:]')
-# Extract device name
-DEVICE_NAME=$(echo "$DEST_LINE" | sed 's/.*name://' | sed 's/[,}].*//' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
 
 echo "→ Using device: $DEVICE_NAME ($XCODE_DEVICE_ID)"
 
