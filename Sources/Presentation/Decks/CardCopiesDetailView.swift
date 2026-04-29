@@ -629,6 +629,11 @@ struct CardCopiesDetailView: View {
                         .font(.caption2)
                         .foregroundStyle(MD3Theme.onSurfaceVariant)
                 }
+                if let purchasedAt = copy.orderedAt {
+                    Text(purchasedAt, format: .dateTime.year().month(.abbreviated).day())
+                        .font(.caption2)
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                }
             }
             Spacer()
             if let store = copy.store, !store.isEmpty {

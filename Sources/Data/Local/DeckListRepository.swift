@@ -255,7 +255,8 @@ final class DeckListRepository {
         pricePaid: Double? = nil,
         currency: String? = nil,
         notes: String? = nil,
-        quantity: Int? = nil
+        quantity: Int? = nil,
+        orderedAt: Date? = nil
     ) throws {
         // Capture the prior status so we can detect a Needed/Ordered → Arrived
         // transition and cascade the new copy into the collection.
@@ -281,6 +282,10 @@ final class DeckListRepository {
         if let currency { item.currency = currency.isEmpty ? nil : currency }
         if let notes { item.notes = notes.isEmpty ? nil : notes }
         if let quantity { item.quantity = quantity }
+        // Caller-supplied purchase date overrides the auto-assignment in the
+        // status branch above. Lets edit screens record a historical date
+        // without having to flip the status first.
+        if let orderedAt { item.orderedAt = orderedAt }
         try context.save()
 
         // Cascade to collection on transition INTO arrived. Skips when the

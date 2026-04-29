@@ -18,6 +18,7 @@ struct EditPurchaseInfoSheet: View {
     @State private var pricePaidText: String = ""
     @State private var currency: String = "USD"
     @State private var notes: String = ""
+    @State private var purchaseDate: Date = Date()
     @State private var recentStores: [String] = []
 
     private let currencies = ["USD", "PHP", "JPY", "EUR", "GBP", "CAD", "AUD"]
@@ -63,6 +64,10 @@ struct EditPurchaseInfoSheet: View {
                     }
                 }
 
+                Section("Purchase Date") {
+                    DatePicker("Date", selection: $purchaseDate, displayedComponents: .date)
+                }
+
                 Section("Order Link (optional)") {
                     TextField("https://...", text: $purchaseURL)
                         .keyboardType(.URL)
@@ -97,6 +102,9 @@ struct EditPurchaseInfoSheet: View {
             pricePaidText = item.pricePaid.map { String(format: "%.2f", $0) } ?? ""
             currency = item.currency ?? "USD"
             notes = item.notes ?? ""
+            // Default to today when the item has no recorded purchase date so
+            // the user can save a date without having to scroll to it first.
+            purchaseDate = item.orderedAt ?? Date()
             recentStores = (try? repository.recentStores()) ?? []
         }
     }
@@ -112,7 +120,8 @@ struct EditPurchaseInfoSheet: View {
             purchaseURL: purchaseURL,
             pricePaid: price,
             currency: currency,
-            notes: notes
+            notes: notes,
+            orderedAt: purchaseDate
         )
         onDone()
     }
