@@ -1044,21 +1044,37 @@ struct HomeView: View {
     }
 
     private func loadHotCards() async {
-        defer { hotCardsLoaded = true }
-
-        // Try local price movers first (requires two price refreshes for previousPriceUSD)
+        // Try local price movers first (requires two price refreshes for previousPriceUSD).
         if PriceRefreshService.shared != nil {
             let movers = (try? await cardRepository.fetchPriceMovers(limit: 10)) ?? []
             if !movers.isEmpty {
                 hotCards = movers
+                hotCardsLoaded = true
                 return
             }
         }
 
-        // Fallback: show MTGStocks interests directly (no DB resolution needed)
-        let interests = await MTGStocksService.shared.fetchInterests()
-        if !interests.isEmpty {
-            hotInterests = Array(interests.prefix(10))
+        // Stale-while-refreshing: surface the disk-cached MTGStocks interests
+        // immediately so the home screen never blocks on the network. If the
+        // cache is stale (>1h) or missing, refresh in the background and swap
+        // in the fresher data when it arrives.
+        let cached = await MTGStocksService.shared.cachedInterests()
+        if let cached, !cached.entries.isEmpty {
+            hotInterests = Array(cached.entries.prefix(10))
+            hotCardsLoaded = true
+            if Date().timeIntervalSince(cached.fetchedAt) < 3600 {
+                return
+            }
+        }
+
+        Task.detached(priority: .utility) {
+            let interests = await MTGStocksService.shared.fetchInterests()
+            await MainActor.run { [self] in
+                if !interests.isEmpty {
+                    self.hotInterests = Array(interests.prefix(10))
+                }
+                self.hotCardsLoaded = true
+            }
         }
     }
 

@@ -25,14 +25,19 @@ actor MTGStocksService {
     private var detailCache: [Int: (detail: MTGStocksCard, fetchedAt: Date)] = [:]
     /// Print ID → price history (24h TTL).
     private var historyCache: [Int: (history: MTGStocksPriceHistory, fetchedAt: Date)] = [:]
-    /// Interests cache (1h TTL).
-    private var interestsCache: (entries: [MTGStocksInterest], fetchedAt: Date)?
+    /// Interests cache (1h TTL). Backed by `interestsDiskCache` so the TTL
+    /// survives app restarts — without this, every cold launch re-fetches
+    /// because the in-memory value is empty.
+    private var interestsCache: MTGStocksInterestsDiskCache.Blob?
+    private let interestsDiskCache: MTGStocksInterestsDiskCache
 
     private init() {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 15
         config.timeoutIntervalForResource = 30
         self.session = URLSession(configuration: config)
+        self.interestsDiskCache = MTGStocksInterestsDiskCache()
+        self.interestsCache = self.interestsDiskCache.load()
     }
 
     // MARK: - Public API
@@ -124,6 +129,14 @@ actor MTGStocksService {
         return history
     }
 
+    /// Returns the persisted interests cache without firing a network call.
+    /// Lets the home screen show stale data immediately while a background
+    /// refresh runs — without this, every cold launch blocks on the network.
+    func cachedInterests() -> (entries: [MTGStocksInterest], fetchedAt: Date)? {
+        guard let blob = interestsCache else { return nil }
+        return (blob.entries, blob.fetchedAt)
+    }
+
     /// Fetch today's trending cards (biggest price movers).
     func fetchInterests() async -> [MTGStocksInterest] {
         if let cached = interestsCache, Date().timeIntervalSince(cached.fetchedAt) < 3600 {
@@ -192,7 +205,9 @@ actor MTGStocksService {
         let sorted = bestByName.values
             .sorted { abs($0.percentageChange ?? 0) > abs($1.percentageChange ?? 0) }
 
-        interestsCache = (sorted, Date())
+        let blob = MTGStocksInterestsDiskCache.Blob(entries: sorted, fetchedAt: Date())
+        interestsCache = blob
+        interestsDiskCache.save(blob)
         return sorted
     }
 
@@ -365,7 +380,7 @@ struct MTGStocksPriceHistory: Decodable {
     }
 }
 
-struct MTGStocksInterest: Sendable {
+struct MTGStocksInterest: Sendable, Codable, Equatable {
     let id: Int
     let name: String
     let setName: String?
