@@ -106,12 +106,17 @@ final class BatchScanViewModel {
         guard !selectedPhotos.isEmpty else { return }
         state = .processing(current: 0, total: selectedPhotos.count)
 
+        // Decode via CGImageSource thumbnailing so the full-resolution RGBA
+        // bitmap is never materialized. UIImage(data:).cgImage on a 48MP iPhone
+        // photo decodes to ~195 MB, and three photos is enough for jetsam to
+        // kill the app mid-load. The thumbnail path also bakes in EXIF rotation,
+        // replacing the prior orientationNormalized() render pass.
+        let processor = ImageProcessor()
         loadedImages = []
         for (i, item) in selectedPhotos.enumerated() {
             state = .processing(current: i + 1, total: selectedPhotos.count)
             if let data = try? await item.loadTransferable(type: Data.self),
-               let uiImage = UIImage(data: data)?.orientationNormalized(),
-               let cgImage = uiImage.cgImage {
+               let cgImage = processor.downsample(data: data, maxDimension: 2048) {
                 loadedImages.append(cgImage)
             }
         }
