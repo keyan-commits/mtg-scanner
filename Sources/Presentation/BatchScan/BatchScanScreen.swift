@@ -5,6 +5,7 @@ struct BatchScanScreen: View {
     @State private var viewModel: BatchScanViewModel
     @State private var correctingIndex: Int?
     @Environment(\.dismiss) private var dismiss
+    @Bindable private var currencyService = CurrencyService.shared
 
     init(pipeline: CardIdentificationPipelineProtocol,
          cardRepository: CardRepositoryProtocol? = nil,
@@ -62,6 +63,7 @@ struct BatchScanScreen: View {
                 Text("\(viewModel.savedCount) card\(viewModel.savedCount == 1 ? "" : "s") saved.")
             }
         }
+        .task { await currencyService.refreshIfStale() }
     }
 
     // MARK: - Selecting
@@ -179,6 +181,12 @@ struct BatchScanScreen: View {
                     Text("\(viewModel.cardCount) card\(viewModel.cardCount == 1 ? "" : "s") from \(viewModel.photosWithCards) of \(viewModel.totalPhotos) photo\(viewModel.totalPhotos == 1 ? "" : "s")")
                         .font(MD3Typography.titleMedium)
                         .foregroundStyle(MD3Theme.onSurface)
+                    if viewModel.hasAnyPrice {
+                        Text("Total value: \(formattedTotalValue)")
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundStyle(MD3Theme.primary)
+                            .monospacedDigit()
+                    }
                     Text("Payload: \(viewModel.payloadMB)")
                         .font(.caption)
                         .foregroundStyle(MD3Theme.onSurfaceVariant)
@@ -193,6 +201,18 @@ struct BatchScanScreen: View {
             .padding(16)
         }
         .padding(.horizontal, 16)
+    }
+
+    /// Renders `viewModel.totalValueUSD` in the user's preferred currency.
+    /// Falls back to USD when the rate is unavailable so we never show a
+    /// blank value next to "Total value:".
+    private var formattedTotalValue: String {
+        let usd = viewModel.totalValueUSD
+        let preferred = LocalCurrency.current
+        if let converted = currencyService.convert(usd, to: preferred) {
+            return LocalCurrency.format(converted, currency: preferred)
+        }
+        return LocalCurrency.format(usd, currency: "USD")
     }
 
     /// Horizontal strip of source photos with bbox overlays so the user can

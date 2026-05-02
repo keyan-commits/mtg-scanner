@@ -17,7 +17,7 @@ private func makeTinyCGImage(side: Int = 200) -> CGImage {
     return context.makeImage()!
 }
 
-private func makeBatchCard(name: String, set: String = "lea", collector: String = "1") -> Card {
+private func makeBatchCard(name: String, set: String = "lea", collector: String = "1", usd: String? = nil) -> Card {
     Card(
         scryfallID: "\(name)-\(set)-\(collector)",
         name: name,
@@ -34,7 +34,7 @@ private func makeBatchCard(name: String, set: String = "lea", collector: String 
         frameEffects: [],
         illustrationID: nil,
         edhrecRank: nil,
-        prices: CardPrices(usd: nil, usdFoil: nil, eur: nil, eurFoil: nil, tix: nil, previousUsd: nil),
+        prices: CardPrices(usd: usd, usdFoil: nil, eur: nil, eurFoil: nil, tix: nil, previousUsd: nil),
         legalities: FormatLegality([:]),
         imageURIs: [:],
         relatedPrintingsURI: nil,
@@ -45,8 +45,8 @@ private func makeBatchCard(name: String, set: String = "lea", collector: String 
     )
 }
 
-private func makeIdentified(imageIndex: Int, name: String, bbox: BatchBoundingBox? = nil) -> BatchIdentifiedCard {
-    BatchIdentifiedCard(imageIndex: imageIndex, card: makeBatchCard(name: name), boundingBox: bbox)
+private func makeIdentified(imageIndex: Int, name: String, bbox: BatchBoundingBox? = nil, usd: String? = nil) -> BatchIdentifiedCard {
+    BatchIdentifiedCard(imageIndex: imageIndex, card: makeBatchCard(name: name, usd: usd), boundingBox: bbox)
 }
 
 /// Minimal pipeline stub — only `identifyBatch` and `learnFromIdentification`
@@ -358,5 +358,58 @@ struct BatchScanViewModelTests {
         await viewModel.learnIdentifiedCards()
 
         #expect(pipeline.learnedCardNames == ["WithBbox"])
+    }
+
+    @Test("totalValueUSD sums priced cards × stepper qty; skips unpriced")
+    func totalValueSumsPricedCards() {
+        let viewModel = BatchScanViewModel(pipeline: BatchStubPipeline())
+        viewModel.loadedImages = [makeTinyCGImage()]
+        viewModel.applyBatchResult(BatchIdentificationResult(
+            cards: [
+                makeIdentified(imageIndex: 0, name: "Bolt", usd: "1.50"),
+                makeIdentified(imageIndex: 0, name: "Counter", usd: "2.00"),
+                makeIdentified(imageIndex: 0, name: "Unpriced", usd: nil),
+            ],
+            payloadBytes: 0, analysis: nil, error: nil
+        ))
+
+        // Default qty=1 each → 1.50 + 2.00 + 0 = 3.50
+        #expect(abs(viewModel.totalValueUSD - 3.50) < 0.001)
+        #expect(viewModel.hasAnyPrice)
+
+        // Bumping the bolt stepper to 4 → 4×1.50 + 2.00 = 8.00
+        viewModel.setQuantity(at: 0, to: 4)
+        #expect(abs(viewModel.totalValueUSD - 8.00) < 0.001)
+    }
+
+    @Test("totalValueUSD updates when replaceCard swaps printing")
+    func totalValueRespondsToReplaceCard() {
+        let viewModel = BatchScanViewModel(pipeline: BatchStubPipeline())
+        viewModel.loadedImages = [makeTinyCGImage()]
+        viewModel.applyBatchResult(BatchIdentificationResult(
+            cards: [makeIdentified(imageIndex: 0, name: "Bolt", usd: "1.00")],
+            payloadBytes: 0, analysis: nil, error: nil
+        ))
+        #expect(abs(viewModel.totalValueUSD - 1.00) < 0.001)
+
+        // Fix flow swaps to a more expensive printing.
+        let pricier = makeBatchCard(name: "Bolt", set: "p3k", collector: "42", usd: "120.00")
+        viewModel.replaceCard(at: 0, with: pricier)
+        #expect(abs(viewModel.totalValueUSD - 120.00) < 0.001)
+    }
+
+    @Test("hasAnyPrice is false when every card lacks a price")
+    func hasAnyPriceFalseForUnpricedBatch() {
+        let viewModel = BatchScanViewModel(pipeline: BatchStubPipeline())
+        viewModel.loadedImages = [makeTinyCGImage()]
+        viewModel.applyBatchResult(BatchIdentificationResult(
+            cards: [
+                makeIdentified(imageIndex: 0, name: "A"),
+                makeIdentified(imageIndex: 0, name: "B"),
+            ],
+            payloadBytes: 0, analysis: nil, error: nil
+        ))
+        #expect(viewModel.hasAnyPrice == false)
+        #expect(viewModel.totalValueUSD == 0)
     }
 }

@@ -71,6 +71,26 @@ final class BatchScanViewModel {
         ByteCountFormatter.string(fromByteCount: Int64(payloadBytes), countStyle: .file)
     }
 
+    /// Sum of `Card.prices.usd × stepper quantity` across all detections.
+    /// Cards without a USD price contribute 0; the result is never negative.
+    /// Recomputes implicitly when `identifiedCards` or `quantities` change
+    /// (e.g. after Fix → replaceCard swaps the printing).
+    var totalValueUSD: Double {
+        var total: Double = 0
+        for (i, entry) in identifiedCards.enumerated() {
+            guard let usd = entry.card.prices.usd, let value = Double(usd) else { continue }
+            total += value * Double(quantity(at: i))
+        }
+        return total
+    }
+
+    /// True if at least one detection has a USD price. Used to decide whether
+    /// to render the total at all — `$0.00` for a list of unpriced cards is
+    /// noise.
+    var hasAnyPrice: Bool {
+        identifiedCards.contains { $0.card.prices.usd.flatMap(Double.init).map { $0 > 0 } ?? false }
+    }
+
     func quantity(at index: Int) -> Int {
         quantities[index] ?? 1
     }
