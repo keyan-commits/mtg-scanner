@@ -31,6 +31,8 @@
 		107B7B0AC251C8D570E179FD /* ArchetypeDecksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB28C4F3FB99DC762E4E5AEC /* ArchetypeDecksView.swift */; };
 		10E44F7FFB4FF1CBEA964273 /* LegalitySectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8613D1042D20D7378E3E432B /* LegalitySectionView.swift */; };
 		1138FE284CC21BF7ABA12EDC /* CardCopiesDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A37AB2078D2731512F0C20A3 /* CardCopiesDetailView.swift */; };
+		11AA22BB33CC44DD55EE66FF /* EmptyFrameCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22BB33CC44DD55EE66FF77AA /* EmptyFrameCounter.swift */; };
+		1234567890ABCDEF12345601 /* CardRectangleSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2345678901ABCDEF23456702 /* CardRectangleSelector.swift */; };
 		133A8FC880C2AF6BEACD15A8 /* AppIcon-R.png in Resources */ = {isa = PBXBuildFile; fileRef = 3CEF0683C68AE32FCC60C24E /* AppIcon-R.png */; };
 		1377DBE1993939A725BBB242 /* CopyrightYearExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2035EDE80ED29C5C9E644D9 /* CopyrightYearExtractor.swift */; };
 		141CD6411F1DC61ADCD44AA0 /* CardDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0ABD8527067784FF2AFBFC2 /* CardDetailViewModel.swift */; };
@@ -61,6 +63,8 @@
 		3109559BB2FD813C11BD9776 /* MD3Elevation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FF5CCB4517D927FE946345 /* MD3Elevation.swift */; };
 		31A27A10C3320B9F1C5E11C9 /* Card+ImageURL.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBD763A3E3BBE40F1E2E573D /* Card+ImageURL.swift */; };
 		322B275AEBAD8CF0821DE8CC /* AppIcon-G@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 3DB5EECAC7E024134BED47CE /* AppIcon-G@2x.png */; };
+		33CC44DD55EE66FF77AA88BB /* EmptyFrameCounterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44DD55EE66FF77AA88BB99CC /* EmptyFrameCounterTests.swift */; };
+		3456789012ABCDEF34567803 /* CardRectangleSelectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4567890123ABCDEF45678904 /* CardRectangleSelectorTests.swift */; };
 		3663DA845B59B3F754973C3E /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D8CF55E71A7E20780ACAB35 /* CameraManager.swift */; };
 		37A76A1309703806B3DCDD33 /* LandLists.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A9AC5520A03343B21F97ECF /* LandLists.swift */; };
 		37ECDA5450CF9E1C7985581C /* LegacyStaples.swift in Sources */ = {isa = PBXBuildFile; fileRef = 328D969AE79F7A8452060BAB /* LegacyStaples.swift */; };
@@ -92,6 +96,7 @@
 		535D8B592AD5E22B11AC49F1 /* MultiCardDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C850B1F2A8C60B0BFC57C48 /* MultiCardDetector.swift */; };
 		5409B203EBFDF9CF58648FE4 /* ImageProcessorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D22EE4AB8218C72C0EAD60D /* ImageProcessorTests.swift */; };
 		55CC02B8C8E4FABD379F41A1 /* PhotoPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D70078F34D00B7DBF39817BF /* PhotoPickerView.swift */; };
+		55EE66FF77AA88BB99CC11DD /* CameraFocusConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66FF77AA88BB99CC11DD22EE /* CameraFocusConfig.swift */; };
 		560F821399AAB6664B6C499C /* UserDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5476BB26FE53127BE1A31D7 /* UserDataService.swift */; };
 		567D2D1973D2C07635FE856B /* MTGTop8Service.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAA898E25833500BE94CBC7F /* MTGTop8Service.swift */; };
 		578168944382E8DA241AEB1E /* visual_index.json in Resources */ = {isa = PBXBuildFile; fileRef = F2A252AA053EDE23F4CB97C6 /* visual_index.json */; };
@@ -114,6 +119,7 @@
 		756F7ADCBA04DB1372116828 /* MTGTop8ArchetypeIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CAF409A809F6F8D47D9C486 /* MTGTop8ArchetypeIndex.swift */; };
 		75A20989338BCF910E50AC4C /* CardNameExtractorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08DD9B7FD35CF087C2CE083B /* CardNameExtractorTests.swift */; };
 		760927A365BC1AEC2C714586 /* CachedAsyncImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = C62E7C2D39E4EDDA39A1068F /* CachedAsyncImage.swift */; };
+		77AA88BB99CC11DD22EE33FF /* CameraFocusConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88BB99CC11DD22EE33FF44AA /* CameraFocusConfigTests.swift */; };
 		7843F0B71514F00B74CFB4B3 /* PickPrintingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DB872106240217FBE87B3F0 /* PickPrintingSheet.swift */; };
 		79311DCFB693440F883020CC /* CardKingdomPriceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D65BB4BA517B644ABDB8332 /* CardKingdomPriceService.swift */; };
 		7DB9D443C75079E2E77CDC12 /* CardResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FB935C14691ABF388BA4DE4 /* CardResolver.swift */; };
@@ -149,12 +155,15 @@
 		97EF8FA324197F0BE2BDEF85 /* MTGTop8DeckDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C596C61C7CB39FC685EEDEE7 /* MTGTop8DeckDetailView.swift */; };
 		985FD9EEA4A8C83675AA3016 /* CardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FED8B2BEDEF495AD8311F1D5 /* CardTests.swift */; };
 		993793FD781891DF25BD78B9 /* ScryfallAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F66C6124A6B24011F7AB0B21 /* ScryfallAPIClient.swift */; };
+		99CC11DD22EE33FF44AA55BB /* CameraDeviceSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA22BB33CC44DD55EE66FF99 /* CameraDeviceSelector.swift */; };
 		9A8021D907A98467EDB08B7C /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31C20EF780B773AFFB05E4A1 /* RootView.swift */; };
 		9B91A6CBE619B23CB9D85AF7 /* DeckGuideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6CC96FC2B57624EB76A8403 /* DeckGuideView.swift */; };
 		9C521841E6720318DBCF57E7 /* DeckLookupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 907071EF35D16C3AC1BE93F3 /* DeckLookupService.swift */; };
 		A36C512C36CE5162CCCB093D /* QuickAddToCollectionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1BFD0F4CFB4B9E44414742 /* QuickAddToCollectionSheet.swift */; };
 		A4037FC7EC4CBF999BB15C34 /* CollectorInfoExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F00F6CA17C65A39BDF87E55 /* CollectorInfoExtractor.swift */; };
 		A6D313CE620FB5E2370B741F /* DeckListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21299263386630693EDC580B /* DeckListModel.swift */; };
+		AA11BB22CC33DD44EE55FF66 /* SetFilterFieldTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB22CC33DD44EE55FF66AA77 /* SetFilterFieldTests.swift */; };
+		AA77BB88CC99DD11EE22FF33 /* UIImageOrientationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB88CC99DD11EE22FF33AA44 /* UIImageOrientationTests.swift */; };
 		AB004D00E0C6DD228954D0F3 /* DeckLookupServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2DD6100B90C9493F79B2A52 /* DeckLookupServiceTests.swift */; };
 		ABF5540FB5AD845E16CC177B /* SetSymbolMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACF06930627E6A2B38083945 /* SetSymbolMatcher.swift */; };
 		AD33F282097647912697DE95 /* AppIcon-B.png in Resources */ = {isa = PBXBuildFile; fileRef = 6C814AA31BD595DFDB221415 /* AppIcon-B.png */; };
@@ -174,7 +183,9 @@
 		B90E5A7DFE496E1AA8FB8B0F /* EditOrderSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA1EAC083EB346F5B6F681A /* EditOrderSheet.swift */; };
 		BA03E8E4D5B997BAA35A31DD /* CardNameExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC89B2ED5E4753847A3F07DE /* CardNameExtractor.swift */; };
 		BB02276E195C01DE77A462FF /* MTGTop8ArchetypeIndexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C876567C3CEE42FB044041EC /* MTGTop8ArchetypeIndexTests.swift */; };
+		BB11AA22CC33DD44EE55FF66 /* GeminiBatchResponseParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA22BB33CC44DD55EE66FF77 /* GeminiBatchResponseParserTests.swift */; };
 		BB322D0AEAF6D6E2129AD7EA /* ImageMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C298A51F47FEA3016F0AC80 /* ImageMatcher.swift */; };
+		BB33CC44DD55EE66FF99AA11 /* CameraDeviceSelectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC44DD55EE66FF99AA11BB22 /* CameraDeviceSelectorTests.swift */; };
 		BC0C849AE78A4DDD24C54B4C /* SettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E00CC5B63598B175A590CCD2 /* SettingsScreen.swift */; };
 		BC1AD13F108B4C829F6A24C8 /* BrowseArchetypesScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0229C77C05DDF16615E6C0 /* BrowseArchetypesScreen.swift */; };
 		BDF527809E79A54273FB1881 /* VisualSearchEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F472D40D1DDF15EA480F7D9C /* VisualSearchEngine.swift */; };
@@ -193,6 +204,7 @@
 		CB2FAF6CBDEB9DA86C9D0304 /* AppIcon-R@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 1CBBC7E24FE608A866F4FEF4 /* AppIcon-R@3x.png */; };
 		CB32AC7331633625882DBF2A /* CardDatabaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE0A58F67B36D312E9E8C20B /* CardDatabaseTests.swift */; };
 		CC17223236E00508C049AE53 /* SideboardGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73D1EB8F1F9ABAE878C54363 /* SideboardGuide.swift */; };
+		CC33DD44EE55FF66AA77BB88 /* BatchScanViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD44EE55FF66AA77BB88CC99 /* BatchScanViewModelTests.swift */; };
 		CF2673DD14458A085EF886DA /* ArchetypeRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 066F367AB703574D77E6DBA2 /* ArchetypeRowView.swift */; };
 		D04FB20D4F5ADC03AC908A60 /* PerceptualHashTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A7B4B1F2CDD27529C369C59 /* PerceptualHashTests.swift */; };
 		D3EF2B64ED5BC3BD510EB539 /* MTGStocksInterestsFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81AE703E333544801A793F6F /* MTGStocksInterestsFilterTests.swift */; };
@@ -206,21 +218,6 @@
 		DD3701D67AF3354B5BDE1D54 /* ArtVariantMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11B33B59868017AAA0F1788D /* ArtVariantMatcher.swift */; };
 		DDFBE39231FBE80FA18651BF /* CardCategoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6921B9771B3F43E7EDF0214E /* CardCategoryTests.swift */; };
 		DE33D2F06A2C8C000602BA85 /* CollectionValueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD6B755E1DDF183FEF1E6BB /* CollectionValueTests.swift */; };
-		BB11AA22CC33DD44EE55FF66 /* GeminiBatchResponseParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA22BB33CC44DD55EE66FF77 /* GeminiBatchResponseParserTests.swift */; };
-		CC33DD44EE55FF66AA77BB88 /* BatchScanViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD44EE55FF66AA77BB88CC99 /* BatchScanViewModelTests.swift */; };
-		EE55FF66AA77BB88CC99DD11 /* UIImage+Orientation.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF66AA77BB88CC99DD11EE22 /* UIImage+Orientation.swift */; };
-		AA77BB88CC99DD11EE22FF33 /* UIImageOrientationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB88CC99DD11EE22FF33AA44 /* UIImageOrientationTests.swift */; };
-		EE99FF11AA22BB33CC44DD55 /* SetFilterField.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF99AA11BB22CC33DD44EE55 /* SetFilterField.swift */; };
-		EE99FF11AA22BB33CC44DD56 /* ScannedCardQuantityStepper.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF99AA11BB22CC33DD44EE56 /* ScannedCardQuantityStepper.swift */; };
-		AA11BB22CC33DD44EE55FF66 /* SetFilterFieldTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB22CC33DD44EE55FF66AA77 /* SetFilterFieldTests.swift */; };
-		11AA22BB33CC44DD55EE66FF /* EmptyFrameCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22BB33CC44DD55EE66FF77AA /* EmptyFrameCounter.swift */; };
-		33CC44DD55EE66FF77AA88BB /* EmptyFrameCounterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44DD55EE66FF77AA88BB99CC /* EmptyFrameCounterTests.swift */; };
-		55EE66FF77AA88BB99CC11DD /* CameraFocusConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66FF77AA88BB99CC11DD22EE /* CameraFocusConfig.swift */; };
-		77AA88BB99CC11DD22EE33FF /* CameraFocusConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88BB99CC11DD22EE33FF44AA /* CameraFocusConfigTests.swift */; };
-		99CC11DD22EE33FF44AA55BB /* CameraDeviceSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA22BB33CC44DD55EE66FF99 /* CameraDeviceSelector.swift */; };
-		BB33CC44DD55EE66FF99AA11 /* CameraDeviceSelectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC44DD55EE66FF99AA11BB22 /* CameraDeviceSelectorTests.swift */; };
-		1234567890ABCDEF12345601 /* CardRectangleSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2345678901ABCDEF23456702 /* CardRectangleSelector.swift */; };
-		3456789012ABCDEF34567803 /* CardRectangleSelectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4567890123ABCDEF45678904 /* CardRectangleSelectorTests.swift */; };
 		DEB0BBC5C5C0D932EB794B45 /* DeckFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8270ABBF3105C5643C5A712 /* DeckFormat.swift */; };
 		E006C416C9E1508A671BFF37 /* ClassicDeckDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FAE42AE8019C65A54C95EB1 /* ClassicDeckDetailView.swift */; };
 		E1CFA89BBA57FAD22DCD0FEF /* CopyrightYearExtractorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42A03300EA4E9CE9FBCE9CE0 /* CopyrightYearExtractorTests.swift */; };
@@ -234,7 +231,10 @@
 		E8EED731F7C61FF1A8209312 /* LatestTopFinishesCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69BFC134783609D55B801606 /* LatestTopFinishesCache.swift */; };
 		E93F0D62D3AB75D903510FD1 /* FeaturePrintCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6E4B9316C204EFE3C573CD /* FeaturePrintCache.swift */; };
 		EA972ABE7B267C2D9627E552 /* CardScannerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86689942D94ACB052854F23E /* CardScannerViewModel.swift */; };
+		EE55FF66AA77BB88CC99DD11 /* UIImage+Orientation.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF66AA77BB88CC99DD11EE22 /* UIImage+Orientation.swift */; };
 		EE8118A9FA5C65C0CBA78B1C /* ScryfallCardRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A92D5221A071F97A64E4FEF /* ScryfallCardRepository.swift */; };
+		EE99FF11AA22BB33CC44DD55 /* SetFilterField.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF99AA11BB22CC33DD44EE55 /* SetFilterField.swift */; };
+		EE99FF11AA22BB33CC44DD56 /* ScannedCardQuantityStepper.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF99AA11BB22CC33DD44EE56 /* ScannedCardQuantityStepper.swift */; };
 		EF29C3E3396CF82F5270EC14 /* CardDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D3DE5961526665CF7B62C16 /* CardDetector.swift */; };
 		F05707FB04F974AFAFE08127 /* DeckSuggestionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD9CA79EC480022B4D416C84 /* DeckSuggestionService.swift */; };
 		F05B969C90DC5E68A30779B1 /* SetupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC3CD4D36FEC5623515FEAA8 /* SetupScreen.swift */; };
@@ -304,6 +304,8 @@
 		21299263386630693EDC580B /* DeckListModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckListModel.swift; sourceTree = "<group>"; };
 		21E53E90404BB638AFF78351 /* ScannerScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerScreen.swift; sourceTree = "<group>"; };
 		22338BC52E022A617DCE51C7 /* ClassicArchetypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassicArchetypes.swift; sourceTree = "<group>"; };
+		22BB33CC44DD55EE66FF77AA /* EmptyFrameCounter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyFrameCounter.swift; sourceTree = "<group>"; };
+		2345678901ABCDEF23456702 /* CardRectangleSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardRectangleSelector.swift; sourceTree = "<group>"; };
 		23EB7BC1F513D2082672F034 /* InQuestDecks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InQuestDecks.swift; sourceTree = "<group>"; };
 		254158237A4E16E577D203D1 /* ArtVerificationIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtVerificationIntegrationTests.swift; sourceTree = "<group>"; };
 		26062879106D4F131EC545AF /* SoughtAfterCardsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoughtAfterCardsService.swift; sourceTree = "<group>"; };
@@ -333,10 +335,12 @@
 		43D8A06F9956D623C6EAC8D6 /* DeckIdentificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckIdentificationService.swift; sourceTree = "<group>"; };
 		44077D8AD1EB01565E5AA3DE /* BulkDataDownloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkDataDownloader.swift; sourceTree = "<group>"; };
 		44BC05551F5EFE289A2C9CFB /* SoughtAfterCardsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoughtAfterCardsScreen.swift; sourceTree = "<group>"; };
+		44DD55EE66FF77AA88BB99CC /* EmptyFrameCounterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyFrameCounterTests.swift; sourceTree = "<group>"; };
+		4567890123ABCDEF45678904 /* CardRectangleSelectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardRectangleSelectorTests.swift; sourceTree = "<group>"; };
 		471757CE705CD08B49241A02 /* AddToCollectionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddToCollectionSheet.swift; sourceTree = "<group>"; };
 		48C8C27A8709852CE48E11B0 /* MarkOrderedSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkOrderedSheet.swift; sourceTree = "<group>"; };
 		48C8C27A8709852CE48E11B1 /* EditPurchaseInfoSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditPurchaseInfoSheet.swift; sourceTree = "<group>"; };
-		4A076C806EB4B6A1847CFEFC /* MTGCardScanner.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MTGCardScanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4A076C806EB4B6A1847CFEFC /* MTGCardScanner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MTGCardScanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4A9AC5520A03343B21F97ECF /* LandLists.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LandLists.swift; sourceTree = "<group>"; };
 		4FA6DE08398E18F5FFD27422 /* HareruyaPriceServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HareruyaPriceServiceTests.swift; sourceTree = "<group>"; };
 		59232F418A06FC0D096B7D98 /* ImageSplitterScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageSplitterScreen.swift; sourceTree = "<group>"; };
@@ -355,6 +359,7 @@
 		65E17B7A7899F9D84D37CB1B /* PHStoresSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PHStoresSection.swift; sourceTree = "<group>"; };
 		666AA0AFAB58E6F44E5E4B7B /* ShopView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShopView.swift; sourceTree = "<group>"; };
 		66A563065D22921CD26B863B /* EditOrderItemSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditOrderItemSheet.swift; sourceTree = "<group>"; };
+		66FF77AA88BB99CC11DD22EE /* CameraFocusConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraFocusConfig.swift; sourceTree = "<group>"; };
 		68455DF4B8C0DA6191DD9018 /* ImageProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageProcessor.swift; sourceTree = "<group>"; };
 		684A926C21D25FEA9428F7FF /* CurrencyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyService.swift; sourceTree = "<group>"; };
 		6921B9771B3F43E7EDF0214E /* CardCategoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardCategoryTests.swift; sourceTree = "<group>"; };
@@ -395,6 +400,7 @@
 		8613D1042D20D7378E3E432B /* LegalitySectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalitySectionView.swift; sourceTree = "<group>"; };
 		86689942D94ACB052854F23E /* CardScannerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardScannerViewModel.swift; sourceTree = "<group>"; };
 		87AD7695639F8322F262CFB7 /* ArchetypeSearchServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchetypeSearchServiceTests.swift; sourceTree = "<group>"; };
+		88BB99CC11DD22EE33FF44AA /* CameraFocusConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraFocusConfigTests.swift; sourceTree = "<group>"; };
 		88EE408A19254640311977A4 /* AppIcon-G.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-G.png"; sourceTree = "<group>"; };
 		8A7C35212583880D76FB71A5 /* DeckCompatibilityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckCompatibilityView.swift; sourceTree = "<group>"; };
 		8BB47A7415FE7EBC49CE651A /* Formatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatters.swift; sourceTree = "<group>"; };
@@ -413,8 +419,10 @@
 		A37AB2078D2731512F0C20A3 /* CardCopiesDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardCopiesDetailView.swift; sourceTree = "<group>"; };
 		A3D7EB6055DD1DABA482C2D2 /* ScryfallCardRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScryfallCardRepositoryTests.swift; sourceTree = "<group>"; };
 		A6F1591F40970795644DD5FE /* DatabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseManager.swift; sourceTree = "<group>"; };
-		A7EF5276B61E7BDCAB95652E /* MTGCardScannerTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MTGCardScannerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A7EF5276B61E7BDCAB95652E /* MTGCardScannerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MTGCardScannerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A8FB20D7CCAA7E097227D5B7 /* TrainingDataExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingDataExporter.swift; sourceTree = "<group>"; };
+		AA22BB33CC44DD55EE66FF77 /* GeminiBatchResponseParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiBatchResponseParserTests.swift; sourceTree = "<group>"; };
+		AA22BB33CC44DD55EE66FF99 /* CameraDeviceSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraDeviceSelector.swift; sourceTree = "<group>"; };
 		AC79A594FDB370D846C61CB8 /* CardAnalysisDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardAnalysisDetailView.swift; sourceTree = "<group>"; };
 		ACD37EBC2B6F82E3D7CC50A8 /* MD3Shape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MD3Shape.swift; sourceTree = "<group>"; };
 		ACF06930627E6A2B38083945 /* SetSymbolMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetSymbolMatcher.swift; sourceTree = "<group>"; };
@@ -434,6 +442,8 @@
 		B788E1E30E440FE89F04FF36 /* OrderPasteParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrderPasteParser.swift; sourceTree = "<group>"; };
 		B88EF65D1A92887C7409147F /* ChangePrintingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangePrintingSheet.swift; sourceTree = "<group>"; };
 		B8DBEE9567614B2F078EEE2A /* TopBasicLandsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopBasicLandsScreen.swift; sourceTree = "<group>"; };
+		BB22CC33DD44EE55FF66AA77 /* SetFilterFieldTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetFilterFieldTests.swift; sourceTree = "<group>"; };
+		BB88CC99DD11EE22FF33AA44 /* UIImageOrientationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIImageOrientationTests.swift; sourceTree = "<group>"; };
 		BC89B2ED5E4753847A3F07DE /* CardNameExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardNameExtractor.swift; sourceTree = "<group>"; };
 		BD9CA79EC480022B4D416C84 /* DeckSuggestionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckSuggestionService.swift; sourceTree = "<group>"; };
 		BE0A58F67B36D312E9E8C20B /* CardDatabaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardDatabaseTests.swift; sourceTree = "<group>"; };
@@ -454,6 +464,7 @@
 		CA2157A607C173ABCE8A4350 /* ScannedCardsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannedCardsListView.swift; sourceTree = "<group>"; };
 		CB28C4F3FB99DC762E4E5AEC /* ArchetypeDecksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchetypeDecksView.swift; sourceTree = "<group>"; };
 		CB4EAD2959D53FFF4EC2D7D9 /* CEDHStaples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CEDHStaples.swift; sourceTree = "<group>"; };
+		CC44DD55EE66FF99AA11BB22 /* CameraDeviceSelectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraDeviceSelectorTests.swift; sourceTree = "<group>"; };
 		CD9ED87F3DB0E99B27C7BA5E /* LocalCardRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalCardRepositoryTests.swift; sourceTree = "<group>"; };
 		CDA7ED65F448985D0D0A6A41 /* AppIconManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconManager.swift; sourceTree = "<group>"; };
 		CE4224778C2E7462B40F6D98 /* AppIcon-U@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-U@2x.png"; sourceTree = "<group>"; };
@@ -465,22 +476,8 @@
 		D9F24550C923BCBB8F5AB1E6 /* EDHRECServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EDHRECServiceTests.swift; sourceTree = "<group>"; };
 		DCF7F46AF24CC5AD002FA39C /* MTGStocksService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MTGStocksService.swift; sourceTree = "<group>"; };
 		DCF7F46AF24CC5AD002FA39D /* MTGStocksInterestsDiskCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MTGStocksInterestsDiskCache.swift; sourceTree = "<group>"; };
-		DDD6B755E1DDF183FEF1E6BB /* CollectionValueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionValueTests.swift; sourceTree = "<group>"; };
-		AA22BB33CC44DD55EE66FF77 /* GeminiBatchResponseParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiBatchResponseParserTests.swift; sourceTree = "<group>"; };
 		DD44EE55FF66AA77BB88CC99 /* BatchScanViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchScanViewModelTests.swift; sourceTree = "<group>"; };
-		FF66AA77BB88CC99DD11EE22 /* UIImage+Orientation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIImage+Orientation.swift"; sourceTree = "<group>"; };
-		BB88CC99DD11EE22FF33AA44 /* UIImageOrientationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIImageOrientationTests.swift; sourceTree = "<group>"; };
-		FF99AA11BB22CC33DD44EE55 /* SetFilterField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetFilterField.swift; sourceTree = "<group>"; };
-		FF99AA11BB22CC33DD44EE56 /* ScannedCardQuantityStepper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannedCardQuantityStepper.swift; sourceTree = "<group>"; };
-		BB22CC33DD44EE55FF66AA77 /* SetFilterFieldTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetFilterFieldTests.swift; sourceTree = "<group>"; };
-		22BB33CC44DD55EE66FF77AA /* EmptyFrameCounter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyFrameCounter.swift; sourceTree = "<group>"; };
-		44DD55EE66FF77AA88BB99CC /* EmptyFrameCounterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyFrameCounterTests.swift; sourceTree = "<group>"; };
-		66FF77AA88BB99CC11DD22EE /* CameraFocusConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraFocusConfig.swift; sourceTree = "<group>"; };
-		88BB99CC11DD22EE33FF44AA /* CameraFocusConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraFocusConfigTests.swift; sourceTree = "<group>"; };
-		AA22BB33CC44DD55EE66FF99 /* CameraDeviceSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraDeviceSelector.swift; sourceTree = "<group>"; };
-		CC44DD55EE66FF99AA11BB22 /* CameraDeviceSelectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraDeviceSelectorTests.swift; sourceTree = "<group>"; };
-		2345678901ABCDEF23456702 /* CardRectangleSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardRectangleSelector.swift; sourceTree = "<group>"; };
-		4567890123ABCDEF45678904 /* CardRectangleSelectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardRectangleSelectorTests.swift; sourceTree = "<group>"; };
+		DDD6B755E1DDF183FEF1E6BB /* CollectionValueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionValueTests.swift; sourceTree = "<group>"; };
 		DE57AD5A1CECE9BAF56CC887 /* ArchetypeMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchetypeMatcher.swift; sourceTree = "<group>"; };
 		E00A71B39EA6EEBFDA46EB41 /* TCGPHService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TCGPHService.swift; sourceTree = "<group>"; };
 		E00CC5B63598B175A590CCD2 /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
@@ -516,6 +513,9 @@
 		FC3CD4D36FEC5623515FEAA8 /* SetupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupScreen.swift; sourceTree = "<group>"; };
 		FDC066DBAB6DCF086E7D7132 /* CollectibleLands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectibleLands.swift; sourceTree = "<group>"; };
 		FED8B2BEDEF495AD8311F1D5 /* CardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardTests.swift; sourceTree = "<group>"; };
+		FF66AA77BB88CC99DD11EE22 /* UIImage+Orientation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIImage+Orientation.swift"; sourceTree = "<group>"; };
+		FF99AA11BB22CC33DD44EE55 /* SetFilterField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetFilterField.swift; sourceTree = "<group>"; };
+		FF99AA11BB22CC33DD44EE56 /* ScannedCardQuantityStepper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannedCardQuantityStepper.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -1101,13 +1101,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1600;
+				LastUpgradeCheck = 2640;
 				TargetAttributes = {
 					35B71466CC5D1F48A2A7AAAC = {
 						DevelopmentTeam = 55A7LPBS2U;
 					};
 					E1A0DEB1F8522548D2E31419 = {
-						DevelopmentTeam = 55A7LPBS2U;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -1421,6 +1420,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 55A7LPBS2U;
 				INFOPLIST_FILE = Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1439,6 +1439,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 55A7LPBS2U;
 				INFOPLIST_FILE = Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1489,6 +1490,7 @@
 				DEVELOPMENT_TEAM = 55A7LPBS2U;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -1502,6 +1504,7 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.9;
@@ -1546,6 +1549,7 @@
 				DEVELOPMENT_TEAM = 55A7LPBS2U;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -1566,6 +1570,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.9;
