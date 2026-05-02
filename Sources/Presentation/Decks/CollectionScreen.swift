@@ -373,6 +373,15 @@ struct CollectionScreen: View {
                           : "rectangle.3.group.fill")
                 }
 
+                NavigationLink {
+                    RecentlyAddedScreen(
+                        deckRepository: deckRepository,
+                        cardRepository: cardRepository
+                    )
+                } label: {
+                    Image(systemName: "clock.arrow.circlepath")
+                }
+
                 ScreenHelpButton(title: "Collection", sections: [
                         HelpSection(icon: "rectangle.stack", title: "What lives here",
                                     body: "Every physical card you own. Tracked per printing — 4 Lightning Bolts from M11 and 4 from M10 are two separate rows."),
