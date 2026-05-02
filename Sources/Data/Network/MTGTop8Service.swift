@@ -107,7 +107,11 @@ struct MTGTop8Service: MTGTop8ServiceProtocol {
     private let httpClient: HTTPClientProtocol
     private static let baseURL = "https://mtgtop8.com/search"
 
-    init(httpClient: HTTPClientProtocol = MTGTop8MonitoredHTTPClient()) {
+    init(
+        httpClient: HTTPClientProtocol = MTGTop8WaybackFallbackClient(
+            inner: MTGTop8MonitoredHTTPClient()
+        )
+    ) {
         self.httpClient = httpClient
     }
 

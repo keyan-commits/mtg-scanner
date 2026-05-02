@@ -195,7 +195,9 @@
 		BC1AD13F108B4C829F6A24C8 /* BrowseArchetypesScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0229C77C05DDF16615E6C0 /* BrowseArchetypesScreen.swift */; };
 		BDF527809E79A54273FB1881 /* VisualSearchEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F472D40D1DDF15EA480F7D9C /* VisualSearchEngine.swift */; };
 		BEEC5C52A0FB536DC8314B7C /* HareruyaPriceServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FA6DE08398E18F5FFD27422 /* HareruyaPriceServiceTests.swift */; };
+		C159781D63E8DC4225F8A606 /* MTGTop8WaybackFallbackClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57E8A8DEA620C57BB61FF7D4 /* MTGTop8WaybackFallbackClientTests.swift */; };
 		C2856ED9C5E74EB10B6D80F1 /* HTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90D1D008C82A69BBEA910CFA /* HTTPClient.swift */; };
+		C31492D0998357A8F6D3384C /* MTGTop8WaybackFallbackClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60005725EE99409595055405 /* MTGTop8WaybackFallbackClient.swift */; };
 		C442D93E8843A42611071E91 /* IdentifyCardUseCaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41A1EB06D3DDA558ED6AAB58 /* IdentifyCardUseCaseTests.swift */; };
 		C4835CDB3B527897ACF92CB0 /* VisualEmbeddingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4339FDDD7FC253E8C8722109 /* VisualEmbeddingStore.swift */; };
 		C49461BA8496472ED9C4FBC7 /* ArchetypeSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63D27D71B79B4CBC9574B5E0 /* ArchetypeSearchService.swift */; };
@@ -353,6 +355,7 @@
 		4A076C806EB4B6A1847CFEFC /* MTGCardScanner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MTGCardScanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4A9AC5520A03343B21F97ECF /* LandLists.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LandLists.swift; sourceTree = "<group>"; };
 		4FA6DE08398E18F5FFD27422 /* HareruyaPriceServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HareruyaPriceServiceTests.swift; sourceTree = "<group>"; };
+		57E8A8DEA620C57BB61FF7D4 /* MTGTop8WaybackFallbackClientTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MTGTop8WaybackFallbackClientTests.swift; sourceTree = "<group>"; };
 		59232F418A06FC0D096B7D98 /* ImageSplitterScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageSplitterScreen.swift; sourceTree = "<group>"; };
 		595AAA98AAACE44BD9A0D55E /* DynamicListService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynamicListService.swift; sourceTree = "<group>"; };
 		5A92D5221A071F97A64E4FEF /* ScryfallCardRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScryfallCardRepository.swift; sourceTree = "<group>"; };
@@ -362,6 +365,7 @@
 		5DB872106240217FBE87B3F0 /* PickPrintingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickPrintingSheet.swift; sourceTree = "<group>"; };
 		5F2C1BB476E1DB887431F5B2 /* CardLegalityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardLegalityTests.swift; sourceTree = "<group>"; };
 		5FA09452984E0E5EDE0F3DA1 /* FormatsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatsScreen.swift; sourceTree = "<group>"; };
+		60005725EE99409595055405 /* MTGTop8WaybackFallbackClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MTGTop8WaybackFallbackClient.swift; sourceTree = "<group>"; };
 		6351BD05F96432D38D6D545F /* DeckIdentificationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckIdentificationServiceTests.swift; sourceTree = "<group>"; };
 		63D1FA43680EE1EA06EC042B /* ScryfallSearchDTO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScryfallSearchDTO.swift; sourceTree = "<group>"; };
 		63D27D71B79B4CBC9574B5E0 /* ArchetypeSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchetypeSearchService.swift; sourceTree = "<group>"; };
@@ -709,6 +713,7 @@
 				E00A71B39EA6EEBFDA46EB41 /* TCGPHService.swift */,
 				20948F80A5E857C66655DEAB /* MTGTop8AvailabilityMonitor.swift */,
 				F7BCB32D7B4692D21DB8CEC2 /* MTGTop8MonitoredHTTPClient.swift */,
+				60005725EE99409595055405 /* MTGTop8WaybackFallbackClient.swift */,
 			);
 			path = Network;
 			sourceTree = "<group>";
@@ -754,6 +759,7 @@
 				DAF0B5D459712178559DC258 /* MTGTop8MonitoredHTTPClientTests.swift */,
 				7BFC20CFE655B6D175ADCDB8 /* LatestTopFinishesCacheTests.swift */,
 				C7BA86268209DFE5B71AB780 /* DecklistCacheTests.swift */,
+				57E8A8DEA620C57BB61FF7D4 /* MTGTop8WaybackFallbackClientTests.swift */,
 			);
 			path = Data;
 			sourceTree = "<group>";
@@ -1368,6 +1374,7 @@
 				D52C0F38C164A931E9AEE4A5 /* MTGTop8MonitoredHTTPClient.swift in Sources */,
 				9E9D40C7B152AE70B0ED18E5 /* MTGTop8AvailabilityState.swift in Sources */,
 				7807A98CE21C5418BB6CD9C0 /* MTGTop8OutageBanner.swift in Sources */,
+				C31492D0998357A8F6D3384C /* MTGTop8WaybackFallbackClient.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1428,6 +1435,7 @@
 				F42FAE88CBCB42ADC582E7DB /* MTGTop8MonitoredHTTPClientTests.swift in Sources */,
 				63DDD6DABA277B879C77DA3D /* LatestTopFinishesCacheTests.swift in Sources */,
 				188ABC45661627D54E341F23 /* DecklistCacheTests.swift in Sources */,
+				C159781D63E8DC4225F8A606 /* MTGTop8WaybackFallbackClientTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

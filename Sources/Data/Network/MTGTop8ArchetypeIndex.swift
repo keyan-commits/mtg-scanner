@@ -144,7 +144,9 @@ actor MTGTop8ArchetypeIndex: MTGTop8ArchetypeIndexProtocol {
     // MARK: - Init
 
     init(
-        httpClient: HTTPClientProtocol = MTGTop8MonitoredHTTPClient(),
+        httpClient: HTTPClientProtocol = MTGTop8WaybackFallbackClient(
+            inner: MTGTop8MonitoredHTTPClient()
+        ),
         cacheDirectory: URL? = nil,
         ttl: TimeInterval = MTGTop8ArchetypeIndex.defaultTTL
     ) {
