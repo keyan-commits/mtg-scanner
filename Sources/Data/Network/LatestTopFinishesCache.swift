@@ -98,6 +98,7 @@ actor LatestTopFinishesCache: LatestTopFinishesCacheProtocol {
     static let defaultTTL: TimeInterval = 7 * 24 * 60 * 60   // 7 days
 
     private let service: MTGTop8ServiceProtocol
+    private let availabilityMonitor: MTGTop8AvailabilityMonitor
     private let cacheFile: URL
     private let ttl: TimeInterval
 
@@ -106,10 +107,12 @@ actor LatestTopFinishesCache: LatestTopFinishesCacheProtocol {
 
     init(
         service: MTGTop8ServiceProtocol = MTGTop8Service(),
+        availabilityMonitor: MTGTop8AvailabilityMonitor = .shared,
         cacheDirectory: URL? = nil,
         ttl: TimeInterval = LatestTopFinishesCache.defaultTTL
     ) {
         self.service = service
+        self.availabilityMonitor = availabilityMonitor
         self.ttl = ttl
 
         let directory: URL
@@ -137,18 +140,33 @@ actor LatestTopFinishesCache: LatestTopFinishesCacheProtocol {
     ) async -> MTGTop8Deck? {
         loadIfNeeded()
         let key = Self.cacheKey(format: format, archetypeID: archetypeID)
+        let existingEntry = memoryCache?.entries[key]
 
         if !forceRefresh,
-           let entry = memoryCache?.entries[key],
+           let entry = existingEntry,
            !isStale(entry) {
             return entry.deck?.domain
         }
 
-        // Cache miss or stale or forced — go to the network.
-        let deck = try? await service.fetchLatestTop1(
-            archetypeID: archetypeID,
-            format: format
-        )
+        // MTGTop8 currently unavailable — skip the network and serve
+        // whatever we last cached (even if stale). Returns nil if the
+        // archetype was never fetched at all.
+        if await !availabilityMonitor.isAvailable {
+            return existingEntry?.deck?.domain
+        }
+
+        // Cache miss or stale or forced — go to the network. Use throwing
+        // form so a transient error falls back to the stale entry instead
+        // of poisoning the cache with nil.
+        let deck: MTGTop8Deck?
+        do {
+            deck = try await service.fetchLatestTop1(
+                archetypeID: archetypeID,
+                format: format
+            )
+        } catch {
+            return existingEntry?.deck?.domain
+        }
 
         var file = memoryCache ?? LatestTopFinishesCacheFile(entries: [:])
         file.entries[key] = LatestTopFinishesCacheEntry(

@@ -64,6 +64,7 @@ actor DecklistCache: DecklistCacheProtocol {
     static let defaultTTL: TimeInterval = 14 * 24 * 60 * 60   // 14 days
 
     private let service: MTGTop8ServiceProtocol
+    private let availabilityMonitor: MTGTop8AvailabilityMonitor
     private let cacheFile: URL
     private let ttl: TimeInterval
 
@@ -71,10 +72,12 @@ actor DecklistCache: DecklistCacheProtocol {
 
     init(
         service: MTGTop8ServiceProtocol = MTGTop8Service(),
+        availabilityMonitor: MTGTop8AvailabilityMonitor = .shared,
         cacheDirectory: URL? = nil,
         ttl: TimeInterval = DecklistCache.defaultTTL
     ) {
         self.service = service
+        self.availabilityMonitor = availabilityMonitor
         self.ttl = ttl
 
         let directory: URL
@@ -97,14 +100,29 @@ actor DecklistCache: DecklistCacheProtocol {
 
     func decklist(deckID: String, forceRefresh: Bool = false) async -> MTGTop8Decklist? {
         loadIfNeeded()
+        let existingEntry = memoryCache?.entries[deckID]
+
         if !forceRefresh,
-           let entry = memoryCache?.entries[deckID],
+           let entry = existingEntry,
            !isStale(entry) {
             return entry.decklist.domain
         }
-        guard let fresh = try? await service.fetchDecklist(deckID: deckID) else {
-            return nil
+
+        // MTGTop8 currently unavailable — skip the network and serve the
+        // last cached decklist (even if stale). Returns nil if we've
+        // never fetched this deck.
+        if await !availabilityMonitor.isAvailable {
+            return existingEntry?.decklist.domain
         }
+
+        let fresh: MTGTop8Decklist
+        do {
+            fresh = try await service.fetchDecklist(deckID: deckID)
+        } catch {
+            // Network/parse error — fall back to whatever was cached.
+            return existingEntry?.decklist.domain
+        }
+
         var file = memoryCache ?? DecklistCacheFile(entries: [:])
         file.entries[deckID] = DecklistCacheEntry(
             fetchedAt: Date(),
