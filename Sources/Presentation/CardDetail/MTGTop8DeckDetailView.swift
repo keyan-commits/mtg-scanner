@@ -194,6 +194,7 @@ struct MTGTop8DeckDetailView: View {
         .task {
             await loadAndResolve()
         }
+        .mtgTop8OutageBanner()
     }
 
     // MARK: - Toolbar menus

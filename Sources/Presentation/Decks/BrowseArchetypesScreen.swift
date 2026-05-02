@@ -66,6 +66,7 @@ struct BrowseArchetypesScreen: View {
         .task {
             await load()
         }
+        .mtgTop8OutageBanner()
     }
 
     // MARK: - Loading / error

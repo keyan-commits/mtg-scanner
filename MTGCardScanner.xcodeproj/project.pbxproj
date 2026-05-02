@@ -123,6 +123,7 @@
 		75A20989338BCF910E50AC4C /* CardNameExtractorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08DD9B7FD35CF087C2CE083B /* CardNameExtractorTests.swift */; };
 		760927A365BC1AEC2C714586 /* CachedAsyncImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = C62E7C2D39E4EDDA39A1068F /* CachedAsyncImage.swift */; };
 		77AA88BB99CC11DD22EE33FF /* CameraFocusConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88BB99CC11DD22EE33FF44AA /* CameraFocusConfigTests.swift */; };
+		7807A98CE21C5418BB6CD9C0 /* MTGTop8OutageBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CBA691890A2CDD4E7041417 /* MTGTop8OutageBanner.swift */; };
 		7843F0B71514F00B74CFB4B3 /* PickPrintingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DB872106240217FBE87B3F0 /* PickPrintingSheet.swift */; };
 		79311DCFB693440F883020CC /* CardKingdomPriceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D65BB4BA517B644ABDB8332 /* CardKingdomPriceService.swift */; };
 		7DB9D443C75079E2E77CDC12 /* CardResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FB935C14691ABF388BA4DE4 /* CardResolver.swift */; };
@@ -162,6 +163,7 @@
 		9A8021D907A98467EDB08B7C /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31C20EF780B773AFFB05E4A1 /* RootView.swift */; };
 		9B91A6CBE619B23CB9D85AF7 /* DeckGuideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6CC96FC2B57624EB76A8403 /* DeckGuideView.swift */; };
 		9C521841E6720318DBCF57E7 /* DeckLookupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 907071EF35D16C3AC1BE93F3 /* DeckLookupService.swift */; };
+		9E9D40C7B152AE70B0ED18E5 /* MTGTop8AvailabilityState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B80F642D3C2648E9AB64B0F4 /* MTGTop8AvailabilityState.swift */; };
 		A36C512C36CE5162CCCB093D /* QuickAddToCollectionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1BFD0F4CFB4B9E44414742 /* QuickAddToCollectionSheet.swift */; };
 		A4037FC7EC4CBF999BB15C34 /* CollectorInfoExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F00F6CA17C65A39BDF87E55 /* CollectorInfoExtractor.swift */; };
 		A6D313CE620FB5E2370B741F /* DeckListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21299263386630693EDC580B /* DeckListModel.swift */; };
@@ -298,6 +300,7 @@
 		15F611A18A62184288A1FFC1 /* PrintingStrategy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintingStrategy.swift; sourceTree = "<group>"; };
 		160C72BE5594C994FED6E454 /* PriceSparklineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PriceSparklineView.swift; sourceTree = "<group>"; };
 		1CAF409A809F6F8D47D9C486 /* MTGTop8ArchetypeIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MTGTop8ArchetypeIndex.swift; sourceTree = "<group>"; };
+		1CBA691890A2CDD4E7041417 /* MTGTop8OutageBanner.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MTGTop8OutageBanner.swift; sourceTree = "<group>"; };
 		1CBBC7E24FE608A866F4FEF4 /* AppIcon-R@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon-R@3x.png"; sourceTree = "<group>"; };
 		1CD22E600EE58983EE4076F4 /* MD3Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MD3Theme.swift; sourceTree = "<group>"; };
 		1D3DE5961526665CF7B62C16 /* CardDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardDetector.swift; sourceTree = "<group>"; };
@@ -449,6 +452,7 @@
 		B712B167C432FB8FEE82447A /* CardDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardDetailView.swift; sourceTree = "<group>"; };
 		B75625970A7318A6BE9C4B6E /* CollectionScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionScreen.swift; sourceTree = "<group>"; };
 		B788E1E30E440FE89F04FF36 /* OrderPasteParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrderPasteParser.swift; sourceTree = "<group>"; };
+		B80F642D3C2648E9AB64B0F4 /* MTGTop8AvailabilityState.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MTGTop8AvailabilityState.swift; sourceTree = "<group>"; };
 		B88EF65D1A92887C7409147F /* ChangePrintingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangePrintingSheet.swift; sourceTree = "<group>"; };
 		B8DBEE9567614B2F078EEE2A /* TopBasicLandsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopBasicLandsScreen.swift; sourceTree = "<group>"; };
 		BB22CC33DD44EE55FF66AA77 /* SetFilterFieldTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetFilterFieldTests.swift; sourceTree = "<group>"; };
@@ -928,6 +932,8 @@
 				160C72BE5594C994FED6E454 /* PriceSparklineView.swift */,
 				FF99AA11BB22CC33DD44EE55 /* SetFilterField.swift */,
 				FF99AA11BB22CC33DD44EE56 /* ScannedCardQuantityStepper.swift */,
+				B80F642D3C2648E9AB64B0F4 /* MTGTop8AvailabilityState.swift */,
+				1CBA691890A2CDD4E7041417 /* MTGTop8OutageBanner.swift */,
 			);
 			path = DesignSystem;
 			sourceTree = "<group>";
@@ -1360,6 +1366,8 @@
 				BDF527809E79A54273FB1881 /* VisualSearchEngine.swift in Sources */,
 				D6A14C224E2F761BCFAC8028 /* MTGTop8AvailabilityMonitor.swift in Sources */,
 				D52C0F38C164A931E9AEE4A5 /* MTGTop8MonitoredHTTPClient.swift in Sources */,
+				9E9D40C7B152AE70B0ED18E5 /* MTGTop8AvailabilityState.swift in Sources */,
+				7807A98CE21C5418BB6CD9C0 /* MTGTop8OutageBanner.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -73,6 +73,7 @@ struct FormatsScreen: View {
         .task {
             await loadCatalog()
         }
+        .mtgTop8OutageBanner()
     }
 
     // MARK: - Loading + error

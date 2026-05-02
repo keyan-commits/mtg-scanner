@@ -145,6 +145,7 @@ struct ArchetypeDecksView: View {
         .task {
             await loadDecks()
         }
+        .mtgTop8OutageBanner()
     }
 
     private func deckRow(_ deck: MTGTop8Deck) -> some View {
