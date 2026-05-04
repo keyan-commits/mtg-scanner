@@ -29,9 +29,14 @@ struct PriceComparisonView: View {
                 // would only ever show garbage or a non-foil reprint's
                 // numbers. Skip it and let the foil row stand alone below.
                 if !card.isFoilOnly {
-                    Text("Market Prices (NM)")
-                        .font(MD3Typography.titleMedium)
-                        .foregroundStyle(MD3Theme.onSurface)
+                    // The "Market Prices (NM)" parent header used to
+                    // live here in MD3Typography.titleMedium. Dropped
+                    // because the "TCGPLAYER (NM)" panel header and
+                    // "Cardmarket (EUR)" row label below already
+                    // function as inline section labels — the parent
+                    // title was redundant and the SF Pro Text optical
+                    // variant at 16pt read as visually disjointed
+                    // against the smaller all-caps panel header.
 
                     // TCGPlayer's three published tiers: Low / Mid /
                     // Market. Layout matches ManaBox + TCGPlayer's own
@@ -77,14 +82,18 @@ struct PriceComparisonView: View {
                 }
 
                 if let eurString = card.prices.eur, let eurValue = Double(eurString) {
-                    let displayCurrency = preferred == "EUR" ? "EUR" : preferred
-                    let converted = displayCurrency == "EUR"
-                        ? eurValue
-                        : currencyService.convert(eurValue / (currencyService.convert(1, to: "EUR") ?? 1), to: preferred) ?? eurValue
+                    // Cardmarket prices are sourced in EUR; we convert
+                    // EUR → USD → local so the row matches the rest of
+                    // the screen (local primary, USD secondary). The
+                    // raw € value is no longer surfaced — preferred
+                    // currency wins consistently.
+                    let usdEquivalent = (currencyService.convert(1, to: "EUR")).map { rate in
+                        rate > 0 ? eurValue / rate : eurValue
+                    } ?? eurValue
                     priceRow(
-                        source: "Cardmarket (EUR)",
-                        primary: LocalCurrency.format(converted, currency: displayCurrency),
-                        secondary: preferred == "EUR" ? nil : "€\(eurString)"
+                        source: "Cardmarket",
+                        primary: formatLocal(usdEquivalent, currency: preferred),
+                        secondary: preferred == "USD" ? nil : String(format: "$%.2f USD", usdEquivalent)
                     )
                 }
 
@@ -399,7 +408,8 @@ struct PriceComparisonView: View {
     }
 
     private func vendorRow(_ vp: MTGStocksCard.VendorPrice) -> some View {
-        HStack {
+        let preferred = LocalCurrency.current
+        return HStack {
             Text(vp.vendor)
                 .font(MD3Typography.bodyMedium)
                 .foregroundStyle(MD3Theme.onSurface)
@@ -409,9 +419,16 @@ struct PriceComparisonView: View {
                     .foregroundStyle(.orange)
             }
             Spacer()
-            Text(String(format: "$%.2f", vp.price))
-                .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                .foregroundStyle(MD3Theme.primary)
+            VStack(alignment: .trailing, spacing: 1) {
+                Text(formatLocal(vp.price, currency: preferred))
+                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(MD3Theme.primary)
+                if preferred != "USD" {
+                    Text(String(format: "$%.2f USD", vp.price))
+                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .foregroundStyle(MD3Theme.onSurfaceVariant)
+                }
+            }
             if vp.url != nil {
                 Image(systemName: "arrow.up.right.square")
                     .font(.caption2)
