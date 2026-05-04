@@ -13,6 +13,29 @@ import Foundation
 /// All numeric IDs were verified by scraping `card_set` blocks from
 /// MTGStocks print pages on 2026-05-04. Update the table when MTGStocks
 /// reorganizes a bucket or when a new promo program needs coverage.
+///
+/// Known uncovered promo programs (Scryfall audit 2026-05-04). Each
+/// would need its MTGStocks `set_id` verified by scraping a print page
+/// before being added — never guess a numeric id, that's how we'd
+/// reintroduce the wrong-print bug this mapper exists to fix.
+///
+/// High-volume gaps caught by promo_types:
+/// - `playerrewards` (Magic Player Rewards, p03–p11, mpr)
+/// - `promopack` (Promo Pack line, ppp1, pmid, pdmu, pone, pdft, …)
+/// - `setpromo` (older expansion promos, ugin, p10e, pktk, pori)
+/// - `standardshowdown` (pss1–pss5)
+/// - `premiereshop` (pmps, pmps06–pmps11)
+/// - `tourney` (pcmp, pjas, pjse, psus, pgpx, ppro, p10e)
+/// - `convention` (psdc, ps14–ps19)
+///
+/// Lower priority: `instore`, `gameday`, `storechampionship`,
+/// `mediainsert`, `playtest`, `boosterfun`, `playpromo`.
+///
+/// Sets with no useful promo_types signal (need explicit Scryfall code
+/// mapping when prioritized): plg21–plg25 (Love Your LGS), pf19/pf20
+/// (older MagicFest), pana (Arena), pl21–pl26/plny (Lunar New Year),
+/// pewk (Eternal Weekend), pnat (Nationals), pwcs (Planeswalker
+/// Championship), pr23 (RCQ 2023), pjjt, p15a, ptg, slp, pjsc.
 enum MTGStocksSetMapper {
 
     /// Direct Scryfall code → MTGStocks `set_id`. Use for buckets where
