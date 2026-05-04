@@ -24,29 +24,35 @@ struct PriceComparisonView: View {
         let eurAmount = card.prices.eur.flatMap(Double.init)
         MD3Card {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Market Prices (NM)")
-                    .font(MD3Typography.titleMedium)
-                    .foregroundStyle(MD3Theme.onSurface)
+                // Foil-only printings (FNM, Secret Lair foil drops, Magic
+                // Online promos) have no nonfoil price — the NM/range panel
+                // would only ever show garbage or a non-foil reprint's
+                // numbers. Skip it and let the foil row stand alone below.
+                if !card.isFoilOnly {
+                    Text("Market Prices (NM)")
+                        .font(MD3Typography.titleMedium)
+                        .foregroundStyle(MD3Theme.onSurface)
 
-                // TCGPlayer Low / Market / High range.
-                // Uses real data from MTGStocks when available,
-                // otherwise estimates from Scryfall market price.
-                if let rangeUSD = marketUSD ?? foilUSD {
-                    if let detail = mtgStocksCard,
-                       let realLow = detail.tcgLow,
-                       let realMarket = detail.tcgMarket,
-                       let realHigh = detail.tcgHigh {
-                        // Cap High at 3x Market to filter outlier listings
-                        // (e.g. $1,000 listing on a $0.88 card)
-                        let cappedHigh = min(realHigh, realMarket * 3)
-                        tcgRangeReal(low: realLow, market: realMarket, high: cappedHigh, preferred: preferred)
-                    } else {
-                        tcgRange(marketUSD: rangeUSD, preferred: preferred)
+                    // TCGPlayer Low / Market / High range.
+                    // Uses real data from MTGStocks when available,
+                    // otherwise estimates from Scryfall market price.
+                    if let rangeUSD = marketUSD ?? foilUSD {
+                        if let detail = mtgStocksCard,
+                           let realLow = detail.tcgLow,
+                           let realMarket = detail.tcgMarket,
+                           let realHigh = detail.tcgHigh {
+                            // Cap High at 3x Market to filter outlier listings
+                            // (e.g. $1,000 listing on a $0.88 card)
+                            let cappedHigh = min(realHigh, realMarket * 3)
+                            tcgRangeReal(low: realLow, market: realMarket, high: cappedHigh, preferred: preferred)
+                        } else {
+                            tcgRange(marketUSD: rangeUSD, preferred: preferred)
+                        }
                     }
-                }
 
-                if marketUSD != nil || foilUSD != nil || eurAmount != nil {
-                    Divider()
+                    if marketUSD != nil || foilUSD != nil || eurAmount != nil {
+                        Divider()
+                    }
                 }
 
                 // Other authentic tiers from Scryfall (foil, EUR, MTGO).

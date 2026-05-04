@@ -82,6 +82,16 @@ struct Card: Identifiable, Equatable, Hashable, Sendable {
         return year.allSatisfy(\.isNumber) ? year : nil
     }
 
+    /// True when the printing exists only in foil — no nonfoil or etched
+    /// variant. Used to suppress the "Market Prices (NM)" panel and to
+    /// pick foil-aware MTGStocks vendor prices for cards like FNM promos
+    /// and Secret Lair foil drops.
+    var isFoilOnly: Bool {
+        finishes.contains("foil")
+            && !finishes.contains("nonfoil")
+            && !finishes.contains("etched")
+    }
+
     /// Combined display badges from frame effects and promo types.
     /// Used in search result rows and card detail for variant identification.
     var displayBadges: [String] {
@@ -125,7 +135,7 @@ struct Card: Identifiable, Equatable, Hashable, Sendable {
         let hasNonfoil = finishes.contains("nonfoil")
         let hasFoil = finishes.contains("foil")
         let hasEtched = finishes.contains("etched")
-        if hasFoil && !hasNonfoil && !hasEtched {
+        if isFoilOnly {
             badges.append("Foil")
         } else if hasEtched && !hasNonfoil && !hasFoil {
             badges.append("Etched")

@@ -59,7 +59,9 @@ struct CardTests {
         prices: CardPrices? = nil,
         legalities: FormatLegality = FormatLegality([:]),
         imageURIs: [String: String] = [:],
-        relatedPrintingsURI: String? = nil
+        relatedPrintingsURI: String? = nil,
+        promoTypes: [String] = [],
+        finishes: [String] = ["nonfoil"]
     ) -> Card {
         Card(
             scryfallID: scryfallID,
@@ -83,8 +85,8 @@ struct CardTests {
             relatedPrintingsURI: relatedPrintingsURI,
             lang: "en",
             printedName: nil,
-            promoTypes: [],
-            finishes: ["nonfoil"]
+            promoTypes: promoTypes,
+            finishes: finishes
         )
     }
 
@@ -231,6 +233,41 @@ struct CardTests {
     func formattedPriceReturnsNilForEmptyPrices() {
         let prices = CardPrices(usd: nil, usdFoil: nil, eur: nil, eurFoil: nil, tix: nil, previousUsd: nil)
         #expect(prices.formattedPrice == nil)
+    }
+
+    // MARK: - isFoilOnly
+
+    @Test("isFoilOnly true when finishes contains only foil")
+    func isFoilOnlyForFoilOnlyPrint() {
+        let card = CardTests.makeCard(finishes: ["foil"])
+        #expect(card.isFoilOnly == true)
+    }
+
+    @Test("isFoilOnly false when finishes contains nonfoil")
+    func isFoilOnlyFalseWhenNonfoilAvailable() {
+        let card = CardTests.makeCard(finishes: ["nonfoil", "foil"])
+        #expect(card.isFoilOnly == false)
+    }
+
+    @Test("isFoilOnly false for nonfoil-only print")
+    func isFoilOnlyFalseForNonfoilPrint() {
+        let card = CardTests.makeCard(finishes: ["nonfoil"])
+        #expect(card.isFoilOnly == false)
+    }
+
+    @Test("isFoilOnly false when etched is also present")
+    func isFoilOnlyFalseWhenEtchedPresent() {
+        // A foil + etched print (some Modern Horizons style printings)
+        // is not "foil-only" — the etched variant is a separate finish
+        // with its own market.
+        let card = CardTests.makeCard(finishes: ["foil", "etched"])
+        #expect(card.isFoilOnly == false)
+    }
+
+    @Test("isFoilOnly false for empty finishes")
+    func isFoilOnlyFalseForEmptyFinishes() {
+        let card = CardTests.makeCard(finishes: [])
+        #expect(card.isFoilOnly == false)
     }
 
     // MARK: - CardRarity
