@@ -45,7 +45,17 @@ actor MTGStocksService {
     /// Search for a card by name and return its MTGStocks print ID.
     /// When setCode and collectorNumber are provided, matches the exact
     /// printing from the card's `sets` array on MTGStocks.
-    func lookupID(cardName: String, setCode: String? = nil, collectorNumber: String? = nil) async -> Int? {
+    ///
+    /// `promoTypes` is the Scryfall `promo_types` array — required to
+    /// disambiguate multi-year promo buckets (FNM, Judge, Prerelease,
+    /// Buy-A-Box, WPN/Gateway, Release/Launch) where MTGStocks reports
+    /// an empty/null `abbreviation`.
+    func lookupID(
+        cardName: String,
+        setCode: String? = nil,
+        collectorNumber: String? = nil,
+        promoTypes: [String] = []
+    ) async -> Int? {
         let cacheKey = "\(cardName.lowercased())|\(setCode ?? "")|\(collectorNumber ?? "")"
         if let cached = idCache[cacheKey] { return cached }
 
@@ -65,39 +75,86 @@ actor MTGStocksService {
         guard let cardID = match?.id else { return nil }
 
         // If set code provided, fetch the card detail to find the exact printing
-        if let setCode, let collectorNumber,
+        if let setCode,
            let detailData = await fetch("/prints/\(cardID)"),
            let json = try? JSONSerialization.jsonObject(with: detailData) as? [String: Any],
-           let sets = json["sets"] as? [[String: Any]] {
-            let lowerSet = setCode.lowercased()
-            // Match by set abbreviation/icon_class + collector number
-            if let printing = sets.first(where: { entry in
-                let abbr = (entry["abbreviation"] as? String)?.lowercased()
-                let icon = (entry["icon_class"] as? String)?.lowercased()
-                let cn = entry["collector_number"] as? Int
-                let cnStr = cn.map(String.init)
-                return (abbr == lowerSet || icon == lowerSet) && cnStr == collectorNumber
-            }), let printID = printing["id"] as? Int {
-                evictIDCacheIfNeeded()
-                idCache[cacheKey] = printID
-                return printID
-            }
-            // Fallback: match by set only (first printing in that set)
-            if let printing = sets.first(where: { entry in
-                let abbr = (entry["abbreviation"] as? String)?.lowercased()
-                let icon = (entry["icon_class"] as? String)?.lowercased()
-                return abbr == lowerSet || icon == lowerSet
-            }), let printID = printing["id"] as? Int {
-                evictIDCacheIfNeeded()
-                idCache[cacheKey] = printID
-                return printID
-            }
+           let sets = json["sets"] as? [[String: Any]],
+           let printID = MTGStocksService.selectPrintID(
+               from: sets,
+               cardName: cardName,
+               scryfallSetCode: setCode,
+               collectorNumber: collectorNumber,
+               promoTypes: promoTypes
+           ) {
+            evictIDCacheIfNeeded()
+            idCache[cacheKey] = printID
+            return printID
         }
 
         // No set match — use the card-level default
         evictIDCacheIfNeeded()
         idCache[cacheKey] = cardID
         return cardID
+    }
+
+    /// Pure printing-selection logic — given a parsed MTGStocks `sets`
+    /// array and a Scryfall (setCode, collectorNumber, promoTypes),
+    /// returns the matching MTGStocks print id. Separated from
+    /// `lookupID` so it can be unit-tested without mocking the network.
+    ///
+    /// Match priority:
+    /// 1. Bucket match: if Scryfall maps to a known MTGStocks `set_id`
+    ///    (FNM/Judge/Prerelease/Buy-A-Box/WPN/Release/The List), match
+    ///    by `set_id` + collector number. The List is name-only.
+    /// 2. Abbreviation/icon_class match: covers normal expansions where
+    ///    Scryfall and MTGStocks codes agree (LRW=LRW, MMA=MMA, …).
+    ///
+    /// Returns nil when neither path produces an exact match — caller
+    /// falls back to the card-level default print id. There is
+    /// intentionally no "first printing in set" silent fallback: that's
+    /// what was returning the wrong print before.
+    static func selectPrintID(
+        from sets: [[String: Any]],
+        cardName: String,
+        scryfallSetCode: String,
+        collectorNumber: String?,
+        promoTypes: [String]
+    ) -> Int? {
+        // 1. Bucket-based match by numeric set_id
+        if let bucketSetID = MTGStocksSetMapper.mtgStocksSetID(
+            scryfallCode: scryfallSetCode, promoTypes: promoTypes
+        ) {
+            let nameOnly = MTGStocksSetMapper.usesNameOnlyMatch(scryfallCode: scryfallSetCode)
+            let lowerName = cardName.lowercased()
+            if let printing = sets.first(where: { entry in
+                guard (entry["set_id"] as? Int) == bucketSetID else { return false }
+                if nameOnly {
+                    let entryName = (entry["name"] as? String)?.lowercased()
+                    return entryName == lowerName
+                }
+                guard let collectorNumber else { return false }
+                let cn = entry["collector_number"] as? Int
+                return cn.map(String.init) == collectorNumber
+            }), let printID = printing["id"] as? Int {
+                return printID
+            }
+        }
+
+        // 2. Abbreviation / icon_class match (normal expansions)
+        if let collectorNumber {
+            let lowerSet = scryfallSetCode.lowercased()
+            if let printing = sets.first(where: { entry in
+                let abbr = (entry["abbreviation"] as? String)?.lowercased()
+                let icon = (entry["icon_class"] as? String)?.lowercased()
+                let cn = entry["collector_number"] as? Int
+                return (abbr == lowerSet || icon == lowerSet)
+                    && cn.map(String.init) == collectorNumber
+            }), let printID = printing["id"] as? Int {
+                return printID
+            }
+        }
+
+        return nil
     }
 
     /// Fetch full card detail (multi-vendor prices, ATH/ATL, all printings).

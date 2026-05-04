@@ -266,7 +266,8 @@ struct PriceComparisonView: View {
         guard let id = await service.lookupID(
             cardName: card.name,
             setCode: card.set.code,
-            collectorNumber: card.collectorNumber
+            collectorNumber: card.collectorNumber,
+            promoTypes: card.promoTypes
         ) else { return }
         mtgStocksID = id
 
