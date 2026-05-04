@@ -21,6 +21,9 @@ struct SetTriageDetailView: View {
     @State private var showLowValue = false
     @State private var hideChecked = false
 
+    @Bindable private var currencyService = CurrencyService.shared
+    private var preferred: String { LocalCurrency.current }
+
     var body: some View {
         Group {
             if isLoading {
@@ -226,9 +229,16 @@ struct SetTriageDetailView: View {
                     .foregroundStyle(rarityColor(card.rarity))
                 Spacer()
                 if let usd = rating?.unitPriceUSD {
-                    Text(String(format: "$%.2f", usd))
-                        .font(.system(size: 13, weight: .bold, design: .monospaced))
-                        .foregroundStyle(MD3Theme.primary)
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text(formatLocal(usd))
+                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                            .foregroundStyle(MD3Theme.primary)
+                        if preferred != "USD" {
+                            Text(String(format: "$%.2f USD", usd))
+                                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                .foregroundStyle(MD3Theme.onSurfaceVariant)
+                        }
+                    }
                 }
             }
             if let rating, !badges(for: rating).isEmpty {
@@ -294,6 +304,22 @@ struct SetTriageDetailView: View {
                     .clipShape(Capsule())
             }
         }
+    }
+
+    // MARK: - Currency
+
+    /// Convert a USD amount to the user's preferred display currency.
+    /// Matches the pattern in `PriceComparisonView` — local on top of
+    /// the row, USD on the secondary line. Falls back to raw USD when
+    /// the conversion rate isn't loaded.
+    private func formatLocal(_ usd: Double) -> String {
+        if preferred == "USD" {
+            return String(format: "$%.2f", usd)
+        }
+        if let converted = currencyService.convert(usd, to: preferred) {
+            return LocalCurrency.format(converted, currency: preferred)
+        }
+        return String(format: "$%.2f", usd)
     }
 
     // MARK: - Loading
