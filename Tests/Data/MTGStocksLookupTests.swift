@@ -301,14 +301,17 @@ struct MTGStocksLookupTests {
         #expect(tcg.isFoil == true)
     }
 
-    @Test("Non-foil card uses avg as before")
-    func nonFoilUsesAvg() {
+    @Test("Non-foil TCGPlayer uses market field (not avg)")
+    func nonFoilUsesMarket() {
+        // TCGPlayer specifically prefers `latestPrice.market` so the
+        // Compare Prices vendor row matches the dedicated MARKET tier
+        // shown in the TCGPlayer (NM) section above.
         guard let card = MTGStocksCard.from(json: Self.dualFinishVendorJSON, isFoilOnly: false),
               let tcg = card.vendorPrices.first(where: { $0.vendor == "TCGPlayer" }) else {
             Issue.record("Card or TCGPlayer vendor missing")
             return
         }
-        #expect(tcg.price == 6.0)
+        #expect(tcg.price == 5.95)
         #expect(tcg.isFoil == false)
     }
 
@@ -331,21 +334,38 @@ struct MTGStocksLookupTests {
         #expect(nonFoilPrices.first?.price == 6.0)
     }
 
-    @Test("tcgMarket prefers avg over market so Range bar agrees with chart + Compare Prices")
-    func tcgMarketPrefersAvg() {
-        // For Necropotence-style cards mid-rally, MTGStocks `latestPrice.avg`
-        // and `latestPrice.market` legitimately differ (avg = current
-        // listings, market = lagged algorithmic). The Range bar middle
-        // tier and the Compare Prices TCGPlayer row need to agree, so
-        // both should source from `avg`.
+    @Test("tcgMid uses latestPrice.avg, tcgMarket uses latestPrice.market")
+    func tcgMidAndMarketUseDistinctFields() {
+        // ManaBox / TCGPlayer's product page show LOW / MID / MARKET as
+        // three separate values. MID is the median of listings (`avg`)
+        // and MARKET is TCGPlayer's algorithmic reference (`market`) —
+        // they're often different and we must surface both, not collapse.
         guard let card = MTGStocksCard.from(json: Self.dualFinishVendorJSON) else {
             Issue.record("Card parse failed")
             return
         }
-        #expect(card.tcgMarket == 6.0)   // avg wins over market 5.95
+        #expect(card.tcgLow == 4.0)
+        #expect(card.tcgMid == 6.0)         // from latestPrice.avg
+        #expect(card.tcgMarket == 5.95)     // from latestPrice.market
     }
 
-    @Test("tcgMarket falls through to market then foil when avg missing")
+    @Test("Compare Prices TCGPlayer row uses market, not avg")
+    func compareTCGPlayerUsesMarket() {
+        // For Necropotence-style mid-rally cards, MID ($63) and MARKET
+        // ($49) diverge significantly. The Compare Prices vendor list
+        // is meant to mirror the canonical TCGPlayer reference, so the
+        // TCGPlayer row uses `market` (matching the dedicated TCGPlayer
+        // tier section). Other vendors don't have a `market` field and
+        // continue to use `avg`.
+        guard let card = MTGStocksCard.from(json: Self.dualFinishVendorJSON),
+              let tcg = card.vendorPrices.first(where: { $0.vendor == "TCGPlayer" }) else {
+            Issue.record("TCGPlayer vendor missing")
+            return
+        }
+        #expect(tcg.price == 5.95)   // market, not avg (6.0)
+    }
+
+    @Test("tcgMarket falls through to market_foil then foil when market missing")
     func tcgMarketFallsThrough() {
         let json: [String: Any] = [
             "id": 1,
@@ -353,7 +373,6 @@ struct MTGStocksLookupTests {
             "tcgplayer": [
                 "latestPrice": [
                     "low": 4.0,
-                    "market": 5.95,
                     "foil": 28.50,
                     "market_foil": 28.0,
                 ],
@@ -363,8 +382,10 @@ struct MTGStocksLookupTests {
             Issue.record("Card parse failed")
             return
         }
-        // avg null → market 5.95 wins
-        #expect(card.tcgMarket == 5.95)
+        // market null, market_foil 28.0 wins
+        #expect(card.tcgMarket == 28.0)
+        // tcgMid null → falls through to foil
+        #expect(card.tcgMid == 28.50)
     }
 
     @Test("Foil-only history falls back through foil ladder when avg missing")

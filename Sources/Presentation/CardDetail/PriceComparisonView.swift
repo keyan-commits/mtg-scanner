@@ -33,21 +33,25 @@ struct PriceComparisonView: View {
                         .font(MD3Typography.titleMedium)
                         .foregroundStyle(MD3Theme.onSurface)
 
-                    // TCGPlayer Low / Market / High range.
-                    // Uses real data from MTGStocks when available,
-                    // otherwise estimates from Scryfall market price.
-                    if let rangeUSD = marketUSD ?? foilUSD {
-                        if let detail = mtgStocksCard,
-                           let realLow = detail.tcgLow,
-                           let realMarket = detail.tcgMarket,
-                           let realHigh = detail.tcgHigh {
-                            // Cap High at 3x Market to filter outlier listings
-                            // (e.g. $1,000 listing on a $0.88 card)
-                            let cappedHigh = min(realHigh, realMarket * 3)
-                            tcgRangeReal(low: realLow, market: realMarket, high: cappedHigh, preferred: preferred)
-                        } else {
-                            tcgRange(marketUSD: rangeUSD, preferred: preferred)
-                        }
+                    // TCGPlayer's three published tiers: Low / Mid /
+                    // Market. Layout matches ManaBox + TCGPlayer's own
+                    // product page — labeled rows, NOT a sorted bar.
+                    // Mid (median listings) and Market (algorithmic
+                    // reference) aren't always sorted, so a left-to-
+                    // right "range" metaphor reads as a bug. The old
+                    // synthetic "High" tier (capped 3× market) was just
+                    // outlier listings; dropped entirely.
+                    if let detail = mtgStocksCard,
+                       detail.tcgLow != nil || detail.tcgMid != nil || detail.tcgMarket != nil {
+                        tcgTierRows(detail: detail, preferred: preferred)
+                    } else if let rangeUSD = marketUSD ?? foilUSD {
+                        // No MTGStocks data — fall back to Scryfall's
+                        // single market price as a labeled row.
+                        priceRow(
+                            source: "TCGPlayer Market (est.)",
+                            primary: formatLocal(rangeUSD, currency: preferred),
+                            secondary: preferred == "USD" ? nil : String(format: "$%.2f USD", rangeUSD)
+                        )
                     }
 
                     if marketUSD != nil || foilUSD != nil || eurAmount != nil {
@@ -278,73 +282,52 @@ struct PriceComparisonView: View {
         mtgStocksCard = detail
     }
 
-    // MARK: - TCG Range
+    // MARK: - TCG Tier Rows
 
-    /// Renders an "estimated low / market / high" tier strip. Scryfall
-    /// only exposes the market price, so the low and high are synthesized
-    /// from typical TCGPlayer spreads (-15% / +20%) and clearly labeled
-    /// as approximations in the footer caption.
-    /// Real TCGPlayer Low / Market / High from MTGStocks data.
+    /// Renders TCGPlayer's three published tiers (Low / Mid / Market)
+    /// as a labeled vertical list. Layout matches ManaBox + TCGPlayer's
+    /// product page so users coming from those see the same numbers
+    /// under the same names.
     @ViewBuilder
-    private func tcgRangeReal(low: Double, market: Double, high: Double, preferred: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("TCGPlayer range")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(MD3Theme.onSurfaceVariant)
-                    .textCase(.uppercase)
-                Spacer()
-            }
-            HStack(alignment: .top, spacing: 0) {
-                tier(label: "Low", amount: low, preferred: preferred, color: .green)
-                Divider().frame(height: 36)
-                tier(label: "Market", amount: market, preferred: preferred, color: MD3Theme.primary, emphasized: true)
-                Divider().frame(height: 36)
-                tier(label: "High", amount: high, preferred: preferred, color: .red)
-            }
-            .padding(10)
-            .background(MD3Theme.surfaceVariant.opacity(0.4))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-        }
-    }
-
-    /// Fallback estimated range when MTGStocks data isn't available.
-    @ViewBuilder
-    private func tcgRange(marketUSD: Double, preferred: String) -> some View {
-        let low = marketUSD * 0.85
-        let high = marketUSD * 1.20
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("TCGPlayer range (estimated)")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(MD3Theme.onSurfaceVariant)
-                    .textCase(.uppercase)
-                Spacer()
-            }
-            HStack(alignment: .top, spacing: 0) {
-                tier(label: "Low", amount: low, preferred: preferred, color: .green)
-                Divider().frame(height: 36)
-                tier(label: "Market", amount: marketUSD, preferred: preferred, color: MD3Theme.primary, emphasized: true)
-                Divider().frame(height: 36)
-                tier(label: "High", amount: high, preferred: preferred, color: .red)
-            }
-            .padding(10)
-            .background(MD3Theme.surfaceVariant.opacity(0.4))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-        }
-    }
-
-    private func tier(label: String, amount: Double, preferred: String, color: Color, emphasized: Bool = false) -> some View {
-        VStack(spacing: 2) {
-            Text(formatLocal(amount, currency: preferred))
-                .font(.system(size: emphasized ? 17 : 15, weight: emphasized ? .bold : .semibold, design: .rounded))
-                .foregroundStyle(color)
-                .monospacedDigit()
-            Text(label)
-                .font(.system(size: 10, weight: .medium, design: .rounded))
+    private func tcgTierRows(detail: MTGStocksCard, preferred: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("TCGPlayer (NM)")
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(MD3Theme.onSurfaceVariant)
+                .textCase(.uppercase)
+            if let low = detail.tcgLow {
+                tcgTierRow(label: "Low", amount: low, color: .green, preferred: preferred)
+            }
+            if let mid = detail.tcgMid {
+                tcgTierRow(label: "Mid", amount: mid, color: MD3Theme.onSurface, preferred: preferred)
+            }
+            if let market = detail.tcgMarket {
+                tcgTierRow(label: "Market", amount: market, color: MD3Theme.primary, preferred: preferred, emphasized: true)
+            }
         }
-        .frame(maxWidth: .infinity)
+        .padding(10)
+        .background(MD3Theme.surfaceVariant.opacity(0.4))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func tcgTierRow(label: String, amount: Double, color: Color, preferred: String, emphasized: Bool = false) -> some View {
+        HStack {
+            Text(label.uppercased())
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundStyle(color)
+                .frame(width: 60, alignment: .leading)
+            Spacer()
+            Text(formatLocal(amount, currency: preferred))
+                .font(.system(size: emphasized ? 16 : 14, weight: emphasized ? .bold : .semibold, design: .monospaced))
+                .foregroundStyle(MD3Theme.onSurface)
+                .monospacedDigit()
+            if preferred != "USD" {
+                Text(String(format: "$%.2f", amount))
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    .frame(minWidth: 60, alignment: .trailing)
+            }
+        }
     }
 
     // MARK: - Helpers
@@ -367,10 +350,12 @@ struct PriceComparisonView: View {
             ? ""
             : " · converted to \(preferred) via frankfurter.app"
         let hasRealPrices = mtgStocksCard?.tcgLow != nil
+            || mtgStocksCard?.tcgMid != nil
+            || mtgStocksCard?.tcgMarket != nil
         if hasRealPrices {
-            return "Low/Market/High from TCGPlayer via MTGStocks.\(conversionNote)"
+            return "Low/Mid/Market from TCGPlayer via MTGStocks.\(conversionNote)"
         }
-        return "Market price from TCGPlayer via Scryfall. Low/high are estimated (-15% / +20%).\(conversionNote)"
+        return "Market price from TCGPlayer via Scryfall.\(conversionNote)"
     }
 
     // MARK: - Subviews

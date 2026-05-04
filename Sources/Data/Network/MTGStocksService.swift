@@ -346,10 +346,19 @@ struct MTGStocksCard {
     let allTimeHigh: ATRecord?
     let allTimeLow: ATRecord?
     let vendorPrices: [VendorPrice]
-    /// Real TCGPlayer tier prices (low/market/high) from MTGStocks.
+    /// TCGPlayer's three published tier values, matching ManaBox /
+    /// TCGPlayer's native taxonomy:
+    /// - `tcgLow`: lowest current listing.
+    /// - `tcgMid`: median of current listings (`latestPrice.avg`).
+    /// - `tcgMarket`: TCGPlayer's algorithmic Market Price
+    ///   (`latestPrice.market`) — their canonical reference price,
+    ///   what the product page calls "Market".
+    /// We deliberately do NOT show a "High" tier — `latestPrice.high`
+    /// is just the highest current asking price (almost always a junk
+    /// outlier listing) and surfacing it is misleading.
     let tcgLow: Double?
+    let tcgMid: Double?
     let tcgMarket: Double?
-    let tcgHigh: Double?
 
     struct ATRecord {
         let avg: Double?
@@ -397,11 +406,21 @@ extension MTGStocksCard {
             let url = (vendor["url"] as? String).flatMap(URL.init(string:))
                    ?? (vendor["urlFoil"] as? String).flatMap(URL.init(string:))
             let avg = (latest["avg"] as? Double).flatMap { $0 > 0 ? $0 : nil }
+            let market = (latest["market"] as? Double).flatMap { $0 > 0 ? $0 : nil }
             let foil = (latest["foil"] as? Double).flatMap { $0 > 0 ? $0 : nil }
             let low = (latest["low"] as? Double).flatMap { $0 > 0 ? $0 : nil }
 
+            // TCGPlayer specifically: prefer the algorithmic Market
+            // Price (matches what their product page labels "Market"
+            // and what the dedicated TCGPlayer Range section shows).
+            // Other vendors don't expose a `market` field — they're
+            // single retailers with one price = `avg`.
+            let preferMarket = (key == "tcgplayer")
+
             if isFoilOnly, let foil {
                 vendors.append(VendorPrice(vendor: label, price: foil, isFoil: true, url: url))
+            } else if preferMarket, let market {
+                vendors.append(VendorPrice(vendor: label, price: market, isFoil: false, url: url))
             } else if let avg {
                 vendors.append(VendorPrice(vendor: label, price: avg, isFoil: false, url: url))
             } else if let foil {
@@ -411,26 +430,23 @@ extension MTGStocksCard {
             }
         }
 
-        // Extract real TCGPlayer Low/Market/High tier prices
+        // Extract TCGPlayer's three published tiers (Low / Mid / Market)
+        // matching ManaBox + TCGPlayer's product page taxonomy. For
+        // foil-only printings these fields can be null and we fall
+        // through to the foil aggregate.
         let tcgLatest = (json["tcgplayer"] as? [String: Any])?["latestPrice"] as? [String: Any]
-        let tcgLow = tcgLatest?["low"] as? Double
-        let tcgHigh = tcgLatest?["high"] as? Double
-        // Market: prefer `avg` (listings average) over `market` (TCGPlayer's
-        // algorithmic median) so the Range bar's middle tier matches the
-        // value the chart and Compare Prices vendor row already use.
-        // For mid-rally cards (Necropotence 2026-05) the two diverge by
-        // double-digit %, and showing "Market $49" beside chart-endpoint
-        // "$63" reads as a bug. Foil-only fallbacks remain.
-        let tcgMarket = (tcgLatest?["avg"] as? Double)
-            ?? (tcgLatest?["market"] as? Double)
+        let tcgLow = (tcgLatest?["low"] as? Double)
+        let tcgMid = (tcgLatest?["avg"] as? Double)
             ?? (tcgLatest?["foil"] as? Double)
+        let tcgMarket = (tcgLatest?["market"] as? Double)
             ?? (tcgLatest?["market_foil"] as? Double)
+            ?? (tcgLatest?["foil"] as? Double)
 
         return MTGStocksCard(
             id: id, name: name,
             allTimeHigh: ath, allTimeLow: atl,
             vendorPrices: vendors,
-            tcgLow: tcgLow, tcgMarket: tcgMarket, tcgHigh: tcgHigh
+            tcgLow: tcgLow, tcgMid: tcgMid, tcgMarket: tcgMarket
         )
     }
 }
