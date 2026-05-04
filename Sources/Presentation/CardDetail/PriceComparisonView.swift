@@ -55,14 +55,14 @@ struct PriceComparisonView: View {
                     }
                 }
 
-                // Other authentic tiers from Scryfall (foil, EUR, MTGO).
-                if let usdString = card.prices.usd, let usd = Double(usdString) {
-                    priceRow(
-                        source: "TCGPlayer Market",
-                        primary: formatLocal(usd, currency: preferred),
-                        secondary: preferred == "USD" ? nil : "$\(usdString) USD"
-                    )
-                }
+                // The standalone "TCGPlayer Market" row used to live here
+                // sourced from `card.prices.usd` (Scryfall daily bulk).
+                // Removed because the TCGPlayer Range bar above already
+                // shows Market alongside Low/High from a single source —
+                // showing the same nominal "TCGPlayer Market" twice with
+                // different freshness was confusing. Foil and EUR rows
+                // below stay because they're distinct numbers, not
+                // duplicates of the Range bar.
 
                 if let usdFoilString = card.prices.usdFoil, let usdFoil = Double(usdFoilString) {
                     priceRow(
