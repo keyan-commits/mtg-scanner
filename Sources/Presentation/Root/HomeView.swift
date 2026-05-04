@@ -1438,6 +1438,16 @@ struct HomeView: View {
                 .buttonStyle(.plain)
                 Divider().padding(.leading, 64)
                 NavigationLink {
+                    SetTriageScreen(
+                        cardRepository: cardRepository,
+                        deckRepository: deckRepository
+                    )
+                } label: {
+                    moreRow(icon: "checklist", title: "Set Triage", subtitle: "Pick an expansion → checklist of cards worth pulling from a bulk pile", color: .red)
+                }
+                .buttonStyle(.plain)
+                Divider().padding(.leading, 64)
+                NavigationLink {
                     LandsScreen(
                         cardRepository: cardRepository,
                         deckRepository: deckRepository
