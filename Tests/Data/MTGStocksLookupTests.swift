@@ -331,6 +331,42 @@ struct MTGStocksLookupTests {
         #expect(nonFoilPrices.first?.price == 6.0)
     }
 
+    @Test("tcgMarket prefers avg over market so Range bar agrees with chart + Compare Prices")
+    func tcgMarketPrefersAvg() {
+        // For Necropotence-style cards mid-rally, MTGStocks `latestPrice.avg`
+        // and `latestPrice.market` legitimately differ (avg = current
+        // listings, market = lagged algorithmic). The Range bar middle
+        // tier and the Compare Prices TCGPlayer row need to agree, so
+        // both should source from `avg`.
+        guard let card = MTGStocksCard.from(json: Self.dualFinishVendorJSON) else {
+            Issue.record("Card parse failed")
+            return
+        }
+        #expect(card.tcgMarket == 6.0)   // avg wins over market 5.95
+    }
+
+    @Test("tcgMarket falls through to market then foil when avg missing")
+    func tcgMarketFallsThrough() {
+        let json: [String: Any] = [
+            "id": 1,
+            "name": "Foil Only",
+            "tcgplayer": [
+                "latestPrice": [
+                    "low": 4.0,
+                    "market": 5.95,
+                    "foil": 28.50,
+                    "market_foil": 28.0,
+                ],
+            ],
+        ]
+        guard let card = MTGStocksCard.from(json: json) else {
+            Issue.record("Card parse failed")
+            return
+        }
+        // avg null → market 5.95 wins
+        #expect(card.tcgMarket == 5.95)
+    }
+
     @Test("Foil-only history falls back through foil ladder when avg missing")
     func foilOnlyHistoryFallsThroughLadder() throws {
         // foil missing → marketFoil → avg → market.

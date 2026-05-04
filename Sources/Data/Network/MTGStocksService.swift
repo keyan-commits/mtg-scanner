@@ -415,8 +415,15 @@ extension MTGStocksCard {
         let tcgLatest = (json["tcgplayer"] as? [String: Any])?["latestPrice"] as? [String: Any]
         let tcgLow = tcgLatest?["low"] as? Double
         let tcgHigh = tcgLatest?["high"] as? Double
-        // Market: try regular first, then foil
-        let tcgMarket = (tcgLatest?["market"] as? Double)
+        // Market: prefer `avg` (listings average) over `market` (TCGPlayer's
+        // algorithmic median) so the Range bar's middle tier matches the
+        // value the chart and Compare Prices vendor row already use.
+        // For mid-rally cards (Necropotence 2026-05) the two diverge by
+        // double-digit %, and showing "Market $49" beside chart-endpoint
+        // "$63" reads as a bug. Foil-only fallbacks remain.
+        let tcgMarket = (tcgLatest?["avg"] as? Double)
+            ?? (tcgLatest?["market"] as? Double)
+            ?? (tcgLatest?["foil"] as? Double)
             ?? (tcgLatest?["market_foil"] as? Double)
 
         return MTGStocksCard(
