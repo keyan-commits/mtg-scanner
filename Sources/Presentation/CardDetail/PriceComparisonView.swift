@@ -148,7 +148,7 @@ struct PriceComparisonView: View {
                     Divider()
 
                     // Price History Chart
-                    if let history = priceHistory, !history.averagePrices.isEmpty {
+                    if let history = priceHistory, !history.averagePrices(preferFoil: card.isFoilOnly).isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Text("Price History")
@@ -165,7 +165,7 @@ struct PriceComparisonView: View {
                             }
 
                             PriceSparklineView(
-                                dataPoints: history.averagePrices,
+                                dataPoints: history.averagePrices(preferFoil: card.isFoilOnly),
                                 timeRange: historyTimeRange
                             )
                         }
@@ -272,7 +272,7 @@ struct PriceComparisonView: View {
         mtgStocksID = id
 
         async let historyTask = service.fetchPriceHistory(id: id)
-        async let detailTask = service.fetchCard(id: id)
+        async let detailTask = service.fetchCard(id: id, isFoilOnly: card.isFoilOnly)
         let (history, detail) = await (historyTask, detailTask)
         priceHistory = history
         mtgStocksCard = detail

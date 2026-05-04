@@ -267,4 +267,84 @@ struct MTGStocksLookupTests {
         #expect(MTGStocksSetMapper.usesNameOnlyMatch(scryfallCode: "lrw") == false)
         #expect(MTGStocksSetMapper.usesNameOnlyMatch(scryfallCode: "f11") == false)
     }
+
+    // MARK: - Foil-aware vendor selection
+
+    /// Vendor JSON shape mirrors a real /prints/{id} response — TCGPlayer
+    /// exposes `avg` (non-foil aggregate) AND `foil` (foil aggregate).
+    /// For a print that only exists in foil, `avg` is misleading because
+    /// it can be populated by sales of similarly-named non-foil reprints
+    /// MTGStocks groups together. Foil-only callers must prefer `foil`.
+    static let dualFinishVendorJSON: [String: Any] = [
+        "id": 20609,
+        "name": "Spellstutter Sprite",
+        "tcgplayer": [
+            "url": "https://tcgplayer.example",
+            "latestPrice": [
+                "avg": 6.0,
+                "foil": 30.45,
+                "low": 4.0,
+                "market": 5.95,
+                "high": 17.85,
+            ],
+        ],
+    ]
+
+    @Test("Foil-only card prefers foil aggregate over avg in vendor prices")
+    func foilOnlyPrefersFoilVendorPrice() {
+        guard let card = MTGStocksCard.from(json: Self.dualFinishVendorJSON, isFoilOnly: true),
+              let tcg = card.vendorPrices.first(where: { $0.vendor == "TCGPlayer" }) else {
+            Issue.record("Card or TCGPlayer vendor missing")
+            return
+        }
+        #expect(tcg.price == 30.45)
+        #expect(tcg.isFoil == true)
+    }
+
+    @Test("Non-foil card uses avg as before")
+    func nonFoilUsesAvg() {
+        guard let card = MTGStocksCard.from(json: Self.dualFinishVendorJSON, isFoilOnly: false),
+              let tcg = card.vendorPrices.first(where: { $0.vendor == "TCGPlayer" }) else {
+            Issue.record("Card or TCGPlayer vendor missing")
+            return
+        }
+        #expect(tcg.price == 6.0)
+        #expect(tcg.isFoil == false)
+    }
+
+    @Test("Foil-only history prefers foil series over avg")
+    func foilOnlyHistoryPrefersFoil() throws {
+        let json = """
+        {
+          "avg": [[1700000000000, 6.0]],
+          "foil": [[1700000000000, 30.45]],
+          "market": null,
+          "market_foil": null,
+          "low": null,
+          "high": null
+        }
+        """.data(using: .utf8)!
+        let history = try JSONDecoder().decode(MTGStocksPriceHistory.self, from: json)
+        let foilPrices = history.averagePrices(preferFoil: true)
+        let nonFoilPrices = history.averagePrices(preferFoil: false)
+        #expect(foilPrices.first?.price == 30.45)
+        #expect(nonFoilPrices.first?.price == 6.0)
+    }
+
+    @Test("Foil-only history falls back through foil ladder when avg missing")
+    func foilOnlyHistoryFallsThroughLadder() throws {
+        // foil missing → marketFoil → avg → market.
+        let json = """
+        {
+          "avg": null,
+          "foil": null,
+          "market": null,
+          "market_foil": [[1700000000000, 28.5]],
+          "low": null,
+          "high": null
+        }
+        """.data(using: .utf8)!
+        let history = try JSONDecoder().decode(MTGStocksPriceHistory.self, from: json)
+        #expect(history.averagePrices(preferFoil: true).first?.price == 28.5)
+    }
 }

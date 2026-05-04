@@ -21,8 +21,10 @@ actor MTGStocksService {
 
     /// Card name → MTGStocks print ID (persists for the process lifetime).
     private var idCache: [String: Int] = [:]
-    /// Print ID → card detail (24h TTL).
-    private var detailCache: [Int: (detail: MTGStocksCard, fetchedAt: Date)] = [:]
+    /// Print ID → card detail (24h TTL). `isFoilOnly` is part of the
+    /// cached value because it changes vendor-price selection — same
+    /// print id with a different foil-only flag must re-parse.
+    private var detailCache: [Int: (detail: MTGStocksCard, fetchedAt: Date, isFoilOnly: Bool)] = [:]
     /// Print ID → price history (24h TTL).
     private var historyCache: [Int: (history: MTGStocksPriceHistory, fetchedAt: Date)] = [:]
     /// Interests cache (1h TTL). Backed by `interestsDiskCache` so the TTL
@@ -158,17 +160,21 @@ actor MTGStocksService {
     }
 
     /// Fetch full card detail (multi-vendor prices, ATH/ATL, all printings).
-    func fetchCard(id: Int) async -> MTGStocksCard? {
-        if let cached = detailCache[id], Date().timeIntervalSince(cached.fetchedAt) < 86400 {
+    /// Pass `isFoilOnly: true` when the printing has no nonfoil variant
+    /// — vendor-price selection prefers the foil aggregate over `avg`.
+    func fetchCard(id: Int, isFoilOnly: Bool = false) async -> MTGStocksCard? {
+        if let cached = detailCache[id],
+           cached.isFoilOnly == isFoilOnly,
+           Date().timeIntervalSince(cached.fetchedAt) < 86400 {
             return cached.detail
         }
 
         guard let data = await fetch("/prints/\(id)"),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let card = MTGStocksCard.from(json: json) else { return nil }
+              let card = MTGStocksCard.from(json: json, isFoilOnly: isFoilOnly) else { return nil }
 
         evictDetailCacheIfNeeded()
-        detailCache[id] = (card, Date())
+        detailCache[id] = (card, Date(), isFoilOnly)
         return card
     }
 
@@ -359,7 +365,12 @@ struct MTGStocksCard {
 
 extension MTGStocksCard {
     /// Parse from raw JSON since the vendor structures are irregular.
-    static func from(json: [String: Any]) -> MTGStocksCard? {
+    ///
+    /// `isFoilOnly` flips the vendor-price preference order: for foil-only
+    /// printings, the foil aggregate is preferred over `avg` (which on
+    /// some prints aggregates non-foil sales of an unrelated reprint and
+    /// is the wrong number to surface).
+    static func from(json: [String: Any], isFoilOnly: Bool = false) -> MTGStocksCard? {
         guard let id = json["id"] as? Int,
               let name = json["name"] as? String else { return nil }
 
@@ -385,12 +396,17 @@ extension MTGStocksCard {
                   let latest = vendor["latestPrice"] as? [String: Any] else { continue }
             let url = (vendor["url"] as? String).flatMap(URL.init(string:))
                    ?? (vendor["urlFoil"] as? String).flatMap(URL.init(string:))
-            // Try avg first, then foil, then low
-            if let avg = latest["avg"] as? Double, avg > 0 {
-                vendors.append(VendorPrice(vendor: label, price: avg, isFoil: false, url: url))
-            } else if let foil = latest["foil"] as? Double, foil > 0 {
+            let avg = (latest["avg"] as? Double).flatMap { $0 > 0 ? $0 : nil }
+            let foil = (latest["foil"] as? Double).flatMap { $0 > 0 ? $0 : nil }
+            let low = (latest["low"] as? Double).flatMap { $0 > 0 ? $0 : nil }
+
+            if isFoilOnly, let foil {
                 vendors.append(VendorPrice(vendor: label, price: foil, isFoil: true, url: url))
-            } else if let low = latest["low"] as? Double, low > 0 {
+            } else if let avg {
+                vendors.append(VendorPrice(vendor: label, price: avg, isFoil: false, url: url))
+            } else if let foil {
+                vendors.append(VendorPrice(vendor: label, price: foil, isFoil: true, url: url))
+            } else if let low {
                 vendors.append(VendorPrice(vendor: label, price: low, isFoil: false, url: url))
             }
         }
@@ -427,9 +443,16 @@ struct MTGStocksPriceHistory: Decodable {
     }
 
     /// Returns price data points as (date, price) tuples.
-    /// Tries avg → market → foil → marketFoil for foil-only printings.
-    var averagePrices: [(date: Date, price: Double)] {
-        let source = avg ?? market ?? foil ?? marketFoil ?? []
+    /// `preferFoil` flips the precedence to foil/marketFoil first — pass
+    /// true for foil-only printings (FNM, Secret Lair foils, Magic Online
+    /// promos) so the chart reflects the actual finish that exists.
+    func averagePrices(preferFoil: Bool = false) -> [(date: Date, price: Double)] {
+        let source: [[Double]]
+        if preferFoil {
+            source = foil ?? marketFoil ?? avg ?? market ?? []
+        } else {
+            source = avg ?? market ?? foil ?? marketFoil ?? []
+        }
         return source.compactMap { point in
             guard point.count >= 2 else { return nil }
             return (Date(timeIntervalSince1970: point[0] / 1000), point[1])
