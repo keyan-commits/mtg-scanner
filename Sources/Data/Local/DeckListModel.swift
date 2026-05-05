@@ -346,6 +346,34 @@ final class CollectionItem {
     /// Current market price per foil copy in USD (updated during daily price refresh).
     var currentValueFoilUSD: Double?
 
+    // MARK: - For Sale (subset of `quantity`/`foilQuantity` listed for sale)
+    //
+    // Foil and nonfoil are tracked as separate sub-quantities to mirror
+    // the existing `quantity` / `foilQuantity` shape. Constraints:
+    //   forSaleNonfoilQuantity ≤ (quantity - foilQuantity)
+    //   forSaleFoilQuantity    ≤ foilQuantity
+    // Asking prices are per-copy USD. Foils typically command a different
+    // price than the nonfoil version of the same printing, so split.
+    var forSaleNonfoilQuantity: Int = 0
+    var forSaleFoilQuantity: Int = 0
+    var askingPriceUSD: Double?
+    var askingPriceFoilUSD: Double?
+    var listedAt: Date?
+    /// Free-form channel ("Tambayan" / "TCGPlayer" / "Local" / etc.) for v1.
+    /// Multi-channel pricing is a v2 stretch — see project notes.
+    var listedOn: String?
+    var saleNotes: String?
+
+    // MARK: - Sales history
+    //
+    // Preserved when copies depart so the user retains a personal sales
+    // ledger — the differentiator vs ManaBox/Deckbox which delete sold
+    // cards and lose the historical record.
+    var soldNonfoilQuantity: Int = 0
+    var soldFoilQuantity: Int = 0
+    var lastSoldAt: Date?
+    var lastSoldPriceUSD: Double?
+
     init(
         cardName: String,
         setCode: String,
@@ -376,6 +404,22 @@ final class CollectionItem {
 }
 
 extension CollectionItem {
+
+    // MARK: - Computed conveniences
+
+    /// Total copies currently listed for sale (foil + nonfoil).
+    var forSaleQuantity: Int { forSaleNonfoilQuantity + forSaleFoilQuantity }
+
+    /// Total copies sold over the item's lifetime (foil + nonfoil).
+    var soldQuantity: Int { soldNonfoilQuantity + soldFoilQuantity }
+
+    /// True when at least one copy is currently for sale.
+    var isListed: Bool { forSaleQuantity > 0 }
+
+    /// True when this item has any sales history (even if the user no
+    /// longer owns any copies — the row sticks around for the ledger).
+    var hasSalesHistory: Bool { soldQuantity > 0 }
+
     static func from(card: Card, quantity: Int = 1, foilQuantity: Int = 0) -> CollectionItem {
         let snapshot = card.prices.usd.flatMap(Double.init)
         return CollectionItem(

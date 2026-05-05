@@ -545,6 +545,115 @@ final class DeckListRepository {
         try context.save()
     }
 
+    // MARK: - For Sale
+
+    /// Marks `nonfoilQty` regular + `foilQty` foil copies of the item
+    /// as listed for sale. Validates against the available subset
+    /// (`quantity - foilQuantity` for nonfoil; `foilQuantity` for foil).
+    /// Asking prices are per-copy USD. Each call REPLACES the listing —
+    /// pass the desired final state, not a delta.
+    func markForSale(
+        _ item: CollectionItem,
+        nonfoilQuantity: Int,
+        foilQuantity: Int,
+        askingPriceUSD: Double? = nil,
+        askingPriceFoilUSD: Double? = nil,
+        listedOn: String? = nil,
+        notes: String? = nil
+    ) throws {
+        let nonfoilAvailable = max(0, item.quantity - item.foilQuantity)
+        item.forSaleNonfoilQuantity = max(0, min(nonfoilQuantity, nonfoilAvailable))
+        item.forSaleFoilQuantity = max(0, min(foilQuantity, item.foilQuantity))
+        item.askingPriceUSD = askingPriceUSD
+        item.askingPriceFoilUSD = askingPriceFoilUSD
+        item.listedOn = listedOn
+        item.saleNotes = notes
+        // Stamp listedAt only if there's actually something listed now.
+        // Removing the listing later (markForSale with both qty=0) clears
+        // the timestamp so days-listed counters reset on relist.
+        if item.forSaleQuantity > 0 {
+            if item.listedAt == nil {
+                item.listedAt = Date()
+            }
+        } else {
+            item.listedAt = nil
+            item.askingPriceUSD = nil
+            item.askingPriceFoilUSD = nil
+            item.listedOn = nil
+            item.saleNotes = nil
+        }
+        try context.save()
+    }
+
+    /// Removes the item from the for-sale list without recording a sale
+    /// (the user changed their mind / pulled it from the market).
+    func unmarkForSale(_ item: CollectionItem) throws {
+        try markForSale(item, nonfoilQuantity: 0, foilQuantity: 0)
+    }
+
+    /// Records that the user sold `quantity` copies (foil or nonfoil).
+    /// Decrements both `quantity`/`foilQuantity` AND
+    /// `forSaleNonfoilQuantity`/`forSaleFoilQuantity` by the same amount.
+    /// Increments the matching `sold*Quantity` counter (preserved across
+    /// the lifetime of the item — this is the personal sales ledger).
+    /// `soldPriceUSD` is the actual price the buyer paid; nil if unknown.
+    func recordSale(
+        _ item: CollectionItem,
+        isFoil: Bool,
+        quantity: Int,
+        soldPriceUSD: Double? = nil
+    ) throws {
+        let qty = max(0, quantity)
+        if qty == 0 { return }
+        if isFoil {
+            let take = min(qty, min(item.foilQuantity, item.forSaleFoilQuantity))
+            item.foilQuantity -= take
+            item.quantity -= take
+            item.forSaleFoilQuantity -= take
+            item.soldFoilQuantity += take
+        } else {
+            let nonfoilOwned = max(0, item.quantity - item.foilQuantity)
+            let take = min(qty, min(nonfoilOwned, item.forSaleNonfoilQuantity))
+            item.quantity -= take
+            item.forSaleNonfoilQuantity -= take
+            item.soldNonfoilQuantity += take
+        }
+        item.lastSoldAt = Date()
+        item.lastSoldPriceUSD = soldPriceUSD
+        // Clear listing fields if nothing is left for sale.
+        if item.forSaleQuantity == 0 {
+            item.listedAt = nil
+            item.askingPriceUSD = nil
+            item.askingPriceFoilUSD = nil
+            item.listedOn = nil
+            item.saleNotes = nil
+        }
+        try context.save()
+    }
+
+    /// Items currently listed for sale (any finish).
+    func fetchForSale() throws -> [CollectionItem] {
+        let descriptor = FetchDescriptor<CollectionItem>(
+            predicate: #Predicate<CollectionItem> {
+                $0.forSaleNonfoilQuantity > 0 || $0.forSaleFoilQuantity > 0
+            },
+            sortBy: [SortDescriptor(\.listedAt, order: .reverse)]
+        )
+        return try context.fetch(descriptor)
+    }
+
+    /// Items with sales history (even if no copies remain — the row
+    /// sticks around as a historical record).
+    func fetchSoldHistory() throws -> [CollectionItem] {
+        let descriptor = FetchDescriptor<CollectionItem>(
+            predicate: #Predicate<CollectionItem> {
+                $0.soldNonfoilQuantity > 0 || $0.soldFoilQuantity > 0
+            },
+            sortBy: [SortDescriptor(\.lastSoldAt, order: .reverse)]
+        )
+        return try context.fetch(descriptor)
+    }
+
     /// Returns total copies the user owns of a specific printing.
     /// Used by deck-detail / shopping-list to show "X owned of Y needed."
     func ownedQuantity(setCode: String, collectorNumber: String) throws -> Int {
