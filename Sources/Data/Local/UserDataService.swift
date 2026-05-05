@@ -219,12 +219,23 @@ final class UserDataService {
             appIconColor: UserDefaults.standard.string(forKey: "appIcon.currentColor")
         )
 
-        // Gather AI card insights from CardRecord DB
+        // Gather AI card insights from CardRecord DB. This used to fetch
+        // every card (~50k Scryfall records) and parse each row's JSON
+        // looking for the __insight sentinel — main-thread-blocking for
+        // 30-60 sec on device even when the user has zero insights to
+        // export. Pre-filter via SwiftData predicate on the substring
+        // so only records that actually contain an insight come back.
         let cardInsights: [ExportCardInsight] = {
             let insightKey = "__insight"
             let insightDateKey = "__insight_date"
-            guard let allRecords = try? repository.context.fetch(FetchDescriptor<CardRecord>()) else { return [] }
-            return allRecords.compactMap { record in
+            let needle = "\"__insight\""    // exact key marker in the JSON blob
+            let descriptor = FetchDescriptor<CardRecord>(
+                predicate: #Predicate<CardRecord> { record in
+                    record.imageURIsJSON.contains(needle)
+                }
+            )
+            guard let candidates = try? repository.context.fetch(descriptor) else { return [] }
+            return candidates.compactMap { record in
                 guard let jsonData = record.imageURIsJSON.data(using: .utf8),
                       let uris = try? JSONSerialization.jsonObject(with: jsonData) as? [String: String],
                       let insight = uris[insightKey], !insight.isEmpty else { return nil }
