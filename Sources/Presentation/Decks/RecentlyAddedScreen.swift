@@ -51,25 +51,29 @@ struct RecentlyAddedScreen: View {
     // MARK: - Body
 
     private var listBody: some View {
-        List {
-            SwiftUI.Section {
-                summaryHeader
-                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                    .listRowBackground(Color.clear)
-            }
-            ForEach(sections) { section in
-                SwiftUI.Section(section.bucket.title) {
-                    ForEach(section.items) { item in
-                        NavigationLink {
-                            cardDetailDestination(for: item)
-                        } label: {
-                            row(item)
+        // Summary tile lives OUTSIDE the List so it's always pinned at
+        // the top of the screen — putting it in a List section caused
+        // it to scroll away the moment the user opened the screen.
+        VStack(spacing: 0) {
+            summaryHeader
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 4)
+            List {
+                ForEach(sections) { section in
+                    SwiftUI.Section(section.bucket.title) {
+                        ForEach(section.items) { item in
+                            NavigationLink {
+                                cardDetailDestination(for: item)
+                            } label: {
+                                row(item)
+                            }
                         }
                     }
                 }
             }
+            .listStyle(.insetGrouped)
         }
-        .listStyle(.insetGrouped)
     }
 
     // MARK: - Summary

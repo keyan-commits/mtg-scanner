@@ -24,23 +24,62 @@ final class DeckListRepository {
     }
 
     /// One-shot repair for CollectionItem rows where `foilQuantity >
-    /// quantity`. This invariant was violated by an earlier batch-scan
-    /// add that passed `quantity = nonfoilQty` instead of `quantity =
-    /// total`, leaving foil-only adds with `quantity = 0, foilQuantity
-    /// = 1`. Result: every count-based calculation (sell-sheet value,
-    /// Recently Added totals) read zero for those rows.
+    /// quantity` (broken invariant) AND/OR price snapshot fields are
+    /// nil because the row was added before the price-stamping fix
+    /// landed.
     ///
-    /// Safe to run on every launch — only mutates rows that violate
-    /// the invariant. When violation found, treat foilQuantity as the
-    /// truth (the user *did* add a foil) and bump quantity to match.
+    /// Safe to run on every launch — only mutates rows that need it.
+    /// Looks up live prices from CardRecord (already in the same
+    /// SwiftData container) so foil-only printings (FNM, Secret Lair
+    /// foils) get a real number even before the daily price-refresh
+    /// service runs.
     private func repairFoilQuantityInvariant() {
         do {
             let descriptor = FetchDescriptor<CollectionItem>()
             let items = try context.fetch(descriptor)
+            // Cache CardRecord lookups by scryfallID so a multi-row
+            // repair only fetches each card once.
+            var cardCache: [String: CardRecord] = [:]
             var changed = 0
-            for item in items where item.foilQuantity > item.quantity {
-                item.quantity = item.foilQuantity
-                changed += 1
+            for item in items {
+                var dirty = false
+                // 1. Quantity invariant
+                if item.foilQuantity > item.quantity {
+                    item.quantity = item.foilQuantity
+                    dirty = true
+                }
+                // 2. Price snapshot backfill — only when fields are
+                //    nil. Don't overwrite anything the user / live
+                //    refresh already populated.
+                if item.priceAtAddUSD == nil
+                    || item.currentValueUSD == nil
+                    || item.currentValueFoilUSD == nil {
+                    let card = cardCache[item.scryfallID] ?? lookupCardRecord(item.scryfallID)
+                    if let card { cardCache[item.scryfallID] = card }
+                    let nonfoil = card?.priceUSD.flatMap(Double.init)
+                    let foil = card?.priceUSDFoil.flatMap(Double.init)
+                    if item.currentValueUSD == nil, let nonfoil {
+                        item.currentValueUSD = nonfoil
+                        dirty = true
+                    }
+                    if item.currentValueFoilUSD == nil, let foil {
+                        item.currentValueFoilUSD = foil
+                        dirty = true
+                    }
+                    if item.priceAtAddUSD == nil {
+                        // Match the per-finish snapshot logic from
+                        // CollectionItem.from: pure-foil items get
+                        // foil price, otherwise nonfoil with foil
+                        // fallback.
+                        let isPureFoil = item.foilQuantity > 0 && item.foilQuantity == item.quantity
+                        let pick: Double? = isPureFoil ? (foil ?? nonfoil) : (nonfoil ?? foil)
+                        if let pick {
+                            item.priceAtAddUSD = pick
+                            dirty = true
+                        }
+                    }
+                }
+                if dirty { changed += 1 }
             }
             if changed > 0 {
                 try context.save()
@@ -48,6 +87,13 @@ final class DeckListRepository {
         } catch {
             // Silent — repair is best-effort. Don't block app launch.
         }
+    }
+
+    private func lookupCardRecord(_ scryfallID: String) -> CardRecord? {
+        let descriptor = FetchDescriptor<CardRecord>(
+            predicate: #Predicate<CardRecord> { $0.scryfallID == scryfallID }
+        )
+        return (try? context.fetch(descriptor))?.first
     }
 
     /// One-time backfill: walks every PurchaseItem with a nil
@@ -536,19 +582,32 @@ final class DeckListRepository {
     /// Adds N copies of the given card to the collection. If a CollectionItem
     /// already exists for the same set + collector number, increments its
     /// quantity instead of creating a duplicate row.
+    ///
+    /// Also stamps the live `currentValueUSD` / `currentValueFoilUSD`
+    /// from the in-memory Card we already have — without this, freshly
+    /// added items render ₱0 in Recently Added because the daily
+    /// PriceRefreshService hasn't run yet (and `refreshIfStale` skips
+    /// when the last refresh was <24h ago).
     @discardableResult
     func addToCollection(card: Card, quantity: Int = 1, foilQuantity: Int = 0) throws -> CollectionItem {
         let scryfallID = card.scryfallID
         let descriptor = FetchDescriptor<CollectionItem>(
             predicate: #Predicate<CollectionItem> { $0.scryfallID == scryfallID }
         )
+        let liveNonfoil = card.prices.usd.flatMap(Double.init)
+        let liveFoil = card.prices.usdFoil.flatMap(Double.init)
         if let existing = try context.fetch(descriptor).first {
             existing.quantity += quantity
             existing.foilQuantity += foilQuantity
+            // Refresh live prices on every add — cheap, keeps row valuations honest.
+            if let liveNonfoil { existing.currentValueUSD = liveNonfoil }
+            if let liveFoil { existing.currentValueFoilUSD = liveFoil }
             try context.save()
             return existing
         }
         let item = CollectionItem.from(card: card, quantity: quantity, foilQuantity: foilQuantity)
+        item.currentValueUSD = liveNonfoil
+        item.currentValueFoilUSD = liveFoil
         context.insert(item)
         try context.save()
         return item
