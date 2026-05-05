@@ -28,11 +28,24 @@ struct RecentlyAddedScreen: View {
         }
     }
 
+    private struct Batch: Identifiable {
+        /// Timestamp of the most-recent item in the batch (used for ID + display).
+        let timestamp: Date
+        let items: [CollectionItem]
+        var id: Double { timestamp.timeIntervalSince1970 }
+    }
+
     private struct Section: Identifiable {
         let bucket: Bucket
-        let items: [CollectionItem]
+        let batches: [Batch]
         var id: Int { bucket.rawValue }
     }
+
+    /// Items added within this many seconds of each other are treated
+    /// as one batch. 5 minutes covers a multi-photo batch scan +
+    /// follow-up corrections without merging genuinely separate
+    /// sessions.
+    private static let batchWindowSeconds: TimeInterval = 300
 
     var body: some View {
         Group {
@@ -62,11 +75,14 @@ struct RecentlyAddedScreen: View {
             List {
                 ForEach(sections) { section in
                     SwiftUI.Section(section.bucket.title) {
-                        ForEach(section.items) { item in
-                            NavigationLink {
-                                cardDetailDestination(for: item)
-                            } label: {
-                                row(item)
+                        ForEach(section.batches) { batch in
+                            batchHeader(batch)
+                            ForEach(batch.items) { item in
+                                NavigationLink {
+                                    cardDetailDestination(for: item)
+                                } label: {
+                                    row(item)
+                                }
                             }
                         }
                     }
@@ -74,6 +90,58 @@ struct RecentlyAddedScreen: View {
             }
             .listStyle(.insetGrouped)
         }
+    }
+
+    /// Per-batch subtotal: cards added within ~5 minutes of each
+    /// other render as a single batch with this header showing total
+    /// value + copy count. Answers the user's "I want to see the
+    /// total of THIS scan" question without making them do mental math
+    /// on the date-bucket aggregate.
+    private func batchHeader(_ batch: Batch) -> some View {
+        let preferred = LocalCurrency.current
+        let totalUSD = batch.items.reduce(0.0) { acc, item in
+            acc + lineValueUSD(item)
+        }
+        let totalCopies = batch.items.reduce(0) { $0 + $1.quantity }
+        let amountText: String
+        if let converted = currencyService.convert(totalUSD, to: preferred) {
+            amountText = LocalCurrency.format(converted, currency: preferred)
+        } else {
+            amountText = LocalCurrency.format(totalUSD, currency: "USD")
+        }
+        return HStack(spacing: 8) {
+            Image(systemName: "tray.and.arrow.down.fill")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(MD3Theme.primary)
+            VStack(alignment: .leading, spacing: 0) {
+                Text("\(totalCopies) card\(totalCopies == 1 ? "" : "s") · \(relativeDate(batch.timestamp))")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+                    .textCase(.uppercase)
+            }
+            Spacer()
+            Text(amountText)
+                .font(.system(size: 13, weight: .bold, design: .monospaced))
+                .foregroundStyle(MD3Theme.primary)
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 4)
+        .listRowBackground(MD3Theme.primaryContainer.opacity(0.18))
+    }
+
+    /// Foil-aware per-item line value, factored out so the batch
+    /// header and per-row renderer agree.
+    private func lineValueUSD(_ item: CollectionItem) -> Double {
+        let nonFoilCount = max(0, item.quantity - item.foilQuantity)
+        let nonFoilUnit = item.currentValueUSD
+            ?? item.priceAtAddUSD
+            ?? item.currentValueFoilUSD
+            ?? 0
+        let foilUnit = item.currentValueFoilUSD
+            ?? item.priceAtAddUSD
+            ?? item.currentValueUSD
+            ?? 0
+        return nonFoilUnit * Double(nonFoilCount) + foilUnit * Double(item.foilQuantity)
     }
 
     // MARK: - Summary
@@ -85,24 +153,7 @@ struct RecentlyAddedScreen: View {
     @ViewBuilder
     private var summaryHeader: some View {
         let preferred = LocalCurrency.current
-        let totalUSD = items.reduce(0.0) { acc, item in
-            // Foil-aware: split copies by finish and use the matching
-            // unit price. Falls back to whichever snapshot is available
-            // when one of the current-value fields is nil (e.g.
-            // foil-only printings have no `currentValueUSD`).
-            let nonFoilCount = max(0, item.quantity - item.foilQuantity)
-            let nonFoilUnit = item.currentValueUSD
-                ?? item.priceAtAddUSD
-                ?? item.currentValueFoilUSD
-                ?? 0
-            let foilUnit = item.currentValueFoilUSD
-                ?? item.priceAtAddUSD
-                ?? item.currentValueUSD
-                ?? 0
-            return acc
-                + nonFoilUnit * Double(nonFoilCount)
-                + foilUnit * Double(item.foilQuantity)
-        }
+        let totalUSD = items.reduce(0.0) { acc, item in acc + lineValueUSD(item) }
         let totalCopies = items.reduce(0) { $0 + $1.quantity }
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
@@ -154,19 +205,7 @@ struct RecentlyAddedScreen: View {
 
     private func row(_ item: CollectionItem) -> some View {
         let preferred = LocalCurrency.current
-        // Foil-aware line value: split by finish, use matching price,
-        // fall back across fields so foil-only printings (no nonfoil
-        // USD) still render a real number instead of ₱0.
-        let nonFoilCount = max(0, item.quantity - item.foilQuantity)
-        let nonFoilUnit = item.currentValueUSD
-            ?? item.priceAtAddUSD
-            ?? item.currentValueFoilUSD
-            ?? 0
-        let foilUnit = item.currentValueFoilUSD
-            ?? item.priceAtAddUSD
-            ?? item.currentValueUSD
-            ?? 0
-        let lineUSD = nonFoilUnit * Double(nonFoilCount) + foilUnit * Double(item.foilQuantity)
+        let lineUSD = lineValueUSD(item)
         let line: Double? = lineUSD > 0 ? lineUSD : nil
         let convertedLine = line.flatMap { currencyService.convert($0, to: preferred) }
         return HStack(spacing: 10) {
@@ -299,7 +338,29 @@ struct RecentlyAddedScreen: View {
         }
         return Bucket.allCases.compactMap { bucket in
             guard let entries = buckets[bucket], !entries.isEmpty else { return nil }
-            return Section(bucket: bucket, items: entries)
+            return Section(bucket: bucket, batches: clusterIntoBatches(entries))
+        }
+    }
+
+    /// Items added within `batchWindowSeconds` of each other are
+    /// treated as a single batch. Input is assumed sorted newest-first.
+    private func clusterIntoBatches(_ items: [CollectionItem]) -> [Batch] {
+        var clusters: [[CollectionItem]] = []
+        var current: [CollectionItem] = []
+        var lastTime: Date?
+        for item in items {
+            if let last = lastTime,
+               abs(item.addedAt.timeIntervalSince(last)) > Self.batchWindowSeconds {
+                if !current.isEmpty { clusters.append(current) }
+                current = []
+            }
+            current.append(item)
+            lastTime = item.addedAt
+        }
+        if !current.isEmpty { clusters.append(current) }
+        return clusters.compactMap { cluster in
+            guard let first = cluster.first else { return nil }
+            return Batch(timestamp: first.addedAt, items: cluster)
         }
     }
 }
