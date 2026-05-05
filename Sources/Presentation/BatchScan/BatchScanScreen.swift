@@ -338,10 +338,12 @@ struct BatchScanScreen: View {
 
             Spacer()
 
+            foilToggle(for: index)
+
             quantityStepper(for: index)
 
-            if let usd = entry.card.prices.usd {
-                Text("$\(usd)")
+            if let unit = viewModel.unitPriceUSD(at: index) {
+                Text(String(format: "$%.2f", unit))
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(MD3Theme.primary)
                     .monospacedDigit()
@@ -373,6 +375,34 @@ struct BatchScanScreen: View {
             onDecrement: { viewModel.decrementQuantity(at: index) },
             onIncrement: { viewModel.incrementQuantity(at: index) }
         )
+    }
+
+    /// Foil pill — taps toggle row foil state. Disabled (always-on) for
+    /// foil-only printings (FNM, Secret Lair foils, etc.) where there's
+    /// no nonfoil version to switch to.
+    private func foilToggle(for index: Int) -> some View {
+        let isFoil = viewModel.isFoil(at: index)
+        let foilOnly = viewModel.foilOnly(at: index)
+        return Button {
+            if !foilOnly { viewModel.toggleFoil(at: index) }
+        } label: {
+            Text("Foil")
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .foregroundStyle(isFoil ? .white : MD3Theme.onSurfaceVariant)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(isFoil ? Color.purple : MD3Theme.surfaceVariant)
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule().stroke(
+                        isFoil ? Color.purple.opacity(0.4) : MD3Theme.outlineVariant,
+                        lineWidth: 1
+                    )
+                )
+                .opacity(foilOnly ? 0.85 : 1.0)
+        }
+        .buttonStyle(.plain)
+        .disabled(foilOnly)
     }
 
     private var actionButtons: some View {

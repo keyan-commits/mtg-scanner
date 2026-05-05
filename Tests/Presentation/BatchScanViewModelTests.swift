@@ -17,7 +17,14 @@ private func makeTinyCGImage(side: Int = 200) -> CGImage {
     return context.makeImage()!
 }
 
-private func makeBatchCard(name: String, set: String = "lea", collector: String = "1", usd: String? = nil) -> Card {
+private func makeBatchCard(
+    name: String,
+    set: String = "lea",
+    collector: String = "1",
+    usd: String? = nil,
+    usdFoil: String? = nil,
+    finishes: [String] = ["nonfoil"]
+) -> Card {
     Card(
         scryfallID: "\(name)-\(set)-\(collector)",
         name: name,
@@ -34,19 +41,30 @@ private func makeBatchCard(name: String, set: String = "lea", collector: String 
         frameEffects: [],
         illustrationID: nil,
         edhrecRank: nil,
-        prices: CardPrices(usd: usd, usdFoil: nil, eur: nil, eurFoil: nil, tix: nil, previousUsd: nil),
+        prices: CardPrices(usd: usd, usdFoil: usdFoil, eur: nil, eurFoil: nil, tix: nil, previousUsd: nil),
         legalities: FormatLegality([:]),
         imageURIs: [:],
         relatedPrintingsURI: nil,
         lang: "en",
         printedName: nil,
         promoTypes: [],
-        finishes: ["nonfoil"]
+        finishes: finishes
     )
 }
 
-private func makeIdentified(imageIndex: Int, name: String, bbox: BatchBoundingBox? = nil, usd: String? = nil) -> BatchIdentifiedCard {
-    BatchIdentifiedCard(imageIndex: imageIndex, card: makeBatchCard(name: name, usd: usd), boundingBox: bbox)
+private func makeIdentified(
+    imageIndex: Int,
+    name: String,
+    bbox: BatchBoundingBox? = nil,
+    usd: String? = nil,
+    usdFoil: String? = nil,
+    finishes: [String] = ["nonfoil"]
+) -> BatchIdentifiedCard {
+    BatchIdentifiedCard(
+        imageIndex: imageIndex,
+        card: makeBatchCard(name: name, usd: usd, usdFoil: usdFoil, finishes: finishes),
+        boundingBox: bbox
+    )
 }
 
 /// Minimal pipeline stub — only `identifyBatch` and `learnFromIdentification`
@@ -411,5 +429,103 @@ struct BatchScanViewModelTests {
         ))
         #expect(viewModel.hasAnyPrice == false)
         #expect(viewModel.totalValueUSD == 0)
+    }
+
+    // MARK: - Foil toggle
+
+    @Test("Foil toggle defaults off; flipping it switches the unit price to usdFoil")
+    @MainActor
+    func foilToggleSwitchesPrice() {
+        let viewModel = BatchScanViewModel(pipeline: BatchStubPipeline())
+        viewModel.loadedImages = [makeTinyCGImage()]
+        viewModel.applyBatchResult(BatchIdentificationResult(
+            cards: [
+                makeIdentified(imageIndex: 0, name: "Spellstutter Sprite",
+                               usd: "5.89", usdFoil: "30.45",
+                               finishes: ["nonfoil", "foil"]),
+            ],
+            payloadBytes: 0, analysis: nil, error: nil
+        ))
+        // Default: nonfoil
+        #expect(viewModel.isFoil(at: 0) == false)
+        #expect(viewModel.unitPriceUSD(at: 0) == 5.89)
+        #expect(abs(viewModel.totalValueUSD - 5.89) < 0.001)
+
+        // Flip to foil — the user just told us these cards are all foil.
+        viewModel.toggleFoil(at: 0)
+        #expect(viewModel.isFoil(at: 0) == true)
+        #expect(viewModel.unitPriceUSD(at: 0) == 30.45)
+        #expect(abs(viewModel.totalValueUSD - 30.45) < 0.001)
+    }
+
+    @Test("Foil-only printings auto-default to foil and lock the toggle")
+    @MainActor
+    func foilOnlyAutoDefaultsAndLocks() {
+        let viewModel = BatchScanViewModel(pipeline: BatchStubPipeline())
+        viewModel.loadedImages = [makeTinyCGImage()]
+        viewModel.applyBatchResult(BatchIdentificationResult(
+            cards: [
+                // FNM-style print: foil-only, no nonfoil USD.
+                makeIdentified(imageIndex: 0, name: "Spellstutter Sprite",
+                               usd: nil, usdFoil: "30.45",
+                               finishes: ["foil"]),
+            ],
+            payloadBytes: 0, analysis: nil, error: nil
+        ))
+        #expect(viewModel.foilOnly(at: 0) == true)
+        #expect(viewModel.isFoil(at: 0) == true)            // auto-on
+        #expect(viewModel.unitPriceUSD(at: 0) == 30.45)
+        // Attempting to switch off should be a no-op for foil-only.
+        viewModel.setFoil(at: 0, to: false)
+        #expect(viewModel.isFoil(at: 0) == true)
+    }
+
+    @Test("totalValueUSD respects per-row foil flags across mixed batch")
+    @MainActor
+    func totalValueRespectsMixedFoilFlags() {
+        let viewModel = BatchScanViewModel(pipeline: BatchStubPipeline())
+        viewModel.loadedImages = [makeTinyCGImage()]
+        viewModel.applyBatchResult(BatchIdentificationResult(
+            cards: [
+                makeIdentified(imageIndex: 0, name: "Lorwyn Sprite",
+                               usd: "5.89", usdFoil: "30.45",
+                               finishes: ["nonfoil", "foil"]),
+                makeIdentified(imageIndex: 0, name: "Plain Common",
+                               usd: "0.10", usdFoil: "0.50",
+                               finishes: ["nonfoil", "foil"]),
+            ],
+            payloadBytes: 0, analysis: nil, error: nil
+        ))
+        // Mark only the first row foil.
+        viewModel.setFoil(at: 0, to: true)
+        // Total = 30.45 (foil) + 0.10 (nonfoil) = 30.55
+        #expect(abs(viewModel.totalValueUSD - 30.55) < 0.001)
+    }
+
+    @Test("Foil toggle survives Fix-driven replaceCard, but foil-only forces on")
+    @MainActor
+    func foilFlagSurvivesReplaceCard() {
+        let viewModel = BatchScanViewModel(pipeline: BatchStubPipeline())
+        viewModel.loadedImages = [makeTinyCGImage()]
+        viewModel.applyBatchResult(BatchIdentificationResult(
+            cards: [makeIdentified(imageIndex: 0, name: "A", usd: "1.00", usdFoil: "10.00")],
+            payloadBytes: 0, analysis: nil, error: nil
+        ))
+        viewModel.setFoil(at: 0, to: true)
+
+        // Replace with a print that's also nonfoil-capable — foil flag retained.
+        let normal = makeBatchCard(name: "B", usd: "2.00", usdFoil: "20.00",
+                                   finishes: ["nonfoil", "foil"])
+        viewModel.replaceCard(at: 0, with: normal)
+        #expect(viewModel.isFoil(at: 0) == true)
+        #expect(viewModel.unitPriceUSD(at: 0) == 20.00)
+
+        // Replace with a foil-only print — flag forced on regardless of prior state.
+        viewModel.setFoil(at: 0, to: false)   // pretend user toggled off
+        let foilOnly = makeBatchCard(name: "C", usd: nil, usdFoil: "30.45",
+                                     finishes: ["foil"])
+        viewModel.replaceCard(at: 0, with: foilOnly)
+        #expect(viewModel.isFoil(at: 0) == true)
+        #expect(viewModel.foilOnly(at: 0) == true)
     }
 }

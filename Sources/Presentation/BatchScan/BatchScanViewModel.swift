@@ -32,6 +32,10 @@ final class BatchScanViewModel {
     var identifiedCards: [BatchIdentifiedCard] = []
     /// Per-detection quantity (default 1). Keyed by index into `identifiedCards`.
     var quantities: [Int: Int] = [:]
+    /// Per-detection foil state. Keyed by index. Defaults to true when the
+    /// printing exists only in foil (FNM, Secret Lair foil drops, etc.) so
+    /// the row immediately reflects reality, otherwise false.
+    var foilFlags: [Int: Bool] = [:]
     /// Per-detection cropped thumbnail (bbox-cropped from the source photo).
     /// Falls back to the full source image when bbox is missing/degenerate.
     /// Populated once at `applyBatchResult` so rows don't recompute on every render.
@@ -71,24 +75,70 @@ final class BatchScanViewModel {
         ByteCountFormatter.string(fromByteCount: Int64(payloadBytes), countStyle: .file)
     }
 
-    /// Sum of `Card.prices.usd × stepper quantity` across all detections.
-    /// Cards without a USD price contribute 0; the result is never negative.
-    /// Recomputes implicitly when `identifiedCards` or `quantities` change
-    /// (e.g. after Fix → replaceCard swaps the printing).
+    /// Sum of unit-price × stepper quantity across all detections, where
+    /// "unit price" is the foil price when the row is marked foil and
+    /// the nonfoil price otherwise (falling back to whichever exists if
+    /// the preferred one is missing). Cards without any USD price
+    /// contribute 0; the result is never negative.
     var totalValueUSD: Double {
         var total: Double = 0
-        for (i, entry) in identifiedCards.enumerated() {
-            guard let usd = entry.card.prices.usd, let value = Double(usd) else { continue }
-            total += value * Double(quantity(at: i))
+        for i in identifiedCards.indices {
+            if let value = unitPriceUSD(at: i) {
+                total += value * Double(quantity(at: i))
+            }
         }
         return total
     }
 
-    /// True if at least one detection has a USD price. Used to decide whether
-    /// to render the total at all — `$0.00` for a list of unpriced cards is
-    /// noise.
+    /// True if at least one detection has any USD price (foil or nonfoil).
+    /// Used to decide whether to render the total at all — `$0.00` for a
+    /// list of unpriced cards is noise.
     var hasAnyPrice: Bool {
-        identifiedCards.contains { $0.card.prices.usd.flatMap(Double.init).map { $0 > 0 } ?? false }
+        for entry in identifiedCards {
+            let nonfoil = Double(entry.card.prices.usd ?? "") ?? 0
+            let foil = Double(entry.card.prices.usdFoil ?? "") ?? 0
+            if nonfoil > 0 || foil > 0 { return true }
+        }
+        return false
+    }
+
+    /// Whether the row at `index` is currently treated as foil. Foil-only
+    /// printings (FNM, Secret Lair foil drops) auto-default to true and
+    /// the UI should lock the toggle off — there's no nonfoil version
+    /// to switch to.
+    func isFoil(at index: Int) -> Bool {
+        if let explicit = foilFlags[index] { return explicit }
+        return foilOnly(at: index)
+    }
+
+    /// True when the printing has no nonfoil variant. The foil toggle
+    /// should be disabled (always on) for these.
+    func foilOnly(at index: Int) -> Bool {
+        guard index < identifiedCards.count else { return false }
+        return identifiedCards[index].card.isFoilOnly
+    }
+
+    func setFoil(at index: Int, to value: Bool) {
+        // Foil-only printings can't be set to nonfoil — silently coerce
+        // to true so callers don't need a separate guard.
+        foilFlags[index] = foilOnly(at: index) ? true : value
+    }
+
+    func toggleFoil(at index: Int) {
+        setFoil(at: index, to: !isFoil(at: index))
+    }
+
+    /// Per-row USD unit price honoring the current foil flag. Returns nil
+    /// when neither nonfoil nor foil is priced.
+    func unitPriceUSD(at index: Int) -> Double? {
+        guard index < identifiedCards.count else { return nil }
+        let prices = identifiedCards[index].card.prices
+        let nonfoil = prices.usd.flatMap(Double.init)
+        let foil = prices.usdFoil.flatMap(Double.init)
+        if isFoil(at: index) {
+            return foil ?? nonfoil
+        }
+        return nonfoil ?? foil
     }
 
     func quantity(at index: Int) -> Int {
@@ -116,6 +166,9 @@ final class BatchScanViewModel {
             card: card,
             boundingBox: existing.boundingBox
         )
+        // If the new printing is foil-only, force the foil flag on.
+        // Otherwise preserve the user's prior choice.
+        if card.isFoilOnly { foilFlags[index] = true }
         // Fix is an explicit user correction — feed it directly to the in-house scanner.
         if let crop = cardThumbnails[index], existing.boundingBox != nil {
             Task { await pipeline.learnFromIdentification(cardImage: crop, card: card) }
@@ -168,6 +221,12 @@ final class BatchScanViewModel {
 
         identifiedCards = result.cards
         quantities = Dictionary(uniqueKeysWithValues: identifiedCards.indices.map { ($0, 1) })
+        // Seed foil flags: foil-only printings auto-true; everything else
+        // stays nil so `isFoil(at:)` returns false until the user toggles.
+        foilFlags = [:]
+        for i in identifiedCards.indices where identifiedCards[i].card.isFoilOnly {
+            foilFlags[i] = true
+        }
         cardThumbnails = computeThumbnails()
         let photosWithMatches = Set(identifiedCards.map(\.imageIndex))
         failedIndices = (0..<loadedImages.count).filter { !photosWithMatches.contains($0) }
@@ -191,10 +250,15 @@ final class BatchScanViewModel {
         guard let repo = deckRepository else { return }
         var count = 0
         for (i, entry) in identifiedCards.enumerated() {
-            for _ in 0..<quantity(at: i) {
-                if (try? repo.addToCollection(card: entry.card)) != nil {
-                    count += 1
-                }
+            let qty = quantity(at: i)
+            let foilQty = isFoil(at: i) ? qty : 0
+            let nonfoilQty = qty - foilQty
+            if (try? repo.addToCollection(
+                card: entry.card,
+                quantity: nonfoilQty,
+                foilQuantity: foilQty
+            )) != nil {
+                count += qty
             }
         }
         addedToCollection = count
@@ -204,19 +268,27 @@ final class BatchScanViewModel {
     func createDeck(name: String) {
         guard let repo = deckRepository else { return }
         guard let deck = try? repo.createDeck(name: name) else { return }
-        // Group by card name; sum stepper quantities.
-        var grouped: [String: (card: Card, count: Int)] = [:]
+        // Group by (card name, foil flag) — foil and nonfoil copies of the
+        // same card are different products in a deck context.
+        struct Key: Hashable { let name: String; let isFoil: Bool }
+        var grouped: [Key: (card: Card, count: Int)] = [:]
         for (i, entry) in identifiedCards.enumerated() {
             let qty = quantity(at: i)
-            if var existing = grouped[entry.card.name] {
+            let key = Key(name: entry.card.name, isFoil: isFoil(at: i))
+            if var existing = grouped[key] {
                 existing.count += qty
-                grouped[entry.card.name] = existing
+                grouped[key] = existing
             } else {
-                grouped[entry.card.name] = (card: entry.card, count: qty)
+                grouped[key] = (card: entry.card, count: qty)
             }
         }
-        for (_, entry) in grouped {
-            _ = try? repo.addItem(card: entry.card, quantity: entry.count, to: deck)
+        for (key, entry) in grouped {
+            _ = try? repo.addItem(
+                card: entry.card,
+                quantity: entry.count,
+                to: deck,
+                isFoil: key.isFoil
+            )
         }
         addedToDeck = deck
         Task { await learnIdentifiedCards() }

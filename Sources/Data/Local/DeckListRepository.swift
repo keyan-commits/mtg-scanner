@@ -204,11 +204,13 @@ final class DeckListRepository {
     }
 
     /// Adds N individual copies of a card to a deck (one PurchaseItem per copy).
-    /// This enables per-card status tracking.
-    func addItem(card: Card, quantity: Int, to deck: DeckList, zone: String = "mainboard") throws -> PurchaseItem {
+    /// This enables per-card status tracking. `isFoil` is stamped on every
+    /// copy created by this call — mixed foil/nonfoil for the same card
+    /// requires two calls.
+    func addItem(card: Card, quantity: Int, to deck: DeckList, zone: String = "mainboard", isFoil: Bool = false) throws -> PurchaseItem {
         var first: PurchaseItem?
         for _ in 0..<max(1, quantity) {
-            let item = PurchaseItem.from(card: card, quantity: 1, deck: deck, zone: zone)
+            let item = PurchaseItem.from(card: card, quantity: 1, deck: deck, zone: zone, isFoil: isFoil)
             context.insert(item)
             if first == nil { first = item }
         }
