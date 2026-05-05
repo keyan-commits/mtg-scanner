@@ -1506,7 +1506,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.nikoe.mtgcardscanner;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nikoedralin.mtgkeyan;
 				SDKROOT = iphoneos;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1525,7 +1525,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.nikoe.mtgcardscanner;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nikoedralin.mtgkeyan;
 				SDKROOT = iphoneos;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1667,7 +1667,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.nikoe.mtgcardscanner.MTGCardScannerTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nikoedralin.mtgkeyan.MTGCardScannerTests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MTGCardScanner.app/MTGCardScanner";
@@ -1684,7 +1684,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.nikoe.mtgcardscanner.MTGCardScannerTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nikoedralin.mtgkeyan.MTGCardScannerTests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MTGCardScanner.app/MTGCardScanner";

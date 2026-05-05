@@ -10,7 +10,7 @@ set -e
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROJECT="$PROJECT_ROOT/MTGCardScanner.xcodeproj"
 SCHEME="MTGCardScanner"
-BUNDLE_ID="com.nikoe.mtgcardscanner"
+BUNDLE_ID="com.nikoedralin.mtgkeyan"
 
 cd "$PROJECT_ROOT"
 

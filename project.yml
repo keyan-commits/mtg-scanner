@@ -1,6 +1,6 @@
 name: MTGCardScanner
 options:
-  bundleIdPrefix: com.nikoe.mtgcardscanner
+  bundleIdPrefix: com.nikoedralin.mtgkeyan
   deploymentTarget:
     iOS: "17.0"
   xcodeVersion: "16.0"
@@ -24,7 +24,7 @@ targets:
     settings:
       base:
         INFOPLIST_FILE: Resources/Info.plist
-        PRODUCT_BUNDLE_IDENTIFIER: com.nikoe.mtgcardscanner
+        PRODUCT_BUNDLE_IDENTIFIER: com.nikoedralin.mtgkeyan
         TARGETED_DEVICE_FAMILY: "1,2"
         SWIFT_STRICT_CONCURRENCY: complete
         CODE_SIGN_STYLE: Automatic
