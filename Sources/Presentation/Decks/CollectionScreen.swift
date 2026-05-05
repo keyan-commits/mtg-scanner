@@ -24,6 +24,7 @@ struct CollectionScreen: View {
     @State private var colorFilter: ColorFilter = .any
     @State private var foilsOnly: Bool = false
     @State private var priceCache: [String: Double] = [:]
+    @State private var foilPriceCache: [String: Double] = [:]
     @State private var pricesLoaded: Bool = false
     @State private var cachedAllSets: [String] = []
     @State private var cachedFiltered: [CollectionItem] = []
@@ -173,9 +174,19 @@ struct CollectionScreen: View {
             result.sort { $0.addedAt > $1.addedAt }
         case .valueDesc:
             result.sort { (a, b) -> Bool in
-                let pa = priceCache[a.scryfallID] ?? 0
-                let pb = priceCache[b.scryfallID] ?? 0
-                return (pa * Double(a.quantity)) > (pb * Double(b.quantity))
+                let av = CollectionPricing.lineValueUSD(
+                    quantity: a.quantity,
+                    foilQuantity: a.foilQuantity,
+                    nonfoilPriceUSD: priceCache[a.scryfallID] ?? a.currentValueUSD,
+                    foilPriceUSD: foilPriceCache[a.scryfallID] ?? a.currentValueFoilUSD
+                ) ?? 0
+                let bv = CollectionPricing.lineValueUSD(
+                    quantity: b.quantity,
+                    foilQuantity: b.foilQuantity,
+                    nonfoilPriceUSD: priceCache[b.scryfallID] ?? b.currentValueUSD,
+                    foilPriceUSD: foilPriceCache[b.scryfallID] ?? b.currentValueFoilUSD
+                ) ?? 0
+                return av > bv
             }
         }
 
@@ -492,7 +503,7 @@ struct CollectionScreen: View {
             // Required for the value header + per-row prices.
             await loadPricesIfNeeded()
             // Recompute total AFTER all prices are loaded
-            Self.recomputeAndCacheTotal(items: items, priceCache: priceCache)
+            Self.recomputeAndCacheTotal(items: items, priceCache: priceCache, foilPriceCache: foilPriceCache)
             // Pre-load the archetype → card-names mapping so the
             // "Group by Deck Archetype" option is instant. Reads from
             // the aggregation cache (populated by Browse Archetypes).
@@ -528,32 +539,41 @@ struct CollectionScreen: View {
     /// Runs once per appear; cached results persist for the screen
     /// lifetime so scrolling never refetches.
     private func loadPricesIfNeeded() async {
-        // Use pre-computed currentValueUSD from daily price refresh (instant)
-        for item in items where priceCache[item.scryfallID] == nil {
-            if let value = item.currentValueUSD {
+        // Use pre-computed currentValueUSD/currentValueFoilUSD from daily
+        // price refresh (instant). Foil-only printings have no nonfoil
+        // price; foil-only items must read from currentValueFoilUSD.
+        for item in items {
+            if priceCache[item.scryfallID] == nil, let value = item.currentValueUSD {
                 priceCache[item.scryfallID] = value
+            }
+            if foilPriceCache[item.scryfallID] == nil, let value = item.currentValueFoilUSD {
+                foilPriceCache[item.scryfallID] = value
             }
         }
 
-        // Fetch any remaining missing prices from DB (new cards added since refresh)
-        let stillMissing = items.filter { priceCache[$0.scryfallID] == nil }
+        // Fetch any remaining missing prices from DB (new cards added since
+        // refresh, or printings whose snapshot was never written). Pull both
+        // finishes — Spellstutter Sprite FNM has no nonfoil printing, so a
+        // nonfoil-only fetch silently returns no price for foil-only rows.
+        let stillMissing = items.filter {
+            priceCache[$0.scryfallID] == nil || foilPriceCache[$0.scryfallID] == nil
+        }
         if !stillMissing.isEmpty {
-            await withTaskGroup(of: (String, Double?).self) { group in
+            await withTaskGroup(of: (String, Double?, Double?).self) { group in
                 for item in stillMissing {
                     group.addTask {
-                        if let card = try? await self.cardRepository.fetchCard(
+                        guard let card = try? await self.cardRepository.fetchCard(
                             set: item.setCode,
                             collectorNumber: item.collectorNumber
-                        ),
-                           let usdString = card.prices.usd,
-                           let usd = Double(usdString) {
-                            return (item.scryfallID, usd)
-                        }
-                        return (item.scryfallID, nil)
+                        ) else { return (item.scryfallID, nil, nil) }
+                        let usd = card.prices.usd.flatMap(Double.init)
+                        let usdFoil = card.prices.usdFoil.flatMap(Double.init)
+                        return (item.scryfallID, usd, usdFoil)
                     }
                 }
-                for await (id, price) in group {
+                for await (id, price, foilPrice) in group {
                     if let price { priceCache[id] = price }
+                    if let foilPrice { foilPriceCache[id] = foilPrice }
                 }
             }
         }
@@ -851,11 +871,21 @@ struct CollectionScreen: View {
 
     /// Recomputes and saves the total collection value. Called only when
     /// collection changes (add/remove/edit) — NOT on every screen load.
-    static func recomputeAndCacheTotal(items: [CollectionItem], priceCache: [String: Double]) {
+    static func recomputeAndCacheTotal(
+        items: [CollectionItem],
+        priceCache: [String: Double],
+        foilPriceCache: [String: Double]
+    ) {
         var total: Double = 0
         for item in items {
-            let usd = priceCache[item.scryfallID] ?? item.currentValueUSD ?? 0
-            total += usd * Double(item.quantity)
+            let nonfoil = priceCache[item.scryfallID] ?? item.currentValueUSD
+            let foil = foilPriceCache[item.scryfallID] ?? item.currentValueFoilUSD
+            total += CollectionPricing.lineValueUSD(
+                quantity: item.quantity,
+                foilQuantity: item.foilQuantity,
+                nonfoilPriceUSD: nonfoil,
+                foilPriceUSD: foil
+            ) ?? 0
         }
         UserDefaults.standard.set(total, forKey: "collectionCachedValueUSD")
     }
@@ -864,11 +894,29 @@ struct CollectionScreen: View {
 
     private func row(_ item: CollectionItem) -> some View {
         let preferred = LocalCurrency.current
-        let currentUSD = priceCache[item.scryfallID]
-        let lineUSD = currentUSD.map { $0 * Double(item.quantity) }
+        let nonfoilUSD = priceCache[item.scryfallID] ?? item.currentValueUSD
+        let foilUSD = foilPriceCache[item.scryfallID] ?? item.currentValueFoilUSD
+        let lineUSD = CollectionPricing.lineValueUSD(
+            quantity: item.quantity,
+            foilQuantity: item.foilQuantity,
+            nonfoilPriceUSD: nonfoilUSD,
+            foilPriceUSD: foilUSD
+        )
+        let unitUSD = CollectionPricing.averageUnitPriceUSD(
+            quantity: item.quantity,
+            foilQuantity: item.foilQuantity,
+            nonfoilPriceUSD: nonfoilUSD,
+            foilPriceUSD: foilUSD
+        )
+        let comparisonUSD = CollectionPricing.dominantUnitPriceUSD(
+            quantity: item.quantity,
+            foilQuantity: item.foilQuantity,
+            nonfoilPriceUSD: nonfoilUSD,
+            foilPriceUSD: foilUSD
+        )
         let convertedLine = lineUSD.flatMap { currencyService.convert($0, to: preferred) }
-        let convertedUnit = currentUSD.flatMap { currencyService.convert($0, to: preferred) }
-        let change = priceChange(item: item, currentUSD: currentUSD)
+        let convertedUnit = unitUSD.flatMap { currencyService.convert($0, to: preferred) }
+        let change = priceChange(item: item, currentUSD: comparisonUSD)
         return VStack(spacing: 6) {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
