@@ -23,6 +23,7 @@ struct ForSaleScreen: View {
     @State private var resolvedCards: [String: Card] = [:]
     @State private var editingItem: CollectionItem?
     @State private var sellingItem: CollectionItem?
+    @State private var undoingItem: CollectionItem?
     @Bindable private var currencyService = CurrencyService.shared
 
     var body: some View {
@@ -55,6 +56,13 @@ struct ForSaleScreen: View {
         }
         .sheet(item: $sellingItem) { item in
             RecordSaleSheet(
+                item: item,
+                deckRepository: deckRepository,
+                onClose: { reload() }
+            )
+        }
+        .sheet(item: $undoingItem) { item in
+            UndoSaleSheet(
                 item: item,
                 deckRepository: deckRepository,
                 onClose: { reload() }
@@ -229,6 +237,10 @@ struct ForSaleScreen: View {
             SwiftUI.Section("\(soldItems.count) sold") {
                 ForEach(soldItems) { item in
                     soldRow(item)
+                        .swipeActions(edge: .leading) {
+                            Button("Undo") { undoingItem = item }
+                                .tint(.green)
+                        }
                 }
             }
         }

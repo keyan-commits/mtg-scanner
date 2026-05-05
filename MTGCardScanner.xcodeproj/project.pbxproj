@@ -174,6 +174,7 @@
 		9E9D40C7B152AE70B0ED18E5 /* MTGTop8AvailabilityState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B80F642D3C2648E9AB64B0F4 /* MTGTop8AvailabilityState.swift */; };
 		A36C512C36CE5162CCCB093D /* QuickAddToCollectionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1BFD0F4CFB4B9E44414742 /* QuickAddToCollectionSheet.swift */; };
 		A4037FC7EC4CBF999BB15C34 /* CollectorInfoExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F00F6CA17C65A39BDF87E55 /* CollectorInfoExtractor.swift */; };
+		A5ADEDBAD8B9DABCD094113C /* UndoSaleSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 315A14C27A21CF03CEBDB650 /* UndoSaleSheet.swift */; };
 		A6D313CE620FB5E2370B741F /* DeckListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21299263386630693EDC580B /* DeckListModel.swift */; };
 		AA11BB22CC33DD44EE55FF66 /* SetFilterFieldTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB22CC33DD44EE55FF66AA77 /* SetFilterFieldTests.swift */; };
 		AA77BB88CC99DD11EE22FF33 /* UIImageOrientationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB88CC99DD11EE22FF33AA44 /* UIImageOrientationTests.swift */; };
@@ -345,6 +346,7 @@
 		2D573136AAB39536AE9FE3ED /* JapaneseCollectibles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JapaneseCollectibles.swift; sourceTree = "<group>"; };
 		2E9A896E4F241EF819F2E946 /* PremodernStaples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremodernStaples.swift; sourceTree = "<group>"; };
 		2F4AAD7AD6AC090BFA3D94A6 /* HareruyaPriceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HareruyaPriceService.swift; sourceTree = "<group>"; };
+		315A14C27A21CF03CEBDB650 /* UndoSaleSheet.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UndoSaleSheet.swift; sourceTree = "<group>"; };
 		31C20EF780B773AFFB05E4A1 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		328D969AE79F7A8452060BAB /* LegacyStaples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyStaples.swift; sourceTree = "<group>"; };
 		3A08967C19A5A8E1413B7F66 /* ShoppingListScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoppingListScreen.swift; sourceTree = "<group>"; };
@@ -910,6 +912,7 @@
 				270EAAB084C34223D34B92FC /* ForSaleScreen.swift */,
 				5EEC378789C1E950049C0AB6 /* ListForSaleSheet.swift */,
 				F81368938A79655818001821 /* RecordSaleSheet.swift */,
+				315A14C27A21CF03CEBDB650 /* UndoSaleSheet.swift */,
 			);
 			path = Decks;
 			sourceTree = "<group>";
@@ -1420,6 +1423,7 @@
 				DE81258D2B9463AFF4342A93 /* ListForSaleSheet.swift in Sources */,
 				E6A54B6CDFDF0676C5B17709 /* RecordSaleSheet.swift in Sources */,
 				5E29FF1A3D6F4086FFD92F00 /* CollectionPricing.swift in Sources */,
+				A5ADEDBAD8B9DABCD094113C /* UndoSaleSheet.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

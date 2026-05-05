@@ -718,6 +718,53 @@ final class DeckListRepository {
         try context.save()
     }
 
+    /// Reverses a previously recorded sale: copies come back into the
+    /// owned count, the sold ledger is decremented, and the row is
+    /// optionally re-listed at the prior asking price.
+    ///
+    /// Used when the user mistapped "Mark sold" or the buyer fell
+    /// through. We don't track per-sale events, so the caller picks
+    /// finish + quantity to reverse (capped at `sold*Quantity`).
+    /// `lastSoldAt` / `lastSoldPriceUSD` are cleared once no sales
+    /// remain across either finish.
+    func undoSale(
+        _ item: CollectionItem,
+        isFoil: Bool,
+        quantity: Int,
+        relist: Bool = false
+    ) throws {
+        let qty = max(0, quantity)
+        if qty == 0 { return }
+        if isFoil {
+            let take = min(qty, item.soldFoilQuantity)
+            if take == 0 { return }
+            item.soldFoilQuantity -= take
+            item.foilQuantity += take
+            item.quantity += take
+            if relist {
+                item.forSaleFoilQuantity += take
+                if item.listedAt == nil { item.listedAt = Date() }
+            }
+        } else {
+            let take = min(qty, item.soldNonfoilQuantity)
+            if take == 0 { return }
+            item.soldNonfoilQuantity -= take
+            item.quantity += take
+            if relist {
+                item.forSaleNonfoilQuantity += take
+                if item.listedAt == nil { item.listedAt = Date() }
+            }
+        }
+        // If the row no longer has any sold copies on either finish,
+        // wipe the lastSold* stamps so the Sold tab doesn't show a
+        // stale entry with zero copies.
+        if item.soldQuantity == 0 {
+            item.lastSoldAt = nil
+            item.lastSoldPriceUSD = nil
+        }
+        try context.save()
+    }
+
     /// Items currently listed for sale (any finish).
     func fetchForSale() throws -> [CollectionItem] {
         let descriptor = FetchDescriptor<CollectionItem>(

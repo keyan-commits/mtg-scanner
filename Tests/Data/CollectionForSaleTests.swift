@@ -239,4 +239,125 @@ struct CollectionForSaleTests {
         #expect(history.count == 1)
         #expect(history[0].soldFoilQuantity == 1)
     }
+
+    // MARK: - undoSale
+
+    @Test("undoSale of a single foil restores quantity, decrements ledger, clears stamps")
+    func undoSaleSingleFoilFullReverse() throws {
+        let repo = Self.makeRepo()
+        let item = try repo.addToCollection(card: Self.makeCard(), quantity: 1, foilQuantity: 1)
+        try repo.markForSale(item, nonfoilQuantity: 0, foilQuantity: 1, askingPriceFoilUSD: 32.0)
+        try repo.recordSale(item, isFoil: true, quantity: 1, soldPriceUSD: 30.0)
+        // After the sale: empty collection + 1 sold ledger entry.
+        #expect(item.quantity == 0)
+        #expect(item.soldFoilQuantity == 1)
+
+        try repo.undoSale(item, isFoil: true, quantity: 1, relist: false)
+
+        #expect(item.foilQuantity == 1)
+        #expect(item.quantity == 1)
+        #expect(item.soldFoilQuantity == 0)
+        #expect(item.soldQuantity == 0)
+        // No sales remaining → stamps cleared so the Sold tab drops the row.
+        #expect(item.lastSoldAt == nil)
+        #expect(item.lastSoldPriceUSD == nil)
+        // relist=false: copy returns to collection but is NOT re-listed.
+        #expect(item.forSaleFoilQuantity == 0)
+    }
+
+    @Test("undoSale with relist=true puts copies back on the Listed tab")
+    func undoSaleRelistsWhenRequested() throws {
+        let repo = Self.makeRepo()
+        let item = try repo.addToCollection(card: Self.makeCard(), quantity: 1, foilQuantity: 1)
+        try repo.markForSale(item, nonfoilQuantity: 0, foilQuantity: 1, askingPriceFoilUSD: 32.0)
+        try repo.recordSale(item, isFoil: true, quantity: 1, soldPriceUSD: 30.0)
+
+        try repo.undoSale(item, isFoil: true, quantity: 1, relist: true)
+
+        #expect(item.foilQuantity == 1)
+        #expect(item.forSaleFoilQuantity == 1)
+        #expect(item.listedAt != nil)
+    }
+
+    @Test("undoSale of one copy from a multi-copy sale leaves the rest sold")
+    func undoSalePartialReverse() throws {
+        let repo = Self.makeRepo()
+        let item = try repo.addToCollection(card: Self.makeCard(), quantity: 4, foilQuantity: 0)
+        try repo.markForSale(item, nonfoilQuantity: 4, foilQuantity: 0, askingPriceUSD: 6.0)
+        // Sold 3 copies, then realize one buyer flaked.
+        try repo.recordSale(item, isFoil: false, quantity: 3, soldPriceUSD: 6.0)
+        #expect(item.quantity == 1)
+        #expect(item.soldNonfoilQuantity == 3)
+
+        try repo.undoSale(item, isFoil: false, quantity: 1, relist: false)
+
+        #expect(item.quantity == 2)
+        #expect(item.soldNonfoilQuantity == 2)
+        // 2 copies still sold → stamps remain.
+        #expect(item.lastSoldAt != nil)
+        #expect(item.lastSoldPriceUSD == 6.0)
+    }
+
+    @Test("undoSale on the foil leg does not touch the nonfoil ledger")
+    func undoSaleOnlyAffectsRequestedFinish() throws {
+        let repo = Self.makeRepo()
+        let item = try repo.addToCollection(card: Self.makeCard(), quantity: 4, foilQuantity: 2)
+        try repo.markForSale(item, nonfoilQuantity: 2, foilQuantity: 2)
+        try repo.recordSale(item, isFoil: false, quantity: 1, soldPriceUSD: 6.0)
+        try repo.recordSale(item, isFoil: true, quantity: 1, soldPriceUSD: 30.0)
+        #expect(item.soldNonfoilQuantity == 1)
+        #expect(item.soldFoilQuantity == 1)
+
+        try repo.undoSale(item, isFoil: true, quantity: 1, relist: false)
+
+        #expect(item.soldFoilQuantity == 0)
+        #expect(item.soldNonfoilQuantity == 1)        // untouched
+        #expect(item.foilQuantity == 2)               // restored
+        // Started at 4, both finishes sold once → 2; undoing only the
+        // foil leg restores 1 → 3. Nonfoil ledger is still 1 sold.
+        #expect(item.quantity == 3)
+    }
+
+    @Test("undoSale clamps when caller asks for more than was sold")
+    func undoSaleClampsToLedger() throws {
+        let repo = Self.makeRepo()
+        let item = try repo.addToCollection(card: Self.makeCard(), quantity: 4, foilQuantity: 0)
+        try repo.markForSale(item, nonfoilQuantity: 4, foilQuantity: 0)
+        try repo.recordSale(item, isFoil: false, quantity: 2, soldPriceUSD: 6.0)
+        // Caller tries to undo 5 copies — only 2 are recorded sold.
+        try repo.undoSale(item, isFoil: false, quantity: 5, relist: false)
+
+        #expect(item.soldNonfoilQuantity == 0)
+        #expect(item.quantity == 4)                   // 2 remaining + 2 restored
+    }
+
+    @Test("undoSale of zero quantity is a no-op")
+    func undoSaleZeroIsNoOp() throws {
+        let repo = Self.makeRepo()
+        let item = try repo.addToCollection(card: Self.makeCard(), quantity: 1, foilQuantity: 0)
+        try repo.markForSale(item, nonfoilQuantity: 1, foilQuantity: 0)
+        try repo.recordSale(item, isFoil: false, quantity: 1, soldPriceUSD: 6.0)
+
+        try repo.undoSale(item, isFoil: false, quantity: 0, relist: false)
+
+        #expect(item.quantity == 0)
+        #expect(item.soldNonfoilQuantity == 1)
+        #expect(item.lastSoldPriceUSD == 6.0)
+    }
+
+    @Test("undoSale on a finish with no sold copies is a no-op (caller picked wrong finish)")
+    func undoSaleWrongFinishIsNoOp() throws {
+        let repo = Self.makeRepo()
+        let item = try repo.addToCollection(card: Self.makeCard(), quantity: 1, foilQuantity: 0)
+        try repo.markForSale(item, nonfoilQuantity: 1, foilQuantity: 0)
+        try repo.recordSale(item, isFoil: false, quantity: 1, soldPriceUSD: 6.0)
+
+        // No foil sales exist — nothing should change.
+        try repo.undoSale(item, isFoil: true, quantity: 1, relist: false)
+
+        #expect(item.soldFoilQuantity == 0)
+        #expect(item.soldNonfoilQuantity == 1)
+        #expect(item.quantity == 0)
+        #expect(item.lastSoldAt != nil)
+    }
 }
