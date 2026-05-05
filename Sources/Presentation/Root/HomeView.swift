@@ -1458,6 +1458,16 @@ struct HomeView: View {
                 .buttonStyle(.plain)
                 Divider().padding(.leading, 64)
                 NavigationLink {
+                    ForSaleScreen(
+                        deckRepository: deckRepository,
+                        cardRepository: cardRepository
+                    )
+                } label: {
+                    moreRow(icon: "tag.fill", title: "For Sale", subtitle: "Cards you've listed plus a permanent sales ledger", color: .green)
+                }
+                .buttonStyle(.plain)
+                Divider().padding(.leading, 64)
+                NavigationLink {
                     HelpScreen()
                 } label: {
                     moreRow(icon: "questionmark.circle.fill", title: "How it works", subtitle: "Walkthrough of the deck and order workflow", color: .pink)

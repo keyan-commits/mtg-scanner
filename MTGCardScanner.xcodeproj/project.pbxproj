@@ -41,6 +41,7 @@
 		185CE0A869BE7B1C47729D03 /* CollectorInfoExtractorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EB64449C49F8E1A70371C21 /* CollectorInfoExtractorTests.swift */; };
 		188ABC45661627D54E341F23 /* DecklistCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7BA86268209DFE5B71AB780 /* DecklistCacheTests.swift */; };
 		1A35F76350C34622679746C7 /* LandsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73EA7D28DB68C056BA4C6EE2 /* LandsScreen.swift */; };
+		1BB0F4A4799DD564DD1E4F42 /* ForSaleScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270EAAB084C34223D34B92FC /* ForSaleScreen.swift */; };
 		1BDCF4B96F95F0E1E7F871C4 /* ShopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666AA0AFAB58E6F44E5E4B7B /* ShopView.swift */; };
 		1CA7B90422563DC9F7EB081E /* IdentifyCardUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D753D10A45DA9CC3E018F32 /* IdentifyCardUseCase.swift */; };
 		1EB0F4BD10B7F5B42F9D5A4C /* AppIcon-R@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 3C44E5DFCE417F7904BF52F8 /* AppIcon-R@2x.png */; };
@@ -234,6 +235,7 @@
 		DD3701D67AF3354B5BDE1D54 /* ArtVariantMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11B33B59868017AAA0F1788D /* ArtVariantMatcher.swift */; };
 		DDFBE39231FBE80FA18651BF /* CardCategoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6921B9771B3F43E7EDF0214E /* CardCategoryTests.swift */; };
 		DE33D2F06A2C8C000602BA85 /* CollectionValueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD6B755E1DDF183FEF1E6BB /* CollectionValueTests.swift */; };
+		DE81258D2B9463AFF4342A93 /* ListForSaleSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EEC378789C1E950049C0AB6 /* ListForSaleSheet.swift */; };
 		DEB0BBC5C5C0D932EB794B45 /* DeckFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8270ABBF3105C5643C5A712 /* DeckFormat.swift */; };
 		E006C416C9E1508A671BFF37 /* ClassicDeckDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FAE42AE8019C65A54C95EB1 /* ClassicDeckDetailView.swift */; };
 		E1CFA89BBA57FAD22DCD0FEF /* CopyrightYearExtractorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42A03300EA4E9CE9FBCE9CE0 /* CopyrightYearExtractorTests.swift */; };
@@ -241,6 +243,7 @@
 		E360F742A744E9947A297E70 /* LocalCardRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85BC48258F31DAEFAC3A28BF /* LocalCardRepository.swift */; };
 		E3C1399D4EC466AFD74E4D61 /* CardDetectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC66736C738E0BF35A8058F /* CardDetectorTests.swift */; };
 		E6421E7A60AFD759970849FC /* JapaneseCollectibles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D573136AAB39536AE9FE3ED /* JapaneseCollectibles.swift */; };
+		E6A54B6CDFDF0676C5B17709 /* RecordSaleSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F81368938A79655818001821 /* RecordSaleSheet.swift */; };
 		E6B9946A84C9501B2BF18AE6 /* AppIcon-B@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = C30373848B40036E08034C2B /* AppIcon-B@2x.png */; };
 		E7C79EA37838BDBACAF04751 /* DeckCompatibilityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A7C35212583880D76FB71A5 /* DeckCompatibilityView.swift */; };
 		E8092F55E35EBB27B39DD4B6 /* EditOrderItemSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66A563065D22921CD26B863B /* EditOrderItemSheet.swift */; };
@@ -330,6 +333,7 @@
 		254158237A4E16E577D203D1 /* ArtVerificationIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtVerificationIntegrationTests.swift; sourceTree = "<group>"; };
 		26062879106D4F131EC545AF /* SoughtAfterCardsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoughtAfterCardsService.swift; sourceTree = "<group>"; };
 		2705DB083D6B1BEB7E58E738 /* MTGStocksSetMapper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MTGStocksSetMapper.swift; sourceTree = "<group>"; };
+		270EAAB084C34223D34B92FC /* ForSaleScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ForSaleScreen.swift; sourceTree = "<group>"; };
 		275E16AF07A347A030BBB479 /* CardTriageServiceTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CardTriageServiceTests.swift; sourceTree = "<group>"; };
 		292FF6BFC3B02CFD5EF1092E /* PrintingResolutionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintingResolutionTests.swift; sourceTree = "<group>"; };
 		2A1BFD0F4CFB4B9E44414742 /* QuickAddToCollectionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAddToCollectionSheet.swift; sourceTree = "<group>"; };
@@ -375,6 +379,7 @@
 		5B9FC175B43F390EB50DD253 /* ReservedList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReservedList.swift; sourceTree = "<group>"; };
 		5C0FDDC2B58FAEF6A02E88EA /* ChooseDeckIconSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChooseDeckIconSheet.swift; sourceTree = "<group>"; };
 		5DB872106240217FBE87B3F0 /* PickPrintingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickPrintingSheet.swift; sourceTree = "<group>"; };
+		5EEC378789C1E950049C0AB6 /* ListForSaleSheet.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ListForSaleSheet.swift; sourceTree = "<group>"; };
 		5F2C1BB476E1DB887431F5B2 /* CardLegalityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardLegalityTests.swift; sourceTree = "<group>"; };
 		5FA09452984E0E5EDE0F3DA1 /* FormatsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatsScreen.swift; sourceTree = "<group>"; };
 		60005725EE99409595055405 /* MTGTop8WaybackFallbackClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MTGTop8WaybackFallbackClient.swift; sourceTree = "<group>"; };
@@ -542,6 +547,7 @@
 		F66C6124A6B24011F7AB0B21 /* ScryfallAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScryfallAPIClient.swift; sourceTree = "<group>"; };
 		F6CC96FC2B57624EB76A8403 /* DeckGuideView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckGuideView.swift; sourceTree = "<group>"; };
 		F7BCB32D7B4692D21DB8CEC2 /* MTGTop8MonitoredHTTPClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MTGTop8MonitoredHTTPClient.swift; sourceTree = "<group>"; };
+		F81368938A79655818001821 /* RecordSaleSheet.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RecordSaleSheet.swift; sourceTree = "<group>"; };
 		F8ADB800C25183CB08831A06 /* AddCardToDeckSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddCardToDeckSheet.swift; sourceTree = "<group>"; };
 		F9DC23CBC42A3962BA36BCAC /* CardTextRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardTextRecognizer.swift; sourceTree = "<group>"; };
 		FA6E4B9316C204EFE3C573CD /* FeaturePrintCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeaturePrintCache.swift; sourceTree = "<group>"; };
@@ -896,6 +902,9 @@
 				80C0741472299758791EC8FF /* RecentlyAddedScreen.swift */,
 				8DE536BB4DC5BEBA85823E75 /* SetTriageScreen.swift */,
 				52B249E5778FAD969F067B40 /* SetTriageDetailView.swift */,
+				270EAAB084C34223D34B92FC /* ForSaleScreen.swift */,
+				5EEC378789C1E950049C0AB6 /* ListForSaleSheet.swift */,
+				F81368938A79655818001821 /* RecordSaleSheet.swift */,
 			);
 			path = Decks;
 			sourceTree = "<group>";
@@ -1404,6 +1413,9 @@
 				E8E534784C88F6DDCB5A02B1 /* CardTriageService.swift in Sources */,
 				72CEFBBD06E7708F603ACB30 /* SetTriageScreen.swift in Sources */,
 				779795108E7DF75781DE657F /* SetTriageDetailView.swift in Sources */,
+				1BB0F4A4799DD564DD1E4F42 /* ForSaleScreen.swift in Sources */,
+				DE81258D2B9463AFF4342A93 /* ListForSaleSheet.swift in Sources */,
+				E6A54B6CDFDF0676C5B17709 /* RecordSaleSheet.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

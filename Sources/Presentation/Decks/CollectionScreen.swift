@@ -13,6 +13,7 @@ struct CollectionScreen: View {
     @State private var debouncedSearchText: String = ""
     @State private var showAddSheet: Bool = false
     @State private var editingItem: CollectionItem?
+    @State private var listingItem: CollectionItem?
     @State private var showBulkStoreSheet: Bool = false
     @State private var bulkStoreName: String = ""
     @State private var sortMode: SortMode = .name
@@ -459,6 +460,16 @@ struct CollectionScreen: View {
                 }
             )
         }
+        .sheet(item: $listingItem) { item in
+            ListForSaleSheet(
+                item: item,
+                deckRepository: deckRepository,
+                onClose: {
+                    listingItem = nil
+                    reload()
+                }
+            )
+        }
         .alert("Set Store for All Visible Cards", isPresented: $showBulkStoreSheet) {
             TextField("Store / Seller name", text: $bulkStoreName)
             Button("Apply to \(cachedFiltered.count) cards") {
@@ -568,6 +579,12 @@ struct CollectionScreen: View {
                         }
                         .contextMenu {
                             Button {
+                                listingItem = item
+                            } label: {
+                                Label(item.isListed ? "Edit listing" : "List for sale",
+                                      systemImage: "tag")
+                            }
+                            Button {
                                 editingItem = item
                             } label: {
                                 Label("Edit", systemImage: "pencil")
@@ -592,6 +609,14 @@ struct CollectionScreen: View {
                                 Label("Edit", systemImage: "pencil")
                             }
                             .tint(.orange)
+                        }
+                        .swipeActions(edge: .leading) {
+                            Button {
+                                listingItem = item
+                            } label: {
+                                Label(item.isListed ? "Edit" : "List", systemImage: "tag")
+                            }
+                            .tint(.green)
                         }
                     }
                 }
