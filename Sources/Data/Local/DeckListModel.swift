@@ -421,7 +421,18 @@ extension CollectionItem {
     var hasSalesHistory: Bool { soldQuantity > 0 }
 
     static func from(card: Card, quantity: Int = 1, foilQuantity: Int = 0) -> CollectionItem {
-        let snapshot = card.prices.usd.flatMap(Double.init)
+        // Snapshot the appropriate per-copy price for the dominant
+        // finish at add time. Pure foil add → snapshot foil price.
+        // Otherwise prefer nonfoil with foil as fallback (covers
+        // foil-only printings like FNM where prices.usd is nil).
+        let nonfoil = card.prices.usd.flatMap(Double.init)
+        let foil = card.prices.usdFoil.flatMap(Double.init)
+        let snapshot: Double?
+        if foilQuantity > 0 && foilQuantity == quantity {
+            snapshot = foil ?? nonfoil
+        } else {
+            snapshot = nonfoil ?? foil
+        }
         return CollectionItem(
             cardName: card.name,
             setCode: card.set.code,

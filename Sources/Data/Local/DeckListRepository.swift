@@ -20,6 +20,34 @@ final class DeckListRepository {
         self.modelContainer = modelContainer
         self.context = ModelContext(modelContainer)
         runSplitMigrationIfNeeded()
+        repairFoilQuantityInvariant()
+    }
+
+    /// One-shot repair for CollectionItem rows where `foilQuantity >
+    /// quantity`. This invariant was violated by an earlier batch-scan
+    /// add that passed `quantity = nonfoilQty` instead of `quantity =
+    /// total`, leaving foil-only adds with `quantity = 0, foilQuantity
+    /// = 1`. Result: every count-based calculation (sell-sheet value,
+    /// Recently Added totals) read zero for those rows.
+    ///
+    /// Safe to run on every launch — only mutates rows that violate
+    /// the invariant. When violation found, treat foilQuantity as the
+    /// truth (the user *did* add a foil) and bump quantity to match.
+    private func repairFoilQuantityInvariant() {
+        do {
+            let descriptor = FetchDescriptor<CollectionItem>()
+            let items = try context.fetch(descriptor)
+            var changed = 0
+            for item in items where item.foilQuantity > item.quantity {
+                item.quantity = item.foilQuantity
+                changed += 1
+            }
+            if changed > 0 {
+                try context.save()
+            }
+        } catch {
+            // Silent — repair is best-effort. Don't block app launch.
+        }
     }
 
     /// One-time backfill: walks every PurchaseItem with a nil

@@ -181,6 +181,52 @@ struct CollectionForSaleTests {
         #expect(!listed.contains { $0.cardName == "C" })
     }
 
+    // MARK: - Foil-quantity invariant (regression for the batch-scan bug
+    // that left foil-only adds with quantity=0, foilQuantity=1)
+
+    @Test("addToCollection preserves the foilQuantity ≤ quantity invariant")
+    func addToCollectionFoilInvariant() throws {
+        let repo = Self.makeRepo()
+        // Simulate the corrected batch-scan call: total=1, all foil.
+        let item = try repo.addToCollection(card: Self.makeCard(), quantity: 1, foilQuantity: 1)
+        #expect(item.quantity == 1)
+        #expect(item.foilQuantity == 1)
+        #expect(item.foilQuantity <= item.quantity)
+        // Snapshot price = foil price for a pure-foil add.
+        #expect(item.priceAtAddUSD == 30.45)
+    }
+
+    @Test("Repair migration fixes existing rows where foilQuantity > quantity")
+    func repairMigrationBackfills() throws {
+        // Build a fresh container, manually create a broken row, then
+        // re-instantiate the repo to trigger the repair.
+        let schema = Schema([
+            CardRecord.self, DeckList.self, PurchaseItem.self,
+            Order.self, CollectionItem.self, CardAnalysis.self,
+        ])
+        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: schema, configurations: [config])
+        let ctx = ModelContext(container)
+        let broken = CollectionItem(
+            cardName: "Spellstutter Sprite", setCode: "f11", setName: "FNM Promos",
+            collectorNumber: "2", scryfallID: "broken-row",
+            quantity: 0, foilQuantity: 1
+        )
+        ctx.insert(broken)
+        try ctx.save()
+
+        // Re-init repo — repair runs in init.
+        _ = DeckListRepository(modelContainer: container)
+
+        // The same item should now have quantity == foilQuantity == 1.
+        let descriptor = FetchDescriptor<CollectionItem>(
+            predicate: #Predicate<CollectionItem> { $0.scryfallID == "broken-row" }
+        )
+        let after = try ModelContext(container).fetch(descriptor).first
+        #expect(after?.quantity == 1)
+        #expect(after?.foilQuantity == 1)
+    }
+
     @Test("fetchSoldHistory returns items with any sold copies, even when collection is empty")
     func fetchSoldHistoryPreservesEmptyItems() throws {
         let repo = Self.makeRepo()

@@ -82,7 +82,22 @@ struct RecentlyAddedScreen: View {
     private var summaryHeader: some View {
         let preferred = LocalCurrency.current
         let totalUSD = items.reduce(0.0) { acc, item in
-            acc + (item.priceAtAddUSD ?? item.currentValueUSD ?? 0) * Double(item.quantity)
+            // Foil-aware: split copies by finish and use the matching
+            // unit price. Falls back to whichever snapshot is available
+            // when one of the current-value fields is nil (e.g.
+            // foil-only printings have no `currentValueUSD`).
+            let nonFoilCount = max(0, item.quantity - item.foilQuantity)
+            let nonFoilUnit = item.currentValueUSD
+                ?? item.priceAtAddUSD
+                ?? item.currentValueFoilUSD
+                ?? 0
+            let foilUnit = item.currentValueFoilUSD
+                ?? item.priceAtAddUSD
+                ?? item.currentValueUSD
+                ?? 0
+            return acc
+                + nonFoilUnit * Double(nonFoilCount)
+                + foilUnit * Double(item.foilQuantity)
         }
         let totalCopies = items.reduce(0) { $0 + $1.quantity }
         VStack(alignment: .leading, spacing: 12) {
@@ -135,8 +150,20 @@ struct RecentlyAddedScreen: View {
 
     private func row(_ item: CollectionItem) -> some View {
         let preferred = LocalCurrency.current
-        let unit = item.currentValueUSD ?? item.priceAtAddUSD
-        let line = unit.map { $0 * Double(item.quantity) }
+        // Foil-aware line value: split by finish, use matching price,
+        // fall back across fields so foil-only printings (no nonfoil
+        // USD) still render a real number instead of ₱0.
+        let nonFoilCount = max(0, item.quantity - item.foilQuantity)
+        let nonFoilUnit = item.currentValueUSD
+            ?? item.priceAtAddUSD
+            ?? item.currentValueFoilUSD
+            ?? 0
+        let foilUnit = item.currentValueFoilUSD
+            ?? item.priceAtAddUSD
+            ?? item.currentValueUSD
+            ?? 0
+        let lineUSD = nonFoilUnit * Double(nonFoilCount) + foilUnit * Double(item.foilQuantity)
+        let line: Double? = lineUSD > 0 ? lineUSD : nil
         let convertedLine = line.flatMap { currencyService.convert($0, to: preferred) }
         return HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {

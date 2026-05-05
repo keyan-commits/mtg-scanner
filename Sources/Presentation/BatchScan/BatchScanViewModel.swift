@@ -251,11 +251,14 @@ final class BatchScanViewModel {
         var count = 0
         for (i, entry) in identifiedCards.enumerated() {
             let qty = quantity(at: i)
+            // CollectionItem.quantity is TOTAL copies (foil + nonfoil
+            // combined); foilQuantity is the subset that's foil.
+            // Invariant: foilQuantity ≤ quantity. Always pass the full
+            // qty as `quantity` and the foil subset separately.
             let foilQty = isFoil(at: i) ? qty : 0
-            let nonfoilQty = qty - foilQty
             if (try? repo.addToCollection(
                 card: entry.card,
-                quantity: nonfoilQty,
+                quantity: qty,
                 foilQuantity: foilQty
             )) != nil {
                 count += qty
