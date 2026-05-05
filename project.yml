@@ -8,7 +8,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    DEVELOPMENT_TEAM: "55A7LPBS2U"
+    DEVELOPMENT_TEAM: "XV2LHRZBHG"
 targets:
   MTGCardScanner:
     type: application
