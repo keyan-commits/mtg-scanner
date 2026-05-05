@@ -14,6 +14,7 @@ struct SettingsScreen: View {
     @State private var pricesUpdated: String = "Never"
     @State private var geminiAPIKey: String = GeminiVisionService.apiKey ?? ""
     @State private var geminiAltKey: String = GeminiVisionService.altApiKey ?? ""
+    @State private var revealApiKeys: Bool = false
     @State private var geminiEnabled: Bool = GeminiVisionService.isEnabled || (GeminiVisionService.isConfigured && UserDefaults.standard.object(forKey: "geminiEnabled") == nil)
     @State private var geminiTestResult: String?
     @State private var geminiTesting: Bool = false
@@ -154,7 +155,14 @@ struct SettingsScreen: View {
             }
 
             Section {
-                SecureField("Gemini API Key", text: $geminiAPIKey)
+                HStack {
+                    Group {
+                        if revealApiKeys {
+                            TextField("Gemini API Key", text: $geminiAPIKey)
+                        } else {
+                            SecureField("Gemini API Key", text: $geminiAPIKey)
+                        }
+                    }
                     .textContentType(.password)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
@@ -181,17 +189,32 @@ struct SettingsScreen: View {
                             Button("Done") { geminiKeyFocused = false }
                         }
                     }
-                SecureField("Alternative API Key (fallback)", text: $geminiAltKey)
-                    .textContentType(.password)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-                    .focused($geminiKeyFocused)
-                    .submitLabel(.done)
-                    .onSubmit { geminiKeyFocused = false }
-                    .onChange(of: geminiAltKey) { _, newValue in
-                        let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                        GeminiVisionService.altApiKey = trimmed.isEmpty ? nil : trimmed
+                    Button {
+                        revealApiKeys.toggle()
+                    } label: {
+                        Image(systemName: revealApiKeys ? "eye.slash" : "eye")
+                            .foregroundStyle(.secondary)
                     }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel(revealApiKeys ? "Hide API keys" : "Show API keys")
+                }
+                Group {
+                    if revealApiKeys {
+                        TextField("Alternative API Key (fallback)", text: $geminiAltKey)
+                    } else {
+                        SecureField("Alternative API Key (fallback)", text: $geminiAltKey)
+                    }
+                }
+                .textContentType(.password)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .focused($geminiKeyFocused)
+                .submitLabel(.done)
+                .onSubmit { geminiKeyFocused = false }
+                .onChange(of: geminiAltKey) { _, newValue in
+                    let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                    GeminiVisionService.altApiKey = trimmed.isEmpty ? nil : trimmed
+                }
                 if !geminiAPIKey.isEmpty {
                     Toggle("Enable Gemini Vision", isOn: $geminiEnabled)
                         .onChange(of: geminiEnabled) { _, newValue in
