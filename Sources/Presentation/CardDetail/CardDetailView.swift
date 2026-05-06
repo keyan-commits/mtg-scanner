@@ -219,9 +219,14 @@ struct CardDetailView: View {
 
     private var cardHeader: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(viewModel.card.name)
-                .font(MD3Typography.headlineMedium)
-                .foregroundStyle(MD3Theme.onBackground)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(viewModel.card.name)
+                    .font(MD3Typography.headlineMedium)
+                    .foregroundStyle(MD3Theme.onBackground)
+                Text("[\(viewModel.card.set.code.uppercased())]")
+                    .font(.system(.subheadline, design: .monospaced).weight(.semibold))
+                    .foregroundStyle(MD3Theme.onSurfaceVariant)
+            }
 
             if let printedName = viewModel.card.printedName,
                printedName != viewModel.card.name {
