@@ -217,13 +217,29 @@ struct CardDetailView: View {
 
     // MARK: - Card Header
 
+    /// `[SET] [FOIL]? [OG]?` — same tag set the FB sale-post generator
+    /// uses, surfaced on the detail page for at-a-glance verification.
+    /// `[FOIL]` shows only when the printing is foil-only (e.g. FNM
+    /// promos). For cards with both finishes the post-generator picks
+    /// per-leg from the listing's foilQuantity.
+    private var headerTagString: String {
+        var tags = ["[\(viewModel.card.set.code.uppercased())]"]
+        if viewModel.card.finishes == ["foil"] {
+            tags.append("[FOIL]")
+        }
+        if isFirstPrint {
+            tags.append("[OG]")
+        }
+        return tags.joined(separator: " ")
+    }
+
     private var cardHeader: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(viewModel.card.name)
                     .font(MD3Typography.headlineMedium)
                     .foregroundStyle(MD3Theme.onBackground)
-                Text("[\(viewModel.card.set.code.uppercased())]")
+                Text(headerTagString)
                     .font(.system(.subheadline, design: .monospaced).weight(.semibold))
                     .foregroundStyle(MD3Theme.onSurfaceVariant)
             }
