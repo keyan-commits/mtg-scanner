@@ -14,6 +14,9 @@ struct CollectionScreen: View {
     @State private var showAddSheet: Bool = false
     @State private var editingItem: CollectionItem?
     @State private var listingItem: CollectionItem?
+    @State private var selectionMode: Bool = false
+    @State private var selectedForSaleIDs: Set<String> = []
+    @State private var showBatchListConfirm: Bool = false
     @State private var showBulkStoreSheet: Bool = false
     @State private var bulkStoreName: String = ""
     @State private var sortMode: SortMode = .name
@@ -349,109 +352,10 @@ struct CollectionScreen: View {
         .onChange(of: sortMode) { _, _ in recomputeFiltered() }
         .onChange(of: groupMode) { _, _ in recomputeGroupedFiltered() }
         .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                // View mode toggle
-                Picker("", selection: $viewMode) {
-                    ForEach(ViewMode.allCases, id: \.self) { mode in
-                        Image(systemName: mode.icon).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 80)
-
-                // Group mode menu + bulk actions
-                Menu {
-                    Picker("Group by", selection: $groupMode) {
-                        ForEach(GroupMode.allCases) { mode in
-                            Label(mode.rawValue, systemImage: mode.icon).tag(mode)
-                        }
-                    }
-                    Divider()
-                    Button {
-                        showBulkStoreSheet = true
-                    } label: {
-                        Label("Set Store (All Visible)", systemImage: "storefront")
-                    }
-                    .disabled(cachedFiltered.isEmpty)
-                    Button {
-                        exportSellSheet()
-                    } label: {
-                        Label("Export Sell Sheet", systemImage: "square.and.arrow.up")
-                    }
-                    .disabled(cachedFiltered.isEmpty)
-                } label: {
-                    Image(systemName: groupMode == .none
-                          ? "rectangle.3.group"
-                          : "rectangle.3.group.fill")
-                }
-
-                NavigationLink {
-                    RecentlyAddedScreen(
-                        deckRepository: deckRepository,
-                        cardRepository: cardRepository
-                    )
-                } label: {
-                    Image(systemName: "clock.arrow.circlepath")
-                }
-
-                ScreenHelpButton(title: "Collection", sections: [
-                        HelpSection(icon: "rectangle.stack", title: "What lives here",
-                                    body: "Every physical card you own. Tracked per printing — 4 Lightning Bolts from M11 and 4 from M10 are two separate rows."),
-                        HelpSection(icon: "checkmark.seal.fill", title: "Auto-populated",
-                                    body: "When you mark an order as Arrived, every card in it is added to your collection automatically. So just by tracking your orders, your collection stays in sync."),
-                        HelpSection(icon: "plus", title: "Add manually",
-                                    body: "Tap + to search for a card and add a specific printing. Useful for cards you owned before you started tracking, or for trades."),
-                        HelpSection(icon: "line.3.horizontal.decrease.circle", title: "Sort & filter",
-                                    body: "The filter button has Sort (Name, Quantity, Set, Recent, Value) and Filter sub-menus (Set, Type, Color, Foils only). The icon fills in when any filter is active."),
-                        HelpSection(icon: "hand.tap", title: "Edit a row",
-                                    body: "Tap any row to change the quantity or delete the entry. Setting quantity to 0 removes it."),
-                        HelpSection(icon: "trash", title: "Delete",
-                                    body: "Swipe left on a row to delete it directly."),
-                    ])
-                    Menu {
-                        Picker("Sort", selection: $sortMode) {
-                            ForEach(SortMode.allCases) { mode in
-                                Label(mode.rawValue, systemImage: mode.icon).tag(mode)
-                            }
-                        }
-                        Divider()
-                        Menu("Set") {
-                            Button("All sets") { setFilter = nil }
-                            ForEach(cachedAllSets, id: \.self) { set in
-                                Button(set) { setFilter = set }
-                            }
-                        }
-                        Menu("Type") {
-                            Button("All types") { typeFilter = nil }
-                            ForEach(CardCategory.allCases, id: \.self) { category in
-                                Button(category.rawValue) { typeFilter = category }
-                            }
-                        }
-                        Menu("Color") {
-                            ForEach(ColorFilter.allCases) { color in
-                                Button(color.rawValue) { colorFilter = color }
-                            }
-                        }
-                        Toggle("Foils only", isOn: $foilsOnly)
-                        if hasActiveFilter {
-                            Divider()
-                            Button("Clear filters", role: .destructive) {
-                                setFilter = nil
-                                typeFilter = nil
-                                colorFilter = .any
-                                foilsOnly = false
-                            }
-                        }
-                    } label: {
-                        Image(systemName: hasActiveFilter
-                              ? "line.3.horizontal.decrease.circle.fill"
-                              : "line.3.horizontal.decrease.circle")
-                    }
-                Button {
-                    showAddSheet = true
-                } label: {
-                    Image(systemName: "plus")
-                }
+            if selectionMode {
+                selectionToolbar
+            } else {
+                defaultToolbar
             }
         }
         .sheet(isPresented: $showAddSheet) {
@@ -480,6 +384,12 @@ struct CollectionScreen: View {
                     reload()
                 }
             )
+        }
+        .alert("List \(selectedForSaleIDs.count) cards?", isPresented: $showBatchListConfirm) {
+            Button("List All") { batchListForSale() }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Each card will be listed at its current market price. Edit individual prices on the For Sale tab afterward.")
         }
         .alert("Set Store for All Visible Cards", isPresented: $showBulkStoreSheet) {
             TextField("Store / Seller name", text: $bulkStoreName)
@@ -592,51 +502,71 @@ struct CollectionScreen: View {
             ForEach(cachedGroupedFiltered) { section in
                 Section(section.title) {
                     ForEach(section.items) { item in
-                        NavigationLink {
-                            cardDetailDestination(for: item, in: section.items)
-                        } label: {
-                            row(item)
-                        }
-                        .contextMenu {
+                        if selectionMode {
+                            // Selection-mode row: tap toggles membership in
+                            // selectedForSaleIDs. No NavigationLink, no
+                            // context menu, no swipe actions — keeps the
+                            // gesture cleanly mapped to selection.
                             Button {
-                                listingItem = item
+                                toggleSelection(item)
                             } label: {
-                                Label(item.isListed ? "Edit listing" : "List for sale",
-                                      systemImage: "tag")
+                                HStack(spacing: 12) {
+                                    Image(systemName: selectedForSaleIDs.contains(item.scryfallID)
+                                          ? "checkmark.circle.fill" : "circle")
+                                        .font(.system(size: 22))
+                                        .foregroundStyle(selectedForSaleIDs.contains(item.scryfallID)
+                                                         ? .green : MD3Theme.onSurfaceVariant)
+                                    row(item)
+                                }
                             }
-                            Button {
-                                editingItem = item
+                            .buttonStyle(.plain)
+                        } else {
+                            NavigationLink {
+                                cardDetailDestination(for: item, in: section.items)
                             } label: {
-                                Label("Edit", systemImage: "pencil")
+                                row(item)
                             }
-                            Button(role: .destructive) {
-                                try? deckRepository.deleteCollectionItem(item)
-                                reload()
-                            } label: {
-                                Label("Delete", systemImage: "trash")
+                            .contextMenu {
+                                Button {
+                                    listingItem = item
+                                } label: {
+                                    Label(item.isListed ? "Edit listing" : "List for sale",
+                                          systemImage: "tag")
+                                }
+                                Button {
+                                    editingItem = item
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                Button(role: .destructive) {
+                                    try? deckRepository.deleteCollectionItem(item)
+                                    reload()
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
                             }
-                        }
-                        .swipeActions(edge: .trailing) {
-                            Button(role: .destructive) {
-                                try? deckRepository.deleteCollectionItem(item)
-                                reload()
-                            } label: {
-                                Label("Delete", systemImage: "trash")
+                            .swipeActions(edge: .trailing) {
+                                Button(role: .destructive) {
+                                    try? deckRepository.deleteCollectionItem(item)
+                                    reload()
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                                Button {
+                                    editingItem = item
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                .tint(.orange)
                             }
-                            Button {
-                                editingItem = item
-                            } label: {
-                                Label("Edit", systemImage: "pencil")
+                            .swipeActions(edge: .leading) {
+                                Button {
+                                    listingItem = item
+                                } label: {
+                                    Label(item.isListed ? "Edit" : "List", systemImage: "tag")
+                                }
+                                .tint(.green)
                             }
-                            .tint(.orange)
-                        }
-                        .swipeActions(edge: .leading) {
-                            Button {
-                                listingItem = item
-                            } label: {
-                                Label(item.isListed ? "Edit" : "List", systemImage: "tag")
-                            }
-                            .tint(.green)
                         }
                     }
                 }
@@ -951,6 +881,19 @@ struct CollectionScreen: View {
                     }
                 }
                 Spacer(minLength: 8)
+                // Always-visible sell button. Lifted out of the swipe
+                // action / context menu so it's discoverable at a glance —
+                // tap opens ListForSaleSheet for this row. Filled tag
+                // icon when already listed.
+                Button {
+                    listingItem = item
+                } label: {
+                    Image(systemName: item.isListed ? "tag.fill" : "tag")
+                        .font(.system(size: 16))
+                        .foregroundStyle(item.isListed ? .green : MD3Theme.onSurfaceVariant)
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.plain)
                 VStack(alignment: .trailing, spacing: 2) {
                     if let convertedLine {
                         Text(LocalCurrency.format(convertedLine, currency: preferred))
@@ -1064,6 +1007,165 @@ struct CollectionScreen: View {
         items = (try? deckRepository.fetchCollection()) ?? []
         recomputeAllSets()
         recomputeFiltered()
+    }
+
+    // MARK: - Multi-select for sale
+
+    @ToolbarContentBuilder
+    private var selectionToolbar: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            Button("Cancel") {
+                selectionMode = false
+                selectedForSaleIDs = []
+            }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button("List \(selectedForSaleIDs.count)") {
+                showBatchListConfirm = true
+            }
+            .disabled(selectedForSaleIDs.isEmpty)
+            .bold()
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var defaultToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Picker("", selection: $viewMode) {
+                ForEach(ViewMode.allCases, id: \.self) { mode in
+                    Image(systemName: mode.icon).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 80)
+
+            Menu {
+                Picker("Group by", selection: $groupMode) {
+                    ForEach(GroupMode.allCases) { mode in
+                        Label(mode.rawValue, systemImage: mode.icon).tag(mode)
+                    }
+                }
+                Divider()
+                Button { showBulkStoreSheet = true } label: {
+                    Label("Set Store (All Visible)", systemImage: "storefront")
+                }
+                .disabled(cachedFiltered.isEmpty)
+                Button { exportSellSheet() } label: {
+                    Label("Export Sell Sheet", systemImage: "square.and.arrow.up")
+                }
+                .disabled(cachedFiltered.isEmpty)
+            } label: {
+                Image(systemName: groupMode == .none
+                      ? "rectangle.3.group"
+                      : "rectangle.3.group.fill")
+            }
+
+            NavigationLink {
+                RecentlyAddedScreen(
+                    deckRepository: deckRepository,
+                    cardRepository: cardRepository
+                )
+            } label: {
+                Image(systemName: "clock.arrow.circlepath")
+            }
+
+            ScreenHelpButton(title: "Collection", sections: [
+                HelpSection(icon: "rectangle.stack", title: "What lives here",
+                            body: "Every physical card you own. Tracked per printing — 4 Lightning Bolts from M11 and 4 from M10 are two separate rows."),
+                HelpSection(icon: "checkmark.seal.fill", title: "Auto-populated",
+                            body: "When you mark an order as Arrived, every card in it is added to your collection automatically. So just by tracking your orders, your collection stays in sync."),
+                HelpSection(icon: "plus", title: "Add manually",
+                            body: "Tap + to search for a card and add a specific printing. Useful for cards you owned before you started tracking, or for trades."),
+                HelpSection(icon: "line.3.horizontal.decrease.circle", title: "Sort & filter",
+                            body: "The filter button has Sort (Name, Quantity, Set, Recent, Value) and Filter sub-menus (Set, Type, Color, Foils only). The icon fills in when any filter is active."),
+                HelpSection(icon: "hand.tap", title: "Edit a row",
+                            body: "Tap any row to change the quantity or delete the entry. Setting quantity to 0 removes it."),
+                HelpSection(icon: "trash", title: "Delete",
+                            body: "Swipe left on a row to delete it directly."),
+            ])
+
+            Menu {
+                Picker("Sort", selection: $sortMode) {
+                    ForEach(SortMode.allCases) { mode in
+                        Label(mode.rawValue, systemImage: mode.icon).tag(mode)
+                    }
+                }
+                Divider()
+                Menu("Set") {
+                    Button("All sets") { setFilter = nil }
+                    ForEach(cachedAllSets, id: \.self) { set in
+                        Button(set) { setFilter = set }
+                    }
+                }
+                Menu("Type") {
+                    Button("All types") { typeFilter = nil }
+                    ForEach(CardCategory.allCases, id: \.self) { category in
+                        Button(category.rawValue) { typeFilter = category }
+                    }
+                }
+                Menu("Color") {
+                    ForEach(ColorFilter.allCases) { color in
+                        Button(color.rawValue) { colorFilter = color }
+                    }
+                }
+                Toggle("Foils only", isOn: $foilsOnly)
+                if hasActiveFilter {
+                    Divider()
+                    Button("Clear filters", role: .destructive) {
+                        setFilter = nil
+                        typeFilter = nil
+                        colorFilter = .any
+                        foilsOnly = false
+                    }
+                }
+            } label: {
+                Image(systemName: hasActiveFilter
+                      ? "line.3.horizontal.decrease.circle.fill"
+                      : "line.3.horizontal.decrease.circle")
+            }
+
+            Button {
+                selectionMode = true
+                selectedForSaleIDs = []
+            } label: {
+                Image(systemName: "checkmark.circle")
+            }
+            .accessibilityLabel("Select for sale")
+
+            Button { showAddSheet = true } label: {
+                Image(systemName: "plus")
+            }
+        }
+    }
+
+    private func toggleSelection(_ item: CollectionItem) {
+        if selectedForSaleIDs.contains(item.scryfallID) {
+            selectedForSaleIDs.remove(item.scryfallID)
+        } else {
+            selectedForSaleIDs.insert(item.scryfallID)
+        }
+    }
+
+    /// Lists every selected item for sale at default values: all owned
+    /// copies (split nonfoil/foil), asking prices stamped to the live
+    /// `currentValueUSD` / `currentValueFoilUSD`. User can fine-tune
+    /// individual prices on the For Sale tab afterward.
+    private func batchListForSale() {
+        for id in selectedForSaleIDs {
+            guard let item = items.first(where: { $0.scryfallID == id }) else { continue }
+            let nonfoilOwned = max(0, item.quantity - item.foilQuantity)
+            let foilOwned = item.foilQuantity
+            try? deckRepository.markForSale(
+                item,
+                nonfoilQuantity: nonfoilOwned,
+                foilQuantity: foilOwned,
+                askingPriceUSD: item.currentValueUSD,
+                askingPriceFoilUSD: item.currentValueFoilUSD
+            )
+        }
+        selectionMode = false
+        selectedForSaleIDs = []
+        reload()
     }
 
     // MARK: - Sell Sheet Export
