@@ -24,6 +24,10 @@ struct ForSaleScreen: View {
     @State private var editingItem: CollectionItem?
     @State private var sellingItem: CollectionItem?
     @State private var undoingItem: CollectionItem?
+    @State private var selectionMode: Bool = false
+    @State private var selectedIDs: Set<String> = []
+    @State private var generatedPostText: String?
+    @State private var isGenerating: Bool = false
     @Bindable private var currencyService = CurrencyService.shared
 
     var body: some View {
@@ -45,8 +49,17 @@ struct ForSaleScreen: View {
         }
         .navigationTitle("For Sale")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { generatorToolbar }
         .onAppear { reload() }
         .task { await currencyService.refreshIfStale() }
+        .sheet(item: Binding(
+            get: { generatedPostText.map { GeneratedPostPayload(text: $0) } },
+            set: { generatedPostText = $0?.text }
+        )) { payload in
+            GeneratedFBPostSheet(initialText: payload.text) {
+                generatedPostText = nil
+            }
+        }
         .sheet(item: $editingItem) { item in
             ListForSaleSheet(
                 item: item,
@@ -81,19 +94,35 @@ struct ForSaleScreen: View {
             }
             SwiftUI.Section("\(listedItems.count) listings") {
                 ForEach(listedItems) { item in
-                    Button {
-                        editingItem = item
-                    } label: {
-                        listedRow(item)
-                    }
-                    .swipeActions(edge: .trailing) {
-                        Button("Sold") { sellingItem = item }
-                            .tint(.green)
-                        Button("Withdraw") {
-                            try? deckRepository.unmarkForSale(item)
-                            reload()
+                    if selectionMode {
+                        Button {
+                            toggleSelection(item)
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: selectedIDs.contains(item.scryfallID)
+                                      ? "checkmark.circle.fill" : "circle")
+                                    .font(.system(size: 22))
+                                    .foregroundStyle(selectedIDs.contains(item.scryfallID)
+                                                     ? .green : MD3Theme.onSurfaceVariant)
+                                listedRow(item)
+                            }
                         }
-                        .tint(.orange)
+                        .buttonStyle(.plain)
+                    } else {
+                        Button {
+                            editingItem = item
+                        } label: {
+                            listedRow(item)
+                        }
+                        .swipeActions(edge: .trailing) {
+                            Button("Sold") { sellingItem = item }
+                                .tint(.green)
+                            Button("Withdraw") {
+                                try? deckRepository.unmarkForSale(item)
+                                reload()
+                            }
+                            .tint(.orange)
+                        }
                     }
                 }
             }
@@ -381,4 +410,124 @@ struct ForSaleScreen: View {
         listedItems = (try? deckRepository.fetchForSale()) ?? []
         soldItems = (try? deckRepository.fetchSoldHistory()) ?? []
     }
+
+    // MARK: - FB post generator (selection + clipboard preview)
+
+    @ToolbarContentBuilder
+    private var generatorToolbar: some ToolbarContent {
+        if tab == .listed {
+            if selectionMode {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") {
+                        selectionMode = false
+                        selectedIDs = []
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Generate \(selectedIDs.count)") {
+                        Task { await generatePost() }
+                    }
+                    .disabled(selectedIDs.isEmpty || isGenerating)
+                    .bold()
+                }
+            } else {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        selectionMode = true
+                        selectedIDs = []
+                    } label: {
+                        Image(systemName: "square.and.pencil")
+                    }
+                    .accessibilityLabel("Generate FB post")
+                    .disabled(listedItems.isEmpty)
+                }
+            }
+        }
+    }
+
+    private func toggleSelection(_ item: CollectionItem) {
+        if selectedIDs.contains(item.scryfallID) {
+            selectedIDs.remove(item.scryfallID)
+        } else {
+            selectedIDs.insert(item.scryfallID)
+        }
+    }
+
+    /// Resolves [OG] flags in parallel via findAllPrintings, builds one
+    /// LineSpec per (item × finish leg with qty > 0), formats the post,
+    /// and surfaces it in a copy-able preview sheet. Pricing reads the
+    /// listing's stored asking price first, then falls back to the
+    /// daily-refresh `currentValue*USD` snapshot if no asking price was
+    /// recorded.
+    private func generatePost() async {
+        let selected = listedItems.filter { selectedIDs.contains($0.scryfallID) }
+        guard !selected.isEmpty else { return }
+        isGenerating = true
+        defer { isGenerating = false }
+
+        // OG resolution: cache by card name to avoid re-fetching when
+        // the user has multiple printings of the same card selected.
+        let uniqueNames = Set(selected.map { $0.cardName })
+        var ogFlags: [String: [Card]] = [:]
+        await withTaskGroup(of: (String, [Card]).self) { group in
+            for name in uniqueNames {
+                group.addTask {
+                    let printings = (try? await cardRepository.findAllPrintings(name: name)) ?? []
+                    return (name, printings)
+                }
+            }
+            for await (name, printings) in group {
+                ogFlags[name] = printings
+            }
+        }
+
+        // Build LineSpecs — one per finish leg with qty > 0. Foil leg
+        // first when both finishes are listed (matches the user's hand-
+        // typed posts where they put the more valuable copy on top).
+        var lines: [FBListingFormatter.LineSpec] = []
+        for item in selected {
+            let printings = ogFlags[item.cardName] ?? []
+            let isOG = FBListingFormatter.isOriginalPrinting(
+                setCode: item.setCode, printings: printings
+            )
+            if item.forSaleFoilQuantity > 0 {
+                lines.append(.init(
+                    quantity: item.forSaleFoilQuantity,
+                    cardName: item.cardName,
+                    setCode: item.setCode,
+                    isFoil: true,
+                    isOriginalPrinting: isOG,
+                    priceUSD: item.askingPriceFoilUSD ?? item.currentValueFoilUSD
+                ))
+            }
+            if item.forSaleNonfoilQuantity > 0 {
+                lines.append(.init(
+                    quantity: item.forSaleNonfoilQuantity,
+                    cardName: item.cardName,
+                    setCode: item.setCode,
+                    isFoil: false,
+                    isOriginalPrinting: isOG,
+                    priceUSD: item.askingPriceUSD ?? item.currentValueUSD
+                ))
+            }
+        }
+
+        // PHP rate via the same CurrencyService the rest of the app
+        // uses. Falls back to a sentinel rate so the formatter still
+        // emits "?" rather than crashing if the rate fetch failed.
+        let usdToPHP = currencyService.convert(1.0, to: "PHP") ?? 0.0
+
+        let post = FBListingFormatter.formatPost(lines: lines, usdToPHP: usdToPHP)
+        await MainActor.run {
+            generatedPostText = post
+            selectionMode = false
+            selectedIDs = []
+        }
+    }
+}
+
+/// Identifiable wrapper so generatedPostText can drive `.sheet(item:)`.
+private struct GeneratedPostPayload: Identifiable {
+    let id = UUID()
+    let text: String
 }

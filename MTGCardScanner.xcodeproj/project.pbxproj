@@ -112,6 +112,7 @@
 		5E29FF1A3D6F4086FFD92F00 /* CollectionPricing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23C63C0015265ACCDC7022E8 /* CollectionPricing.swift */; };
 		5F8277E3A61FDE805C7322DB /* CEDHStaples.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB4EAD2959D53FFF4EC2D7D9 /* CEDHStaples.swift */; };
 		60D4482EF0D3D486972AE0AD /* OrderPasteParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B788E1E30E440FE89F04FF36 /* OrderPasteParser.swift */; };
+		639B677155F4CB7A369C1FA8 /* GeneratedFBPostSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4588E1E369FE7859BD404AC0 /* GeneratedFBPostSheet.swift */; };
 		63DDD6DABA277B879C77DA3D /* LatestTopFinishesCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BFC20CFE655B6D175ADCDB8 /* LatestTopFinishesCacheTests.swift */; };
 		643DDF5C1576B3E3F4C696FB /* DeckGridOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C775E7AACC0161BF1488ECD0 /* DeckGridOverlayView.swift */; };
 		648DD482C451B4DE5E5DBA80 /* CardPrice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C4BF2A8C53CC29CF57DDF17 /* CardPrice.swift */; };
@@ -370,6 +371,7 @@
 		44BC05551F5EFE289A2C9CFB /* SoughtAfterCardsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoughtAfterCardsScreen.swift; sourceTree = "<group>"; };
 		44DD55EE66FF77AA88BB99CC /* EmptyFrameCounterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyFrameCounterTests.swift; sourceTree = "<group>"; };
 		4567890123ABCDEF45678904 /* CardRectangleSelectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardRectangleSelectorTests.swift; sourceTree = "<group>"; };
+		4588E1E369FE7859BD404AC0 /* GeneratedFBPostSheet.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GeneratedFBPostSheet.swift; sourceTree = "<group>"; };
 		471757CE705CD08B49241A02 /* AddToCollectionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddToCollectionSheet.swift; sourceTree = "<group>"; };
 		48C8C27A8709852CE48E11B0 /* MarkOrderedSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkOrderedSheet.swift; sourceTree = "<group>"; };
 		48C8C27A8709852CE48E11B1 /* EditPurchaseInfoSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditPurchaseInfoSheet.swift; sourceTree = "<group>"; };
@@ -918,6 +920,7 @@
 				5EEC378789C1E950049C0AB6 /* ListForSaleSheet.swift */,
 				F81368938A79655818001821 /* RecordSaleSheet.swift */,
 				315A14C27A21CF03CEBDB650 /* UndoSaleSheet.swift */,
+				4588E1E369FE7859BD404AC0 /* GeneratedFBPostSheet.swift */,
 			);
 			path = Decks;
 			sourceTree = "<group>";
@@ -1431,6 +1434,7 @@
 				5E29FF1A3D6F4086FFD92F00 /* CollectionPricing.swift in Sources */,
 				A5ADEDBAD8B9DABCD094113C /* UndoSaleSheet.swift in Sources */,
 				F3C9F025CC16FFD14B1FA788 /* FBListingFormatter.swift in Sources */,
+				639B677155F4CB7A369C1FA8 /* GeneratedFBPostSheet.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
