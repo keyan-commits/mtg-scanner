@@ -39,19 +39,19 @@ enum FBListingFormatter {
 💻 For more photos or videos, feel free to send a PM
 """
 
-    /// Format USD as PHP-thousands rounded to the nearest 0.5k. Matches
-    /// the user's hand-typed posts ("9k", "2.5k", "12k"). Returns "?"
-    /// when price or rate is missing — caller can decide whether to
-    /// emit the line or skip it.
+    /// Format USD as the precise PHP integer with thousand separators
+    /// (e.g. `9,665`, `1,950`). Caller is the one posting to FB and
+    /// often rounds in their head ("call it 9k"); the formatter just
+    /// does the math. Returns "?" when price or rate is missing.
     static func formatPricePHK(usd: Double?, usdToPHP: Double) -> String {
         guard let usd, usd > 0, usdToPHP > 0 else { return "?" }
-        let php = usd * usdToPHP
-        let inK = php / 1000.0
-        let halfStep = (inK * 2.0).rounded() / 2.0
-        if halfStep == halfStep.rounded() {
-            return "\(Int(halfStep))k"
-        }
-        return String(format: "%.1fk", halfStep)
+        let php = (usd * usdToPHP).rounded()
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 0
+        formatter.groupingSeparator = ","
+        formatter.usesGroupingSeparator = true
+        return formatter.string(from: NSNumber(value: php)) ?? String(Int(php))
     }
 
     /// Render a single ✅ line. Tags follow the user's order:
